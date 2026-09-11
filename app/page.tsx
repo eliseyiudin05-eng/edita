@@ -15,7 +15,7 @@ export default function Home() {
         <div className="nav-actions">
           <a href="#how">Как работает</a>
           <a href="#business">Для бизнеса</a>
-          <Link href="/login">Войти</Link>
+          <Link href="/pricing">Тарифы</Link>\n          <Link href="/login">Войти</Link>
           <Link className="btn btn-dark" href="/signup">Начать</Link>
         </div>
       </nav>
