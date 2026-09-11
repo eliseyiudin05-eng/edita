@@ -1,4 +1,5 @@
 import {NextRequest,NextResponse} from "next/server";
+import {getUserFromAccessToken} from "@/lib/server-supabase";
 
 const schema={
   type:"object",
@@ -17,8 +18,11 @@ export async function POST(req:NextRequest){
     const {message,history,scenario}=await req.json();
     if(!message||typeof message!=="string")return NextResponse.json({error:"message required"},{status:400});
 
-    if(!process.env.OPENAI_API_KEY){
-      return NextResponse.json({demo:true,result:demo(message)});
+    const bearer=req.headers.get("authorization");
+    const token=bearer?.startsWith("Bearer ")?bearer.slice(7):null;
+    const user=await getUserFromAccessToken(token);
+    if(!process.env.OPENAI_API_KEY||!user){
+      return NextResponse.json({demo:true,result:demo(message),reason:!user?"auth_required_for_live_ai":"openai_not_configured"});
     }
 
     const conversation=Array.isArray(history)?history.slice(-8).map((m:any)=>({
@@ -39,7 +43,7 @@ export async function POST(req:NextRequest){
         text:{format:{type:"json_schema",name:"client_simulator",strict:true,schema}}
       })
     });
-    if(!r.ok)return NextResponse.json({error:"Simulator AI failed",status:r.status},{status:502});
+    if(!r.ok){const detail=await r.text();console.error("Simulator OpenAI error",r.status,detail);return NextResponse.json({demo:true,degraded:true,result:demo(message),upstreamStatus:r.status});}
     const data=await r.json();
     const raw=data.output_text||data.output?.flatMap((x:any)=>x.content||[]).find((x:any)=>x.type==="output_text")?.text;
     return NextResponse.json({demo:false,result:JSON.parse(raw)});
