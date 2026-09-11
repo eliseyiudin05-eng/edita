@@ -185,7 +185,7 @@ export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewer
 
   async function runAutoReview(videoFile:File,brief:string){
     const extracted=await extractVideoFrames(videoFile,6);
-    const response=await fetch("/api/ai/video-review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({frames:extracted.frames,duration:extracted.duration,brief,filename:videoFile.name})});
+    const response=await fetch("/api/ai/video-review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({frames:extracted.frames,duration:extracted.duration,width:extracted.width,height:extracted.height,brief,filename:videoFile.name})});
     const data=await response.json();
     if(!response.ok||!data.review)throw new Error(data?.error||"AI review failed");
     return data.review;
