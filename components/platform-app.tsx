@@ -2,17 +2,16 @@
 import {useEffect,useMemo,useState} from "react";
 import Link from "next/link";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
+import ChallengeCenter from "@/components/challenge-center";
 
 type Tab="home"|"academy"|"coach"|"arena"|"portfolio"|"jobs"|"business";
 type Viewer={name:string;role:"editor"|"business"|null};
 const tabs:[Tab,string][]=[["home","Главная"],["academy","Академия"],["coach","AI Coach"],["arena","Arena"],["portfolio","Портфолио"],["jobs","Jobs"],["business","Для бизнеса"]];
 const lessons=[["Чистая нарезка","Паузы, дыхание, ритм"],["Субтитры","Иерархия, акценты, safe-zone"],["Hook 2 секунды","Удержание внимания"],["Звук","Голос, музыка, саунд-дизайн"]];
-const challenges=[["NORTH COFFEE","Reel из утренней съёмки","10 000 ₽"],["VOLT FITNESS","Реклама нового зала","25 000 ₽"],["MOTION LAB","Talking-head Short","7 500 ₽"]];
 
 export default function PlatformApp(){
  const [tab,setTab]=useState<Tab>("home");
  const [done,setDone]=useState([0,1]);
- const [joined,setJoined]=useState<number[]>([]);
  const [viewer,setViewer]=useState<Viewer>({name:"Гость",role:null});
  const [messages,setMessages]=useState([{from:"ai",text:"Привет! Я твой AI-наставник EDITA. Спроси меня про монтаж, портфолио или клиента."}]);
  const [input,setInput]=useState("");
@@ -91,13 +90,13 @@ export default function PlatformApp(){
 
      {tab==="coach"&&<Page title="AI Coach" sub="Наставник знает твой уровень, программу и карьерную цель."><div className="card chat"><div className="feed">{messages.map((m,i)=><div className={"bubble "+m.from} key={i}>{m.text}</div>)}{loading&&<div className="bubble">Разбираю…</div>}</div><form className="form" onSubmit={ask}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Почему мой Reel выглядит скучно?"/><button className="btn btn-lime">Спросить</button></form></div></Page>}
 
-     {tab==="arena"&&<Page title="Arena" sub="Реальные ТЗ, одинаковые исходники, реальные призы."><div className="grid">{challenges.map((c,i)=><div className="card challenge" key={i}><small>OPEN CHALLENGE</small><h3>{c[0]}</h3><p>{c[1]}</p><b>{c[2]}</b><div><span className="tag">Reels</span><span className="tag">Real brief</span></div><button className={"btn "+(joined.includes(i)?"btn-lime":"btn-dark")} onClick={()=>setJoined(x=>x.includes(i)?x.filter(v=>v!==i):[...x,i])}>{joined.includes(i)?"✓ Участвуете":"Принять вызов"}</button></div>)}</div></Page>}
+     {tab==="arena"&&<Page title="Arena" sub="Реальные ТЗ, одинаковые исходники, реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="arena"/></Page>}
 
      {tab==="portfolio"&&<Page title={viewer.role==="editor"?viewer.name:"Публичное портфолио"} sub="Verified Editor · CapCut · Short-form"><div className="grid"><Card title="VOLT / Gym Promo"><b>AI Score 91</b></Card><Card title="Finance Expert Reel"><b>AI Score 86</b></Card><Card title="North Coffee"><b>🏆 Challenge Winner</b></Card></div></Page>}
 
      {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><div className="grid"><Job title="Reels-монтажёр" pay="45–60k ₽/мес"/><Job title="YouTube Shorts" pay="2 500 ₽/ролик"/><Job title="UGC ads editor" pay="70k ₽/мес"/></div></Page>}
 
-     {tab==="business"&&<Page title="Business Workspace" sub="Найдите монтажёра по реальной работе, а не по обещаниям."><div className="business-grid"><Stat n="2" t="активных конкурса"/><Stat n="126" t="работ"/><Stat n="418" t="талантов"/><Stat n="3.2 дня" t="до найма"/></div><div className="card" style={{marginTop:14}}><h3>North Coffee — Reel Challenge</h3><p>84 участника → 51 работа → 10 AI shortlist → 1 победитель</p><button className="btn btn-lime">Создать Challenge</button></div></Page>}
+     {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, принимайте работы и нанимайте по реальному результату."><div className="business-grid"><Stat n="2" t="активных конкурса"/><Stat n="126" t="работ"/><Stat n="418" t="талантов"/><Stat n="3.2 дня" t="до найма"/></div><div style={{marginTop:14}}><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="business"/></div></Page>}
    </section>
  </main>
 }
