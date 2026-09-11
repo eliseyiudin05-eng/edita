@@ -13,7 +13,7 @@ type BrandContext={
 
 const empty:BrandContext={audience:"",tone:"",colors:"",references:"",editingRules:""};
 
-export default function BrandBrain(){
+export default function BrandBrain({viewerName="Business"}:{viewerName?:string}){
   const [form,setForm]=useState<BrandContext>(empty);
   const [businessId,setBusinessId]=useState<string|null>(null);
   const [message,setMessage]=useState("");
@@ -31,7 +31,14 @@ export default function BrandBrain(){
     }
     const {data:{user}}=await supabase.auth.getUser();
     if(!user)return;
-    const {data}=await supabase.from("businesses").select("id,brand_context").eq("owner_id",user.id).maybeSingle();
+    let {data}=await supabase.from("businesses").select("id,brand_context").eq("owner_id",user.id).maybeSingle();
+    if(!data){
+      const {data:created}=await supabase.from("businesses")
+        .upsert({owner_id:user.id,name:viewerName+" Studio"},{onConflict:"owner_id"})
+        .select("id,brand_context")
+        .single();
+      data=created;
+    }
     if(data){
       setBusinessId(data.id);
       setForm({...empty,...(data.brand_context||{})});
