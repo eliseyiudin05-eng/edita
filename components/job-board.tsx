@@ -10,7 +10,7 @@ const demoJobs:Job[]=[
   {id:"d3",title:"UGC ads editor",description:"Коммерческие performance-креативы.",budget_min_cents:6000000,budget_max_cents:8000000,businesses:{name:"Growth Team"}},
 ];
 
-export default function JobBoard({mode}:{mode:"editor"|"business"}){
+export default function JobBoard({mode,viewerName="Business"}:{mode:"editor"|"business";viewerName?:string}){
   const [jobs,setJobs]=useState<Job[]>([]);
   const [businessId,setBusinessId]=useState<string|null>(null);
   const [message,setMessage]=useState("");
@@ -25,8 +25,15 @@ export default function JobBoard({mode}:{mode:"editor"|"business"}){
     if(!user){setJobs(demoJobs);return;}
 
     if(mode==="business"){
-      const {data:business}=await supabase.from("businesses").select("id").eq("owner_id",user.id).maybeSingle();
-      if(!business){setJobs([]);return;}
+      let {data:business}=await supabase.from("businesses").select("id").eq("owner_id",user.id).maybeSingle();
+      if(!business){
+        const {data:created}=await supabase.from("businesses")
+          .upsert({owner_id:user.id,name:viewerName+" Studio"},{onConflict:"owner_id"})
+          .select("id")
+          .single();
+        business=created;
+      }
+      if(!business){setJobs([]);setMessage("Не удалось создать Business Workspace.");return;}
       setBusinessId(business.id);
       const {data,error}=await supabase.from("jobs").select("id,title,description,budget_min_cents,budget_max_cents").eq("business_id",business.id).order("created_at",{ascending:false});
       if(error){setMessage(error.message);return;}
