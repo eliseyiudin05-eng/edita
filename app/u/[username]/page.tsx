@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { getSupabaseServiceClient } from "@/lib/server-supabase";
 
-type PortfolioItem={id:string;title:string;video_url:string;tags:string[];ai_score:number|null};
+type PortfolioItem={id:string;title:string;video_url:string;display_url?:string;tags:string[];ai_score:number|null};
 
 export default async function PublicPortfolio({params}:{params:Promise<{username:string}>}) {
   const {username}=await params;
@@ -24,6 +25,16 @@ export default async function PublicPortfolio({params}:{params:Promise<{username
         .eq("editor_id",profile.id)
         .order("created_at",{ascending:false});
       items=(portfolio||[]) as PortfolioItem[];
+      const service=getSupabaseServiceClient();
+      if(service){
+        items=await Promise.all(items.map(async item=>{
+          if(/^https?:\/\//.test(item.video_url))return {...item,display_url:item.video_url};
+          const {data:signed}=await service.storage.from("challenge-submissions").createSignedUrl(item.video_url,60*15);
+          return {...item,display_url:signed?.signedUrl||""};
+        }));
+      }else{
+        items=items.map(item=>({...item,display_url:/^https?:\/\//.test(item.video_url)?item.video_url:""}));
+      }
     }
   }
 
@@ -48,11 +59,13 @@ export default async function PublicPortfolio({params}:{params:Promise<{username
       <div className="portfolio-tags">{(profile.skills||[]).map((s:string)=><span className="tag" key={s}>{s}</span>)}</div>
       <section className="portfolio-work-grid">
         {items.length?items.map(item=><article className="portfolio-work" key={item.id}>
-          <div className="work-preview">{item.video_url?<span>Video work</span>:<span>EDITA WORK</span>}</div>
+          <div className="work-preview">{item.display_url&&isDirectVideo(item.display_url)?<video controls preload="metadata" src={item.display_url}/>:<span>EDITA WORK</span>}</div>
           <h2>{item.title}</h2>
-          <div className="work-meta"><span>{(item.tags||[]).join(" · ")}</span>{item.ai_score!=null&&<b>AI {item.ai_score}</b>}</div>
+          <div className="work-meta"><span>{(item.tags||[]).join(" · ")}</span>{item.ai_score!=null&&<b>AI {item.ai_score}</b>}</div>{item.display_url&&!isDirectVideo(item.display_url)&&<a className="work-link" href={item.display_url} target="_blank" rel="noreferrer">Открыть работу ↗</a>}
         </article>):<div className="legal-card"><p>Портфолио пока пустое.</p></div>}
       </section>
     </div>
   </main>
 }
+
+function isDirectVideo(url:string){return /\\.(mp4|webm|mov)(\\?|$)/i.test(url)||url.includes("supabase")}
