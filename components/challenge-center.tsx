@@ -17,6 +17,7 @@ type Challenge={
 type Submission={
   id:string;
   challenge_id:string;
+  editor_id:string;
   editor_name:string;
   video_url:string;
   ai_score:number|null;
@@ -98,7 +99,7 @@ export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewer
       const {data:profiles}=await supabase.from("profiles").select("id,display_name").in("id",editorIds);
       names=Object.fromEntries((profiles||[]).map((p:any)=>[p.id,p.display_name||"Editor"]));
     }
-    setSubmissions(rows.map((r:any)=>({id:r.id,challenge_id:r.challenge_id,video_url:r.video_url,ai_score:r.ai_score, status:r.status,editor_name:names[r.editor_id]||"Editor"})));
+    setSubmissions(rows.map((r:any)=>({id:r.id,challenge_id:r.challenge_id,editor_id:r.editor_id,video_url:r.video_url,ai_score:r.ai_score,status:r.status,editor_name:names[r.editor_id]||"Editor"})));
   }
 
   async function submitWork(e:FormEvent){
@@ -148,8 +149,16 @@ export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewer
       if(error){setMessage(error.message);return;}
       if(status==="winner"){
         const submission=submissions.find(s=>s.id===id);
-        if(submission){
-          setMessage("Победитель выбран. Следующий этап — автоматическое добавление оплаченной работы в portfolio.");
+        const challenge=challenges.find(ch=>ch.id===submission?.challenge_id);
+        if(submission&&challenge){
+          await supabase.from("portfolio_items").insert({
+            editor_id:submission.editor_id,
+            title:challenge.brand+" — "+challenge.title,
+            video_url:submission.video_url,
+            tags:["challenge-winner","commercial"],
+            ai_score:submission.ai_score
+          });
+          setMessage("Победитель выбран, а работа добавлена в его портфолио.");
         }
       }
     }
