@@ -14,7 +14,7 @@ export default function LoginPage(){
   async function submit(e:FormEvent){
     e.preventDefault();
     const supabase=getSupabaseBrowserClient();
-    if(!supabase){setMessage("Supabase пока не подключён в .env.local.");return;}
+    if(!supabase){setMessage("Production Auth ещё не подключён.");return;}
     setLoading(true);
     const {error}=await supabase.auth.signInWithPassword({email,password});
     setLoading(false);
@@ -33,7 +33,7 @@ export default function LoginPage(){
         <button className="btn btn-dark" disabled={loading}>{loading?"Входим...":"Войти"}</button>
       </form>
       {message&&<div className="auth-msg">{message}</div>}
-      <div className="auth-footer">Нет аккаунта? <Link href="/signup"><b>Регистрация</b></Link></div>
+      <div className="auth-footer"><Link href="/forgot-password">Забыли пароль?</Link><br/>Нет аккаунта? <Link href="/onboarding"><b>Регистрация</b></Link></div>
     </section>
   </main>
 }
