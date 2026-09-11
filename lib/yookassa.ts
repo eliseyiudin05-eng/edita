@@ -60,6 +60,7 @@ export async function createPayment(args: {
   product: EditaProduct;
   returnUrl: string;
   customerEmail?: string;
+  userId?: string;
 }) {
   const product = PRODUCTS[args.product];
   const orderId = "edita-" + randomUUID();
@@ -74,6 +75,7 @@ export async function createPayment(args: {
     metadata: {
       order_id: orderId,
       product: args.product,
+      user_id: args.userId || "",
     },
     save_payment_method: false,
   };
