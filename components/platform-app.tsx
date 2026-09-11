@@ -9,9 +9,10 @@ import BrandBrain from "@/components/brand-brain";
 import ClientSimulator from "@/components/client-simulator";
 import PortfolioPanel from "@/components/portfolio-panel";
 import JobBoard from "@/components/job-board";
+import CommunityLeaderboard from "@/components/community-leaderboard";
 
-type Tab="home"|"academy"|"practice"|"coach"|"review"|"arena"|"portfolio"|"jobs"|"wallet"|"profile"|"business";
-type Onboarding={level?:string;software?:string;goal?:string};
+type Tab="home"|"academy"|"practice"|"coach"|"review"|"arena"|"portfolio"|"jobs"|"community"|"wallet"|"profile"|"business";
+type Onboarding={level?:string;software?:string;goal?:string;ageGroup?:string};
 type Viewer={
   name:string;
   role:"editor"|"business"|null;
@@ -25,7 +26,7 @@ type Viewer={
 
 const allTabs:[Tab,string][]=[
   ["home","Главная"],["academy","Академия"],["practice","Практика"],["coach","AI Coach"],["review","AI Review"],
-  ["arena","Arena"],["portfolio","Портфолио"],["jobs","Jobs"],["wallet","Wallet"],["profile","Профиль"],["business","Для бизнеса"]
+  ["arena","Arena"],["portfolio","Портфолио"],["jobs","Jobs"],["community","Community"],["wallet","Wallet"],["profile","Профиль"],["business","Для бизнеса"]
 ];
 
 export default function PlatformApp(){
@@ -39,7 +40,7 @@ export default function PlatformApp(){
 
  const xp=useMemo(()=>920+done.reduce((sum,slug)=>sum+(curriculum.find(l=>l.slug===slug)?.xp||0),0),[done]);
  const tabs=useMemo(()=>{
-   if(viewer.role==="business") return allTabs.filter(([id])=>["home","coach","review","arena","profile","business"].includes(id));
+   if(viewer.role==="business") return allTabs.filter(([id])=>["home","coach","review","arena","community","profile","business"].includes(id));
    if(viewer.role==="editor") return allTabs.filter(([id])=>id!=="business");
    return allTabs;
  },[viewer.role]);
@@ -174,7 +175,7 @@ export default function PlatformApp(){
      </Page>}
 
      {tab==="review"&&<Page title="AI Video Review" sub="Загрузи ролик и получи структурированный разбор по кадрам и таймкодам.">{viewer.role==="editor"&&viewer.plan!=="pro"?<UpgradePro/>:<VideoReview/>}</Page>}
-     {tab==="arena"&&<Page title="Arena" sub="Реальные ТЗ, одинаковые исходники, реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="arena"/></Page>}
+     {tab==="arena"&&<Page title="Arena" sub="Реальные ТЗ, одинаковые исходники, реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} mode="arena"/></Page>}
 
      {tab==="portfolio"&&<Page title={viewer.role==="editor"?viewer.name:"Публичное портфолио"} sub="Verified Editor · Skill Graph · реальные работы">
        <PortfolioPanel/>
@@ -198,7 +199,8 @@ export default function PlatformApp(){
      </Page>}
 
      {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><JobBoard mode="editor"/></Page>}
-     {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, храните контекст бренда и нанимайте по реальному результату."><div className="business-grid"><Stat n="2" t="активных конкурса"/><Stat n="126" t="работ"/><Stat n="418" t="талантов"/><Stat n="3.2 дня" t="до найма"/></div><div className="business-stack"><BrandBrain/><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="business"/><JobBoard mode="business"/></div></Page>}
+     {tab==="community"&&<Page title="Community" sub="Публичный рейтинг строится только на безопасных карьерных данных."><CommunityLeaderboard/></Page>}
+     {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, храните контекст бренда и нанимайте по реальному результату."><div className="business-grid"><Stat n="2" t="активных конкурса"/><Stat n="126" t="работ"/><Stat n="418" t="талантов"/><Stat n="3.2 дня" t="до найма"/></div><div className="business-stack"><BrandBrain/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} mode="business"/><JobBoard mode="business"/></div></Page>}
    </section>
 
    <nav className="mobile-nav">{tabs.map(([id,l])=><button key={id} className={tab===id?"active":""} onClick={()=>setTab(id)}>{l}</button>)}</nav>
