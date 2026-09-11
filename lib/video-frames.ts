@@ -54,7 +54,7 @@ export async function extractVideoFrames(file: File, count = 7) {
       });
     }
 
-    return { frames, duration };
+    return { frames, duration, width: video.videoWidth || 0, height: video.videoHeight || 0 };
   } finally {
     URL.revokeObjectURL(url);
     video.removeAttribute("src");
