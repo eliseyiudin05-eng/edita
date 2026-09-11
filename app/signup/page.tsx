@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
-import {FormEvent,useState} from "react";
+import {FormEvent,useEffect,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 
 type Role="editor"|"business";
+type Onboarding={role?:Role;level?:string;software?:string;goal?:string};
 
 export default function SignupPage(){
   const [role,setRole]=useState<Role>("editor");
@@ -12,30 +13,49 @@ export default function SignupPage(){
   const [password,setPassword]=useState("");
   const [message,setMessage]=useState("");
   const [loading,setLoading]=useState(false);
+  const [onboarding,setOnboarding]=useState<Onboarding>({});
+
+  useEffect(()=>{
+    try{
+      const raw=localStorage.getItem("edita_onboarding");
+      if(!raw)return;
+      const data=JSON.parse(raw) as Onboarding;
+      setOnboarding(data);
+      if(data.role==="business")setRole("business");
+    }catch{}
+  },[]);
 
   async function submit(e:FormEvent){
     e.preventDefault();
     setMessage("");
     const supabase=getSupabaseBrowserClient();
     if(!supabase){
-      setMessage("Supabase пока не подключён. Добавь NEXT_PUBLIC_SUPABASE_URL и NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY в .env.local.");
+      setMessage("Регистрация пока работает в demo: production-база/Auth ещё не подключены.");
       return;
     }
     setLoading(true);
-    const {error}=await supabase.auth.signUp({
+    const {data,error}=await supabase.auth.signUp({
       email,
       password,
-      options:{data:{role,display_name:name}}
+      options:{
+        emailRedirectTo:window.location.origin+"/platform",
+        data:{role,display_name:name,onboarding:{...onboarding,role}}
+      }
     });
     setLoading(false);
-    setMessage(error ? error.message : "Готово. Проверь почту для подтверждения аккаунта.");
+    if(error){setMessage(error.message);return;}
+    if(data.session){
+      window.location.href="/platform";
+      return;
+    }
+    setMessage("Аккаунт создан. Проверь почту и подтверди email, затем войди в EDITA.");
   }
 
   return <main className="auth-wrap">
     <section className="auth-card">
       <div className="eyebrow">CREATE ACCOUNT</div>
       <h1>Начни путь в EDITA</h1>
-      <p>Выбери роль. Для монтажёра откроются обучение, Arena и Jobs. Для бизнеса — Challenges и подбор талантов.</p>
+      <p>Выбери роль. Персональный маршрут из onboarding будет сохранён в профиле.</p>
       <div className="role-grid">
         <button type="button" className={"role "+(role==="editor"?"active":"")} onClick={()=>setRole("editor")}><b>Монтажёр</b><br/><span className="muted">Учиться, соревноваться, работать</span></button>
         <button type="button" className={"role "+(role==="business"?"active":"")} onClick={()=>setRole("business")}><b>Бизнес</b><br/><span className="muted">Искать монтажёров и запускать ТЗ</span></button>
@@ -47,7 +67,7 @@ export default function SignupPage(){
         <button className="btn btn-dark" disabled={loading}>{loading?"Создаём...":"Создать аккаунт"}</button>
       </form>
       {message&&<div className="auth-msg">{message}</div>}
-      <div className="auth-footer">Уже есть аккаунт? <Link href="/login"><b>Войти</b></Link></div>
+      <div className="auth-footer"><Link href="/onboarding">← Изменить маршрут</Link> · Уже есть аккаунт? <Link href="/login"><b>Войти</b></Link></div>
     </section>
   </main>
 }
