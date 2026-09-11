@@ -16,10 +16,12 @@ export default function PlatformApp(){
  const [viewer,setViewer]=useState<Viewer>({name:"Гость",role:null});
  const [messages,setMessages]=useState([{from:"ai",text:"Привет! Я твой AI-наставник EDITA. Спроси меня про монтаж, портфолио или клиента."}]);
  const [input,setInput]=useState("");
- const [loading,setLoading]=useState(false);\n const [aiConfigured,setAiConfigured]=useState<boolean|null>(null);
+ const [loading,setLoading]=useState(false);
+ const [aiConfigured,setAiConfigured]=useState<boolean|null>(null);
  const xp=useMemo(()=>920+done.length*150,[done]);
 
  useEffect(()=>{
+   fetch("/api/ai").then(r=>r.json()).then(d=>setAiConfigured(Boolean(d.configured))).catch(()=>setAiConfigured(false));
    const supabase=getSupabaseBrowserClient();
    if(!supabase)return;
    let active=true;
