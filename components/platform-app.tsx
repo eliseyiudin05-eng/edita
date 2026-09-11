@@ -6,8 +6,9 @@ import ChallengeCenter from "@/components/challenge-center";
 import VideoReview from "@/components/video-review";
 import {curriculum} from "@/lib/curriculum";
 import BrandBrain from "@/components/brand-brain";
+import ClientSimulator from "@/components/client-simulator";
 
-type Tab="home"|"academy"|"coach"|"review"|"arena"|"portfolio"|"jobs"|"business";
+type Tab="home"|"academy"|"practice"|"coach"|"review"|"arena"|"portfolio"|"jobs"|"wallet"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string};
 type Viewer={
   name:string;
@@ -16,11 +17,13 @@ type Viewer={
   plan?:string|null;
   aiScore?:number|null;
   onboarding?:Onboarding;
+  earningsCents?:number;
+  planExpiresAt?:string|null;
 };
 
 const allTabs:[Tab,string][]=[
-  ["home","Главная"],["academy","Академия"],["coach","AI Coach"],["review","AI Review"],
-  ["arena","Arena"],["portfolio","Портфолио"],["jobs","Jobs"],["business","Для бизнеса"]
+  ["home","Главная"],["academy","Академия"],["practice","Практика"],["coach","AI Coach"],["review","AI Review"],
+  ["arena","Arena"],["portfolio","Портфолио"],["jobs","Jobs"],["wallet","Wallet"],["profile","Профиль"],["business","Для бизнеса"]
 ];
 
 export default function PlatformApp(){
@@ -34,7 +37,7 @@ export default function PlatformApp(){
 
  const xp=useMemo(()=>920+done.reduce((sum,slug)=>sum+(curriculum.find(l=>l.slug===slug)?.xp||0),0),[done]);
  const tabs=useMemo(()=>{
-   if(viewer.role==="business") return allTabs.filter(([id])=>["home","coach","review","arena","business"].includes(id));
+   if(viewer.role==="business") return allTabs.filter(([id])=>["home","coach","review","arena","profile","business"].includes(id));
    if(viewer.role==="editor") return allTabs.filter(([id])=>id!=="business");
    return allTabs;
  },[viewer.role]);
@@ -54,7 +57,7 @@ export default function PlatformApp(){
    supabase.auth.getUser().then(async({data})=>{
      if(!active||!data.user)return;
      const {data:profile}=await supabase.from("profiles")
-       .select("display_name,role,username,plan,ai_score,onboarding")
+       .select("display_name,role,username,plan,plan_expires_at,ai_score,onboarding,earnings_cents")
        .eq("id",data.user.id).single();
      if(!active)return;
      setViewer({
@@ -63,7 +66,9 @@ export default function PlatformApp(){
        username:profile?.username||null,
        plan:profile?.plan||"free",
        aiScore:profile?.ai_score||null,
-       onboarding:profile?.onboarding||data.user.user_metadata?.onboarding||{}
+       onboarding:profile?.onboarding||data.user.user_metadata?.onboarding||{},
+       earningsCents:Number(profile?.earnings_cents||0),
+       planExpiresAt:profile?.plan_expires_at||null
      });
      if(profile?.role==="business")setTab("business");
    });
@@ -159,17 +164,35 @@ export default function PlatformApp(){
        </div>)}</div>
      </Page>}
 
+     {tab==="practice"&&<Page title="Практика" sub="Симулятор реального клиента: цена, правки, сроки и переговоры."><ClientSimulator/></Page>}
+
      {tab==="coach"&&<Page title="AI Coach" sub="Наставник учитывает твою программу, цель и пройденные уроки.">
        <div className={"ai-status "+(aiConfigured?"online":"offline")}>{aiConfigured===null?"Проверяю AI…":aiConfigured?"● OpenAI подключён":"● Demo mode"}</div>
        <div className="card chat"><div className="feed">{messages.map((m,i)=><div className={"bubble "+m.from} key={i}>{m.text}</div>)}{loading&&<div className="bubble">Разбираю…</div>}</div><form className="form" onSubmit={ask}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Почему мой Reel выглядит скучно?"/><button className="btn btn-lime">Спросить</button></form></div>
      </Page>}
 
-     {tab==="review"&&<Page title="AI Video Review" sub="Загрузи ролик и получи структурированный разбор по кадрам и таймкодам."><VideoReview/></Page>}
+     {tab==="review"&&<Page title="AI Video Review" sub="Загрузи ролик и получи структурированный разбор по кадрам и таймкодам.">{viewer.role==="editor"&&viewer.plan!=="pro"?<UpgradePro/>:<VideoReview/>}</Page>}
      {tab==="arena"&&<Page title="Arena" sub="Реальные ТЗ, одинаковые исходники, реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="arena"/></Page>}
 
      {tab==="portfolio"&&<Page title={viewer.role==="editor"?viewer.name:"Публичное портфолио"} sub="Verified Editor · Skill Graph · реальные работы">
        <div className="grid"><Card title="VOLT / Gym Promo"><b>AI Score 91</b></Card><Card title="Finance Expert Reel"><b>AI Score 86</b></Card><Card title="North Coffee"><b>🏆 Challenge Winner</b></Card></div>
        <div style={{marginTop:14}}>{viewer.username?<Link className="btn btn-dark" href={"/u/"+viewer.username}>Открыть публичный URL</Link>:<Link className="btn btn-dark" href="/u/demo">Посмотреть demo-портфолио</Link>}</div>
+     </Page>}
+
+     {tab==="wallet"&&<Page title="Wallet" sub="Доход внутри EDITA, покупки и доступы.">
+       <div className="grid">
+         <Card title="Заработано"><div className="wallet-number">{money(viewer.earningsCents||0)}</div><p className="muted">Доход от проектов и Challenge после подключения production-выплат.</p></Card>
+         <Card title="Текущий доступ"><div className="wallet-number">{planLabel}</div><p className="muted">{viewer.planExpiresAt?"До "+new Date(viewer.planExpiresAt).toLocaleDateString("ru-RU"):"Без активного срока AI PRO"}</p><Link className="btn btn-dark" href="/pricing">Управлять доступом</Link></Card>
+         <Card title="Платежи"><p className="muted">После подключения production DB здесь появится история покупок и выплат.</p></Card>
+       </div>
+     </Page>}
+
+     {tab==="profile"&&<Page title="Профиль" sub="Skill Graph, персональный маршрут и публичная карьерная карточка.">
+       <div className="profile-grid">
+         <Card title="Career Passport"><p><b>{viewer.name}</b></p><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"freelance"} · {planLabel}</p>{viewer.username&&<Link className="btn btn-dark" href={"/u/"+viewer.username}>Публичный профиль ↗</Link>}</Card>
+         <Card title="Skill Graph"><Skill label="Монтаж" value={Math.min(100,55+done.length*5)}/><Skill label="Hook / retention" value={Math.min(100,50+done.filter(s=>["hook-2-seconds","subtitles","b-roll"].includes(s)).length*12)}/><Skill label="Client work" value={Math.min(100,45+done.filter(s=>["client-brief","pricing","portfolio"].includes(s)).length*15)}/></Card>
+         <Card title="Настройки маршрута"><p className="muted">Уровень: {viewer.onboarding?.level||"не указан"}<br/>Софт: {viewer.onboarding?.software||"не указан"}<br/>Цель: {viewer.onboarding?.goal||"не указана"}</p><Link className="btn btn-ghost" href="/onboarding">Изменить onboarding</Link></Card>
+       </div>
      </Page>}
 
      {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><div className="grid"><Job title="Reels-монтажёр" pay="45–60k ₽/мес"/><Job title="YouTube Shorts" pay="2 500 ₽/ролик"/><Job title="UGC ads editor" pay="70k ₽/мес"/></div></Page>}
@@ -184,3 +207,7 @@ function Page({title,sub,children}:{title:string;sub:string;children:React.React
 function Card({title,children}:{title:string;children:React.ReactNode}){return <div className="card"><h3>{title}</h3>{children}</div>}
 function Stat({n,t}:{n:string;t:string}){return <div className="stat"><strong>{n}</strong><span className="muted">{t}</span></div>}
 function Job({title,pay}:{title:string;pay:string}){return <div className="card job"><small>REMOTE</small><h3>{title}</h3><p className="muted">Проверенный бизнес · подбор по portfolio score</p><b>{pay}</b><button className="btn btn-dark">Податься</button></div>}
+
+function UpgradePro(){return <div className="upgrade-card"><div className="eyebrow">AI PRO</div><h2>AI Video Review входит в PRO</h2><p>Персональный разбор по кадрам, таймкодам, hook, pacing, субтитрам и соответствию ТЗ.</p><Link className="btn btn-lime" href="/pricing">Подключить AI PRO · 499 ₽ / 30 дней</Link></div>}
+function Skill({label,value}:{label:string;value:number}){return <div className="skill-row"><div><span>{label}</span><b>{value}</b></div><div className="score-track"><span style={{width:value+"%"}}/></div></div>}
+function money(cents:number){return new Intl.NumberFormat("ru-RU",{style:"currency",currency:"RUB",maximumFractionDigits:0}).format(cents/100)}
