@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getUserFromAccessToken } from "@/lib/server-supabase";
 
 const SYSTEM = `
 Ты — EDITA AI Coach, профессиональный наставник по видеомонтажу и карьере монтажёра.
@@ -39,11 +40,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "message required" }, { status: 400 });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    const bearer=req.headers.get("authorization");
+    const token=bearer?.startsWith("Bearer ")?bearer.slice(7):null;
+    const user=await getUserFromAccessToken(token);
+
+    if (!process.env.OPENAI_API_KEY || !user) {
       return NextResponse.json({
         reply: demoReply(message),
         demo: true,
         model: "demo",
+        reason: !user ? "auth_required_for_live_ai" : "openai_not_configured",
       });
     }
 
@@ -81,10 +87,13 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       const detail = await response.text();
       console.error("OpenAI API error", response.status, detail);
-      return NextResponse.json(
-        { error: "AI request failed", status: response.status },
-        { status: 502 }
-      );
+      return NextResponse.json({
+        reply: demoReply(message),
+        demo: true,
+        degraded: true,
+        model: "demo",
+        upstreamStatus: response.status,
+      });
     }
 
     const data = await response.json();
