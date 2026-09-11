@@ -7,6 +7,8 @@ import VideoReview from "@/components/video-review";
 import {curriculum} from "@/lib/curriculum";
 import BrandBrain from "@/components/brand-brain";
 import ClientSimulator from "@/components/client-simulator";
+import PortfolioPanel from "@/components/portfolio-panel";
+import JobBoard from "@/components/job-board";
 
 type Tab="home"|"academy"|"practice"|"coach"|"review"|"arena"|"portfolio"|"jobs"|"wallet"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string};
@@ -175,7 +177,7 @@ export default function PlatformApp(){
      {tab==="arena"&&<Page title="Arena" sub="Реальные ТЗ, одинаковые исходники, реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="arena"/></Page>}
 
      {tab==="portfolio"&&<Page title={viewer.role==="editor"?viewer.name:"Публичное портфолио"} sub="Verified Editor · Skill Graph · реальные работы">
-       <div className="grid"><Card title="VOLT / Gym Promo"><b>AI Score 91</b></Card><Card title="Finance Expert Reel"><b>AI Score 86</b></Card><Card title="North Coffee"><b>🏆 Challenge Winner</b></Card></div>
+       <PortfolioPanel/>
        <div style={{marginTop:14}}>{viewer.username?<Link className="btn btn-dark" href={"/u/"+viewer.username}>Открыть публичный URL</Link>:<Link className="btn btn-dark" href="/u/demo">Посмотреть demo-портфолио</Link>}</div>
      </Page>}
 
@@ -195,8 +197,8 @@ export default function PlatformApp(){
        </div>
      </Page>}
 
-     {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><div className="grid"><Job title="Reels-монтажёр" pay="45–60k ₽/мес"/><Job title="YouTube Shorts" pay="2 500 ₽/ролик"/><Job title="UGC ads editor" pay="70k ₽/мес"/></div></Page>}
-     {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, храните контекст бренда и нанимайте по реальному результату."><div className="business-grid"><Stat n="2" t="активных конкурса"/><Stat n="126" t="работ"/><Stat n="418" t="талантов"/><Stat n="3.2 дня" t="до найма"/></div><div className="business-stack"><BrandBrain/><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="business"/></div></Page>}
+     {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><JobBoard mode="editor"/></Page>}
+     {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, храните контекст бренда и нанимайте по реальному результату."><div className="business-grid"><Stat n="2" t="активных конкурса"/><Stat n="126" t="работ"/><Stat n="418" t="талантов"/><Stat n="3.2 дня" t="до найма"/></div><div className="business-stack"><BrandBrain/><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="business"/><JobBoard mode="business"/></div></Page>}
    </section>
 
    <nav className="mobile-nav">{tabs.map(([id,l])=><button key={id} className={tab===id?"active":""} onClick={()=>setTab(id)}>{l}</button>)}</nav>
