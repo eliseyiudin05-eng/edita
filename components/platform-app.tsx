@@ -16,7 +16,7 @@ export default function PlatformApp(){
  const [viewer,setViewer]=useState<Viewer>({name:"Гость",role:null});
  const [messages,setMessages]=useState([{from:"ai",text:"Привет! Я твой AI-наставник EDITA. Спроси меня про монтаж, портфолио или клиента."}]);
  const [input,setInput]=useState("");
- const [loading,setLoading]=useState(false);
+ const [loading,setLoading]=useState(false);\n const [aiConfigured,setAiConfigured]=useState<boolean|null>(null);
  const xp=useMemo(()=>920+done.length*150,[done]);
 
  useEffect(()=>{
@@ -89,7 +89,7 @@ export default function PlatformApp(){
 
      {tab==="academy"&&<Page title="Академия" sub="Персональный маршрут: CapCut → Reels → первые заказы."><div className="grid">{lessons.map((l,i)=><div className={"card lesson "+(done.includes(i)?"done":"")} key={i}><div className="num">{done.includes(i)?"✓":i+1}</div><div><h3>{l[0]}</h3><p className="muted">{l[1]}</p><button className="btn" onClick={()=>setDone(x=>x.includes(i)?x.filter(v=>v!==i):[...x,i])}>{done.includes(i)?"Пройдено":"Начать"}</button></div></div>)}</div></Page>}
 
-     {tab==="coach"&&<Page title="AI Coach" sub="Наставник знает твой уровень, программу и карьерную цель."><div className="card chat"><div className="feed">{messages.map((m,i)=><div className={"bubble "+m.from} key={i}>{m.text}</div>)}{loading&&<div className="bubble">Разбираю…</div>}</div><form className="form" onSubmit={ask}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Почему мой Reel выглядит скучно?"/><button className="btn btn-lime">Спросить</button></form></div></Page>}
+     {tab==="coach"&&<Page title="AI Coach" sub="Наставник знает твой уровень, программу и карьерную цель."><div className={"ai-status "+(aiConfigured?"online":"offline")}>{aiConfigured===null?"Проверяю AI…":aiConfigured?"● OpenAI подключён":"● Demo mode"}</div><div className="card chat"><div className="feed">{messages.map((m,i)=><div className={"bubble "+m.from} key={i}>{m.text}</div>)}{loading&&<div className="bubble">Разбираю…</div>}</div><form className="form" onSubmit={ask}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Почему мой Reel выглядит скучно?"/><button className="btn btn-lime">Спросить</button></form></div></Page>}
 
      {tab==="review"&&<Page title="AI Video Review" sub="Загрузи ролик и получи структурированный разбор по кадрам и таймкодам."><VideoReview/></Page>}
 
