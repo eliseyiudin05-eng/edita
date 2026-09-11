@@ -8,6 +8,7 @@ type State = {
   level: string;
   software: string;
   goal: string;
+  ageGroup: "under14" | "14-17" | "18+";
 };
 
 const defaults: State = {
@@ -15,12 +16,13 @@ const defaults: State = {
   level: "new",
   software: "CapCut",
   goal: "freelance",
+  ageGroup: "18+",
 };
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [state, setState] = useState<State>(defaults);
-  const progress = useMemo(() => ((step + 1) / 4) * 100, [step]);
+  const progress = useMemo(() => ((step + 1) / 5) * 100, [step]);
 
   function finish() {
     localStorage.setItem("edita_onboarding", JSON.stringify(state));
@@ -34,7 +36,7 @@ export default function OnboardingPage() {
         <div className="onboarding-progress"><span style={{ width: progress + "%" }} /></div>
 
         {step === 0 && <>
-          <div className="eyebrow">ШАГ 1 ИЗ 4</div>
+          <div className="eyebrow">ШАГ 1 ИЗ 5</div>
           <h1>Кто ты в EDITA?</h1>
           <Choice active={state.role === "editor"} title="Монтажёр"
             text="Хочу учиться, собирать портфолио и находить заказы."
@@ -45,7 +47,7 @@ export default function OnboardingPage() {
         </>}
 
         {step === 1 && <>
-          <div className="eyebrow">ШАГ 2 ИЗ 4</div>
+          <div className="eyebrow">ШАГ 2 ИЗ 5</div>
           <h1>Твой уровень</h1>
           {[
             ["new","С нуля","Никогда серьёзно не монтировал."],
@@ -56,7 +58,7 @@ export default function OnboardingPage() {
         </>}
 
         {step === 2 && <>
-          <div className="eyebrow">ШАГ 3 ИЗ 4</div>
+          <div className="eyebrow">ШАГ 3 ИЗ 5</div>
           <h1>Где монтируешь?</h1>
           <div className="choice-grid">
             {["CapCut","Premiere Pro","DaVinci Resolve","Final Cut"].map((v) =>
@@ -67,7 +69,18 @@ export default function OnboardingPage() {
         </>}
 
         {step === 3 && <>
-          <div className="eyebrow">ШАГ 4 ИЗ 4</div>
+          <div className="eyebrow">ШАГ 4 ИЗ 5</div>
+          <h1>Возрастная группа</h1>
+          <p className="muted">Это нужно для безопасного доступа к коммерческим заданиям и коммуникации.</p>
+          {[
+            ["under14","До 14 лет","Только безопасное обучение и training-режим до отдельного согласия законного представителя."],
+            ["14-17","14–17 лет","Обучение доступно; коммерческие функции требуют дополнительной проверки/согласия."],
+            ["18+","18+","Полный функционал после обычной верификации аккаунта."]
+          ].map(([v,t,d]) => <Choice key={v} active={state.ageGroup === v} title={t} text={d} onClick={() => setState({ ...state, ageGroup: v as State["ageGroup"] })} />)}
+        </>}
+
+        {step === 4 && <>
+          <div className="eyebrow">ШАГ 5 ИЗ 5</div>
           <h1>Главная цель</h1>
           {[
             ["reels","Short-form","Научиться делать сильные Reels / TikTok / Shorts."],
@@ -79,7 +92,7 @@ export default function OnboardingPage() {
 
         <div className="onboarding-actions">
           {step > 0 ? <button className="btn btn-ghost" onClick={() => setStep((s) => s - 1)}>Назад</button> : <span />}
-          {step < 3
+          {step < 4
             ? <button className="btn btn-dark" onClick={() => setStep((s) => s + 1)}>Дальше</button>
             : <button className="btn btn-lime" onClick={finish}>Создать маршрут</button>}
         </div>
