@@ -5,6 +5,7 @@ import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 import ChallengeCenter from "@/components/challenge-center";
 import VideoReview from "@/components/video-review";
 import {curriculum} from "@/lib/curriculum";
+import BrandBrain from "@/components/brand-brain";
 
 type Tab="home"|"academy"|"coach"|"review"|"arena"|"portfolio"|"jobs"|"business";
 type Onboarding={level?:string;software?:string;goal?:string};
@@ -172,7 +173,7 @@ export default function PlatformApp(){
      </Page>}
 
      {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><div className="grid"><Job title="Reels-монтажёр" pay="45–60k ₽/мес"/><Job title="YouTube Shorts" pay="2 500 ₽/ролик"/><Job title="UGC ads editor" pay="70k ₽/мес"/></div></Page>}
-     {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, принимайте работы и нанимайте по реальному результату."><div className="business-grid"><Stat n="2" t="активных конкурса"/><Stat n="126" t="работ"/><Stat n="418" t="талантов"/><Stat n="3.2 дня" t="до найма"/></div><div style={{marginTop:14}}><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="business"/></div></Page>}
+     {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, храните контекст бренда и нанимайте по реальному результату."><div className="business-grid"><Stat n="2" t="активных конкурса"/><Stat n="126" t="работ"/><Stat n="418" t="талантов"/><Stat n="3.2 дня" t="до найма"/></div><div className="business-stack"><BrandBrain/><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="business"/></div></Page>}
    </section>
 
    <nav className="mobile-nav">{tabs.map(([id,l])=><button key={id} className={tab===id?"active":""} onClick={()=>setTab(id)}>{l}</button>)}</nav>
