@@ -10,6 +10,7 @@ const REVIEW_SCHEMA = {
     subtitles_score: { type: "integer", minimum: 0, maximum: 100 },
     visual_variety_score: { type: "integer", minimum: 0, maximum: 100 },
     brief_match_score: { type: "integer", minimum: 0, maximum: 100 },
+    format_score: { type: "integer", minimum: 0, maximum: 100 },
     summary: { type: "string" },
     strengths: {
       type: "array",
@@ -40,6 +41,7 @@ const REVIEW_SCHEMA = {
     "subtitles_score",
     "visual_variety_score",
     "brief_match_score",
+    "format_score",
     "summary",
     "strengths",
     "timeline",
@@ -73,6 +75,8 @@ export async function POST(req: NextRequest) {
     const frames = Array.isArray(body.frames) ? body.frames.slice(0, 8) : [];
     const brief = typeof body.brief === "string" ? body.brief.slice(0, 3000) : "";
     const duration = Number(body.duration || 0);
+    const width = Number(body.width || 0);
+    const height = Number(body.height || 0);
 
     if (!frames.length) {
       return NextResponse.json({ error: "frames required" }, { status: 400 });
@@ -89,9 +93,9 @@ export async function POST(req: NextRequest) {
       {
         type: "input_text",
         text:
-          "Длительность видео: " +
-          Math.round(duration) +
-          " сек.\nБриф: " +
+          "Длительность видео: " + Math.round(duration) + " сек.\n" +
+          "Разрешение: " + width + "x" + height + ". Соотношение: " + (height ? (width/height).toFixed(3) : "unknown") + ".\n" +
+          "Бриф: " +
           (brief || "Бриф не указан.") +
           "\nНиже идут кадры в хронологическом порядке. Оцени только то, что действительно можно вывести из них.",
       },
@@ -152,10 +156,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "empty AI review" }, { status: 502 });
     }
 
+    const review=JSON.parse(raw);
+    const technical=technicalReview(width,height,duration);
+    review.format_score=technical.format_score;
+    review.technical_checks=technical.checks;
+
     return NextResponse.json({
       demo: false,
       model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
-      review: JSON.parse(raw),
+      review,
     });
   } catch (error) {
     console.error("Video review route error", error);
@@ -173,6 +182,10 @@ function demoReview(frames: any[]) {
     subtitles_score: 81,
     visual_variety_score: 79,
     brief_match_score: 80,
+    format_score: 92,
+    technical_checks: [
+      { label: "Формат", status: "ok", detail: "Техническая проверка появится после чтения метаданных файла." }
+    ],
     summary:
       "Это demo-разбор по извлечённым кадрам. После подключения OpenAI оценки и рекомендации будут генерироваться персонально для каждого ролика.",
     strengths: [
@@ -197,4 +210,43 @@ function demoReview(frames: any[]) {
       "После подключения OPENAI_API_KEY повтори анализ для реальной персональной оценки.",
     ],
   };
+}
+
+function technicalReview(width:number,height:number,duration:number){
+  const checks:Array<{label:string;status:"ok"|"warn";detail:string}>=[];
+  let formatScore=100;
+
+  if(width>0&&height>0){
+    const ratio=width/height;
+    const target=9/16;
+    const diff=Math.abs(ratio-target);
+    if(diff<=0.025){
+      checks.push({label:"Соотношение сторон",status:"ok",detail:width+"×"+height+" · близко к 9:16"});
+    }else{
+      formatScore-=30;
+      checks.push({label:"Соотношение сторон",status:"warn",detail:width+"×"+height+" · для short-form обычно нужен 9:16"});
+    }
+
+    if(width>=1080&&height>=1920){
+      checks.push({label:"Разрешение",status:"ok",detail:"Достаточно для вертикального Full HD"});
+    }else if(width>=720&&height>=1280){
+      formatScore-=8;
+      checks.push({label:"Разрешение",status:"ok",detail:"Рабочее, но 1080×1920 предпочтительнее"});
+    }else{
+      formatScore-=20;
+      checks.push({label:"Разрешение",status:"warn",detail:"Низкое разрешение для коммерческого short-form"});
+    }
+  }else{
+    formatScore-=15;
+    checks.push({label:"Метаданные",status:"warn",detail:"Не удалось определить разрешение"});
+  }
+
+  if(duration>0&&duration<=60){
+    checks.push({label:"Длительность",status:"ok",detail:Math.round(duration)+" сек."});
+  }else if(duration>60){
+    formatScore-=10;
+    checks.push({label:"Длительность",status:"warn",detail:Math.round(duration)+" сек. — проверь ограничение площадки/ТЗ"});
+  }
+
+  return {format_score:Math.max(0,formatScore),checks};
 }
