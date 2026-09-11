@@ -270,3 +270,40 @@ for select using(auth.uid()=user_id);
 drop policy if exists "users read own entitlements" on public.entitlements;
 create policy "users read own entitlements" on public.entitlements
 for select using(auth.uid()=user_id);
+
+
+alter table public.jobs enable row level security;
+
+drop policy if exists "open jobs readable" on public.jobs;
+create policy "open jobs readable" on public.jobs
+for select using(status='open' or exists(
+  select 1 from public.businesses b where b.id=business_id and b.owner_id=auth.uid()
+));
+
+drop policy if exists "business creates jobs" on public.jobs;
+create policy "business creates jobs" on public.jobs
+for insert with check(exists(
+  select 1 from public.businesses b where b.id=business_id and b.owner_id=auth.uid()
+));
+
+drop policy if exists "business updates jobs" on public.jobs;
+create policy "business updates jobs" on public.jobs
+for update using(exists(
+  select 1 from public.businesses b where b.id=business_id and b.owner_id=auth.uid()
+));
+
+drop policy if exists "business reads job applications" on public.job_applications;
+create policy "business reads job applications" on public.job_applications
+for select using(exists(
+  select 1 from public.jobs j
+  join public.businesses b on b.id=j.business_id
+  where j.id=job_id and b.owner_id=auth.uid()
+));
+
+drop policy if exists "business updates job applications" on public.job_applications;
+create policy "business updates job applications" on public.job_applications
+for update using(exists(
+  select 1 from public.jobs j
+  join public.businesses b on b.id=j.business_id
+  where j.id=job_id and b.owner_id=auth.uid()
+));
