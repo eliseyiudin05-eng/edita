@@ -1,4 +1,5 @@
 import Link from "next/link";
+import SiteFooter from "@/components/site-footer";
 
 const pillars = [
   ["AI Coach", "Персональный наставник знает твои цели, уровень и прогресс."],
@@ -15,8 +16,9 @@ export default function Home() {
         <div className="nav-actions">
           <a href="#how">Как работает</a>
           <a href="#business">Для бизнеса</a>
-          <Link href="/pricing">Тарифы</Link>\n          <Link href="/login">Войти</Link>
-          <Link className="btn btn-dark" href="/signup">Начать</Link>
+          <Link href="/pricing">Тарифы</Link>
+          <Link href="/login">Войти</Link>
+          <Link className="btn btn-dark" href="/onboarding">Начать</Link>
         </div>
       </nav>
       <section className="hero shell">
@@ -24,13 +26,13 @@ export default function Home() {
         <h1>Не курс по монтажу.<br/><span>Карьерная платформа.</span></h1>
         <p className="hero-copy">Учись с AI-наставником, выполняй реальные ТЗ, собирай портфолио, побеждай в челленджах и находи клиентов внутри одной системы.</p>
         <div className="hero-actions">
-          <Link className="btn btn-primary" href="/signup">Создать аккаунт</Link>
+          <Link className="btn btn-primary" href="/onboarding">Создать персональный маршрут</Link>
           <Link className="btn btn-ghost" href="/platform">Посмотреть демо</Link>
         </div>
         <div className="hero-proof">
-          <div><strong>30 дней</strong><span>до первого сильного портфолио</span></div>
+          <div><strong>8 уроков</strong><span>первая реальная учебная траектория уже внутри</span></div>
           <div><strong>AI 24/7</strong><span>помогает учиться и разбирать ТЗ</span></div>
-          <div><strong>Real Jobs</strong><span>оплачиваемые задачи от компаний</span></div>
+          <div><strong>Real Jobs</strong><span>оплачиваемые задачи и talent pool</span></div>
         </div>
       </section>
       <section id="how" className="section shell">
@@ -41,9 +43,10 @@ export default function Home() {
       <section id="business" className="business-band">
         <div className="shell business-grid">
           <div><div className="section-kicker light">ДЛЯ БИЗНЕСА</div><h2>Не угадывайте, хороший ли монтажёр.<br/>Дайте ему реальное ТЗ.</h2></div>
-          <div className="business-card"><p>Компания загружает исходники и бриф. Участники делают работы. AI помогает провести первичный разбор. Компания выбирает лучшего и может нанять его на постоянную работу.</p><Link href="/signup" className="btn btn-light">Создать бизнес-аккаунт</Link></div>
+          <div className="business-card"><p>Компания публикует бриф и исходники. Участники делают работы. AI помогает провести первичный разбор. Компания выбирает лучшего и может нанять его на постоянную работу.</p><Link href="/onboarding" className="btn btn-light">Создать бизнес-аккаунт</Link></div>
         </div>
       </section>
+      <SiteFooter/>
     </main>
   );
 }
