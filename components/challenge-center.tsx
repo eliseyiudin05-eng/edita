@@ -211,7 +211,11 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
     if(!form.brief.trim()){setMessage("Сначала набросай хотя бы несколько строк ТЗ.");return;}
     setLoadingBrief(true);setMessage("");
     try{
-      const r=await fetch("/api/ai/brief",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({brief:form.brief,brandContext})});
+      const supabase=getSupabaseBrowserClient();
+      const {data:{session}}=await supabase.auth.getSession();
+      const headers:Record<string,string>={"Content-Type":"application/json"};
+      if(session?.access_token)headers.Authorization="Bearer "+session.access_token;
+      const r=await fetch("/api/ai/brief",{method:"POST",headers,body:JSON.stringify({brief:form.brief,brandContext})});
       const data=await r.json();
       if(!r.ok||!data.result)throw new Error(data?.error||"AI brief failed");
       const b=data.result;
