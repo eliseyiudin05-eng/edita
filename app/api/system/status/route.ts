@@ -6,6 +6,7 @@ export async function GET() {
   return NextResponse.json({
     ok:true,
     environment:process.env.VERCEL_ENV||process.env.NODE_ENV||"unknown",
+    commit:(process.env.VERCEL_GIT_COMMIT_SHA||"local").slice(0,7),
     siteUrl:process.env.NEXT_PUBLIC_SITE_URL||EDITA_SITE_URL,
     services:{
       openai:{
