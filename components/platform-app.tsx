@@ -39,6 +39,7 @@ export default function PlatformApp(){
  const [loading,setLoading]=useState(false);
  const [aiConfigured,setAiConfigured]=useState<boolean|null>(null);
  const [wins,setWins]=useState(0);
+ const [businessStats,setBusinessStats]=useState({challenges:0,submissions:0,jobs:0});
 
  const xp=useMemo(()=>920+done.reduce((sum,slug)=>sum+(curriculum.find(l=>l.slug===slug)?.xp||0),0),[done]);
  const tabs=useMemo(()=>{
@@ -81,7 +82,22 @@ export default function PlatformApp(){
        planExpiresAt:profile?.plan_expires_at||null,
        guardianVerified:Boolean(profile?.guardian_verified)
      });
-     if(profile?.role==="business")setTab("business");
+     if(profile?.role==="business"){
+       setTab("business");
+       const {data:ownedBusiness}=await supabase.from("businesses").select("id").eq("owner_id",data.user.id).maybeSingle();
+       if(ownedBusiness?.id){
+         const {count:challengeCount}=await supabase.from("challenges").select("id",{count:"exact",head:true}).eq("business_id",ownedBusiness.id).eq("status","open");
+         const {count:jobCount}=await supabase.from("jobs").select("id",{count:"exact",head:true}).eq("business_id",ownedBusiness.id).eq("status","open");
+         const {data:ownedChallenges}=await supabase.from("challenges").select("id").eq("business_id",ownedBusiness.id);
+         const ids=(ownedChallenges||[]).map((x:any)=>x.id);
+         let submissionCount=0;
+         if(ids.length){
+           const {count}=await supabase.from("challenge_submissions").select("id",{count:"exact",head:true}).in("challenge_id",ids);
+           submissionCount=count||0;
+         }
+         setBusinessStats({challenges:challengeCount||0,submissions:submissionCount,jobs:jobCount||0});
+       }
+     }
    });
    const {data:listener}=supabase.auth.onAuthStateChange((_event,session)=>{
      if(!session)setViewer({name:"Гость",role:null,onboarding:{}});
@@ -198,7 +214,7 @@ export default function PlatformApp(){
        <div className="grid">
          <Card title="Заработано"><div className="wallet-number">{money(viewer.earningsCents||0)}</div><p className="muted">Доход от проектов и Challenge после подключения production-выплат.</p></Card>
          <Card title="Текущий доступ"><div className="wallet-number">{planLabel}</div><p className="muted">{viewer.planExpiresAt?"До "+new Date(viewer.planExpiresAt).toLocaleDateString("ru-RU"):"Без активного срока AI PRO"}</p><Link className="btn btn-dark" href="/pricing">Управлять доступом</Link></Card>
-         <Card title="Платежи"><p className="muted">После подключения production DB здесь появится история покупок и выплат.</p></Card>
+         <Card title="Платежи"><p className="muted">История покупок и выплат появится здесь после одобрения платёжного магазина и первых транзакций.</p></Card>
        </div>
      </Page>}
 
@@ -212,7 +228,7 @@ export default function PlatformApp(){
 
      {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><JobBoard mode="editor"/></Page>}
      {tab==="community"&&<Page title="Community" sub="Публичный рейтинг строится только на безопасных карьерных данных."><CommunityLeaderboard/></Page>}
-     {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, храните контекст бренда и нанимайте по реальному результату."><div className="business-grid"><Stat n="2" t="активных конкурса"/><Stat n="126" t="работ"/><Stat n="418" t="талантов"/><Stat n="3.2 дня" t="до найма"/></div><div className="business-stack"><BrandBrain/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business"/></div></Page>}
+     {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, храните контекст бренда и нанимайте по реальному результату."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных Challenge"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n="BETA" t="режим workspace"/></div><div className="business-stack"><BrandBrain/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business"/></div></Page>}
    </section>
 
    <nav className="mobile-nav">{tabs.map(([id,l])=><button key={id} className={tab===id?"active":""} onClick={()=>setTab(id)}>{l}</button>)}</nav>
