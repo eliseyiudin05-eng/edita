@@ -69,14 +69,19 @@ export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewer
     }
 
     const {data,error}=await supabase.from("challenges")
-      .select("id,business_id,title,brief,prize_cents,ends_at,status,source_assets,businesses(name)")
+      .select("id,business_id,title,brief,prize_cents,ends_at,status,source_assets")
       .eq("status","open").order("created_at",{ascending:false});
 
     if(!error&&data?.length){
+      const businessIds=[...new Set(data.map((row:any)=>row.business_id).filter(Boolean))];
+      const {data:publicBusinesses}=businessIds.length
+        ? await supabase.from("public_businesses").select("id,name").in("id",businessIds)
+        : {data:[] as any[]};
+      const businessNames=Object.fromEntries((publicBusinesses||[]).map((b:any)=>[b.id,b.name]));
       const mapped:Challenge[]=data.map((row:any)=>({
         id:row.id,
         business_id:row.business_id,
-        brand:row.businesses?.name||"EDITA BUSINESS",
+        brand:businessNames[row.business_id]||"EDITA BUSINESS",
         title:row.title,
         brief:row.brief,
         prize_cents:Number(row.prize_cents||0),
@@ -106,7 +111,7 @@ export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewer
     let names:Record<string,string>={};
 
     if(editorIds.length){
-      const {data:profiles}=await supabase.from("profiles").select("id,display_name").in("id",editorIds);
+      const {data:profiles}=await supabase.from("public_profiles").select("id,display_name").in("id",editorIds);
       names=Object.fromEntries((profiles||[]).map((p:any)=>[p.id,p.display_name||"Editor"]));
     }
 
