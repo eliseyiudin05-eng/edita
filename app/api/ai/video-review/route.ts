@@ -155,10 +155,16 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       const detail = await response.text();
       console.error("Video review OpenAI error", response.status, detail);
-      return NextResponse.json(
-        { error: "AI review failed", status: response.status },
-        { status: 502 }
-      );
+      const fallback=demoReview(frames);
+      const technical=technicalReview(width,height,duration);
+      fallback.format_score=technical.format_score;
+      fallback.technical_checks=technical.checks;
+      return NextResponse.json({
+        demo:true,
+        degraded:true,
+        upstreamStatus:response.status,
+        review:fallback
+      });
     }
 
     const data = await response.json();
