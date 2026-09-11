@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { EDITA_SITE_URL, getSupabasePublicConfig } from "@/lib/public-config";
 
+// ENV_SYNC_BUILD: force a fresh production deployment from main.
+
 export async function GET() {
   const supabase=getSupabasePublicConfig();
   return NextResponse.json({
