@@ -62,8 +62,12 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
         ownedBusinessId=business.id;
         setBrandContext((business.brand_context||{}) as Record<string,string>);
       }else{
-        const {data:created}=await supabase.from("businesses").insert({owner_id:user.id,name:viewerName+" Studio"}).select("id").single();
+        const {data:created}=await supabase.from("businesses")
+          .upsert({owner_id:user.id,name:viewerName+" Studio"},{onConflict:"owner_id"})
+          .select("id,brand_context")
+          .single();
         ownedBusinessId=created?.id||null;
+        if(created?.brand_context)setBrandContext((created.brand_context||{}) as Record<string,string>);
       }
       setBusinessId(ownedBusinessId);
     }
