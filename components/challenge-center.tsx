@@ -40,6 +40,8 @@ export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewer
   const [file,setFile]=useState<File|null>(null);
   const [message,setMessage]=useState("");
   const [loading,setLoading]=useState(false);
+  const [loadingBrief,setLoadingBrief]=useState(false);
+  const [brandContext,setBrandContext]=useState<Record<string,string>>({});
   const [businessId,setBusinessId]=useState<string|null>(null);
   const [form,setForm]=useState({brand:"",title:"",brief:"",sourceUrl:"",prize:"10000",deadline:""});
 
@@ -55,9 +57,10 @@ export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewer
 
     let ownedBusinessId:string|null=null;
     if(role==="business"){
-      const {data:business}=await supabase.from("businesses").select("id,name").eq("owner_id",user.id).maybeSingle();
+      const {data:business}=await supabase.from("businesses").select("id,name,brand_context").eq("owner_id",user.id).maybeSingle();
       if(business){
         ownedBusinessId=business.id;
+        setBrandContext((business.brand_context||{}) as Record<string,string>);
       }else{
         const {data:created}=await supabase.from("businesses").insert({owner_id:user.id,name:viewerName+" Studio"}).select("id").single();
         ownedBusinessId=created?.id||null;
@@ -188,6 +191,35 @@ export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewer
     return data.review;
   }
 
+  async function improveBrief(){
+    if(!form.brief.trim()){setMessage("Сначала набросай хотя бы несколько строк ТЗ.");return;}
+    setLoadingBrief(true);setMessage("");
+    try{
+      const r=await fetch("/api/ai/brief",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({brief:form.brief,brandContext})});
+      const data=await r.json();
+      if(!r.ok||!data.result)throw new Error(data?.error||"AI brief failed");
+      const b=data.result;
+      const formatted=[
+        "Цель: "+b.goal,
+        "Длительность: "+b.duration,
+        "Формат: "+b.format,
+        "",
+        "Обязательно:",
+        ...b.must_haves.map((v:string)=>"• "+v),
+        "",
+        "Избегать:",
+        ...b.avoid.map((v:string)=>"• "+v),
+        "",
+        "Критерии приёмки:",
+        ...b.checklist.map((v:string)=>"• "+v)
+      ].join("\n");
+      setForm(current=>({...current,title:current.title||b.title,brief:formatted}));
+      setMessage("AI превратил черновик в проверяемое ТЗ. Проверь детали перед публикацией.");
+    }catch(e){
+      setMessage(e instanceof Error?e.message:"Не удалось улучшить ТЗ.");
+    }finally{setLoadingBrief(false)}
+  }
+
   async function createChallenge(e:FormEvent){
     e.preventDefault();
     setLoading(true);setMessage("");
@@ -248,7 +280,7 @@ export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewer
         <form className="business-form" onSubmit={createChallenge}>
           <input required placeholder="Название компании" value={form.brand} onChange={e=>setForm({...form,brand:e.target.value})}/>
           <input required placeholder="Название конкурса" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
-          <textarea required placeholder="ТЗ: длительность, формат, обязательные элементы, ограничения..." value={form.brief} onChange={e=>setForm({...form,brief:e.target.value})}/>
+          <textarea required placeholder="ТЗ: длительность, формат, обязательные элементы, ограничения..." value={form.brief} onChange={e=>setForm({...form,brief:e.target.value})}/><button type="button" className="btn btn-ghost" onClick={improveBrief} disabled={loadingBrief}>{loadingBrief?"AI структурирует…":"✨ Улучшить ТЗ с AI"}</button>
           <input type="url" placeholder="Ссылка на исходники / референсы (Drive, Disk, Dropbox…)" value={form.sourceUrl} onChange={e=>setForm({...form,sourceUrl:e.target.value})}/>
           <div className="split-fields"><input required min="0" type="number" placeholder="Приз, ₽" value={form.prize} onChange={e=>setForm({...form,prize:e.target.value})}/><input type="datetime-local" value={form.deadline} onChange={e=>setForm({...form,deadline:e.target.value})}/></div>
           <button className="btn btn-lime" disabled={loading}>{loading?"Публикуем...":"Опубликовать в Arena"}</button>
