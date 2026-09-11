@@ -10,13 +10,26 @@ export async function GET(){
       headers:{Authorization:"Bearer "+key},
       cache:"no-store",
     });
+
+    let errorCode:string|null=null;
+    let errorType:string|null=null;
+    if(!r.ok){
+      try{
+        const body=await r.json();
+        errorCode=body?.error?.code||null;
+        errorType=body?.error?.type||null;
+      }catch{}
+    }
+
     return NextResponse.json({
       configured:true,
       connected:r.ok,
       model,
       status:r.status,
+      errorCode,
+      errorType,
     });
   }catch{
-    return NextResponse.json({configured:true,connected:false,model,status:0});
+    return NextResponse.json({configured:true,connected:false,model,status:0,errorCode:"network_error",errorType:"network_error"});
   }
 }
