@@ -148,7 +148,16 @@ export default function VideoReview() {
               <Score label="Pacing" value={review.pacing_score} />
               <Score label="Subtitles" value={review.subtitles_score} />
               <Score label="Visual variety" value={review.visual_variety_score} />
-              <Score label="Brief match" value={review.brief_match_score} />\n              <Score label="Format" value={review.format_score} />
+              <Score label="Brief match" value={review.brief_match_score} />
+              <Score label="Format" value={review.format_score} />
+            </div>
+
+            <div className="card review-section">
+              <div className="eyebrow">TECHNICAL</div>
+              <h3>Проверка файла</h3>
+              <div className="technical-list">
+                {(review.technical_checks||[]).map((item,i)=><div className={"technical-row "+item.status} key={i}><b>{item.status==="ok"?"✓":"!"} {item.label}</b><span>{item.detail}</span></div>)}
+              </div>
             </div>
 
             <div className="card review-section">
