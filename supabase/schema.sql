@@ -134,3 +134,98 @@ drop policy if exists "own portfolio" on public.portfolio_items;
 create policy "own portfolio" on public.portfolio_items for all using(auth.uid()=editor_id) with check(auth.uid()=editor_id);
 drop policy if exists "own applications" on public.job_applications;
 create policy "own applications" on public.job_applications for all using(auth.uid()=editor_id) with check(auth.uid()=editor_id);
+
+
+alter table public.challenges enable row level security;
+
+drop policy if exists "open challenges readable" on public.challenges;
+create policy "open challenges readable" on public.challenges
+for select using(status='open' or exists(
+  select 1 from public.businesses b where b.id=business_id and b.owner_id=auth.uid()
+));
+
+drop policy if exists "business creates challenges" on public.challenges;
+create policy "business creates challenges" on public.challenges
+for insert with check(exists(
+  select 1 from public.businesses b where b.id=business_id and b.owner_id=auth.uid()
+));
+
+drop policy if exists "business updates challenges" on public.challenges;
+create policy "business updates challenges" on public.challenges
+for update using(exists(
+  select 1 from public.businesses b where b.id=business_id and b.owner_id=auth.uid()
+));
+
+drop policy if exists "business reads challenge submissions" on public.challenge_submissions;
+create policy "business reads challenge submissions" on public.challenge_submissions
+for select using(exists(
+  select 1
+  from public.challenges c
+  join public.businesses b on b.id=c.business_id
+  where c.id=challenge_id and b.owner_id=auth.uid()
+));
+
+drop policy if exists "business updates challenge submissions" on public.challenge_submissions;
+create policy "business updates challenge submissions" on public.challenge_submissions
+for update using(exists(
+  select 1
+  from public.challenges c
+  join public.businesses b on b.id=c.business_id
+  where c.id=challenge_id and b.owner_id=auth.uid()
+));
+
+drop policy if exists "business adds winner portfolio" on public.portfolio_items;
+create policy "business adds winner portfolio" on public.portfolio_items
+for insert with check(exists(
+  select 1
+  from public.challenge_submissions s
+  join public.challenges c on c.id=s.challenge_id
+  join public.businesses b on b.id=c.business_id
+  where s.editor_id=portfolio_items.editor_id
+    and s.video_url=portfolio_items.video_url
+    and s.status='winner'
+    and b.owner_id=auth.uid()
+));
+
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
+values(
+  'challenge-submissions',
+  'challenge-submissions',
+  false,
+  524288000,
+  array['video/mp4','video/quicktime','video/webm']
+)
+on conflict(id) do update set
+  public=false,
+  file_size_limit=excluded.file_size_limit,
+  allowed_mime_types=excluded.allowed_mime_types;
+
+drop policy if exists "editors upload challenge videos" on storage.objects;
+create policy "editors upload challenge videos" on storage.objects
+for insert to authenticated
+with check(
+  bucket_id='challenge-submissions'
+  and (storage.foldername(name))[1]=auth.uid()::text
+);
+
+drop policy if exists "editors read own challenge videos" on storage.objects;
+create policy "editors read own challenge videos" on storage.objects
+for select to authenticated
+using(
+  bucket_id='challenge-submissions'
+  and (storage.foldername(name))[1]=auth.uid()::text
+);
+
+drop policy if exists "business reads submitted challenge videos" on storage.objects;
+create policy "business reads submitted challenge videos" on storage.objects
+for select to authenticated
+using(
+  bucket_id='challenge-submissions'
+  and exists(
+    select 1
+    from public.challenge_submissions s
+    join public.challenges c on c.id=s.challenge_id
+    join public.businesses b on b.id=c.business_id
+    where s.video_url=storage.objects.name and b.owner_id=auth.uid()
+  )
+);
