@@ -48,7 +48,7 @@ export default function PlatformApp(){
  },[viewer.role]);
 
  useEffect(()=>{
-   fetch("/api/ai").then(r=>r.json()).then(d=>setAiConfigured(Boolean(d.configured))).catch(()=>setAiConfigured(false));
+   fetch("/api/ai/health").then(r=>r.json()).then(d=>setAiConfigured(Boolean(d.connected))).catch(()=>setAiConfigured(false));
    try{
      const raw=localStorage.getItem("edita_lesson_done");
      if(raw)setDone(JSON.parse(raw));
@@ -182,7 +182,7 @@ export default function PlatformApp(){
      {tab==="practice"&&<Page title="Практика" sub="Симулятор реального клиента: цена, правки, сроки и переговоры."><ClientSimulator/></Page>}
 
      {tab==="coach"&&<Page title="AI Coach" sub="Наставник учитывает твою программу, цель и пройденные уроки.">
-       <div className={"ai-status "+(aiConfigured?"online":"offline")}>{aiConfigured===null?"Проверяю AI…":aiConfigured?"● OpenAI подключён":"● Demo mode"}</div>
+       <div className={"ai-status "+(aiConfigured?"online":"offline")}>{aiConfigured===null?"Проверяю AI…":aiConfigured?"● Live AI подключён":"● AI fallback mode"}</div>
        <div className="card chat"><div className="feed">{messages.map((m,i)=><div className={"bubble "+m.from} key={i}>{m.text}</div>)}{loading&&<div className="bubble">Разбираю…</div>}</div><form className="form" onSubmit={ask}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Почему мой Reel выглядит скучно?"/><button className="btn btn-lime">Спросить</button></form></div>
      </Page>}
 
