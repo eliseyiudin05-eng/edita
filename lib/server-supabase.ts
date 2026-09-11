@@ -74,6 +74,7 @@ export async function canUseArenaReview(token:string|undefined|null,challengeId?
 export async function hasActivePro(token?:string|null){
   const auth=await getAuthenticatedProfile(token);
   if(!auth)return false;
+  if(auth.profile.role==="business")return true;
   if(auth.profile.plan!=="pro")return false;
   if(!auth.profile.plan_expires_at)return true;
   return new Date(auth.profile.plan_expires_at).getTime()>Date.now();
