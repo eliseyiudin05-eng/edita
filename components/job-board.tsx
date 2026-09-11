@@ -1,0 +1,89 @@
+"use client";
+
+import {FormEvent,useEffect,useState} from "react";
+import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
+
+type Job={id:string;title:string;description:string;budget_min_cents:number|null;budget_max_cents:number|null;businesses?:{name?:string}|null};
+const demoJobs:Job[]=[
+  {id:"d1",title:"Reels-монтажёр",description:"5–7 short-form роликов в неделю.",budget_min_cents:4500000,budget_max_cents:6000000,businesses:{name:"Demo Brand"}},
+  {id:"d2",title:"YouTube Shorts",description:"Экспертный talking-head + B-roll.",budget_min_cents:250000,budget_max_cents:350000,businesses:{name:"Creator Studio"}},
+  {id:"d3",title:"UGC ads editor",description:"Коммерческие performance-креативы.",budget_min_cents:6000000,budget_max_cents:8000000,businesses:{name:"Growth Team"}},
+];
+
+export default function JobBoard({mode}:{mode:"editor"|"business"}){
+  const [jobs,setJobs]=useState<Job[]>([]);
+  const [businessId,setBusinessId]=useState<string|null>(null);
+  const [message,setMessage]=useState("");
+  const [form,setForm]=useState({title:"",description:"",min:"",max:""});
+
+  useEffect(()=>{void load()},[mode]);
+
+  async function load(){
+    const supabase=getSupabaseBrowserClient();
+    if(!supabase){setJobs(demoJobs);return;}
+    const {data:{user}}=await supabase.auth.getUser();
+    if(!user){setJobs(demoJobs);return;}
+
+    if(mode==="business"){
+      const {data:business}=await supabase.from("businesses").select("id").eq("owner_id",user.id).maybeSingle();
+      if(!business){setJobs([]);return;}
+      setBusinessId(business.id);
+      const {data,error}=await supabase.from("jobs").select("id,title,description,budget_min_cents,budget_max_cents").eq("business_id",business.id).order("created_at",{ascending:false});
+      if(error){setMessage(error.message);return;}
+      setJobs((data||[]) as Job[]);
+    }else{
+      const {data,error}=await supabase.from("jobs").select("id,title,description,budget_min_cents,budget_max_cents,businesses(name)").eq("status","open").order("created_at",{ascending:false});
+      if(error){setMessage(error.message);setJobs(demoJobs);return;}
+      setJobs((data||[]) as Job[]);
+    }
+  }
+
+  async function apply(jobId:string){
+    const supabase=getSupabaseBrowserClient();
+    if(!supabase){setMessage("Demo: заявка принята локально.");return;}
+    const {data:{user}}=await supabase.auth.getUser();
+    if(!user){setMessage("Войди, чтобы податься.");return;}
+    const {error}=await supabase.from("job_applications").upsert({job_id:jobId,editor_id:user.id,status:"applied"},{onConflict:"job_id,editor_id"});
+    setMessage(error?error.message:"Заявка отправлена бизнесу.");
+  }
+
+  async function create(e:FormEvent){
+    e.preventDefault();
+    const supabase=getSupabaseBrowserClient();
+    if(!supabase||!businessId){setMessage("В demo вакансия не публикуется в базе.");return;}
+    const {error}=await supabase.from("jobs").insert({
+      business_id:businessId,title:form.title,description:form.description,status:"open",
+      budget_min_cents:form.min?Math.round(Number(form.min)*100):null,
+      budget_max_cents:form.max?Math.round(Number(form.max)*100):null
+    });
+    if(error){setMessage(error.message);return;}
+    setForm({title:"",description:"",min:"",max:""});setMessage("Вакансия опубликована.");
+    await load();
+  }
+
+  return <div className="job-board">
+    {mode==="business"&&<section className="card"><div className="eyebrow">NEW JOB</div><h3>Опубликовать вакансию</h3><form className="business-form" onSubmit={create}>
+      <input required placeholder="Название роли" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
+      <textarea required placeholder="Задачи, объём, формат работы" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
+      <div className="split-fields"><input type="number" min="0" placeholder="От, ₽" value={form.min} onChange={e=>setForm({...form,min:e.target.value})}/><input type="number" min="0" placeholder="До, ₽" value={form.max} onChange={e=>setForm({...form,max:e.target.value})}/></div>
+      <button className="btn btn-dark">Опубликовать</button>
+    </form></section>}
+
+    <section className="grid job-grid">{jobs.map(job=><article className="card job" key={job.id}>
+      <small>{mode==="editor"?(job.businesses?.name||"VERIFIED BUSINESS"):"YOUR JOB"}</small>
+      <h3>{job.title}</h3><p className="muted">{job.description}</p>
+      <b>{budget(job)}</b>
+      {mode==="editor"&&<button className="btn btn-dark" onClick={()=>apply(job.id)}>Податься</button>}
+    </article>)}</section>
+    {message&&<div className="auth-msg">{message}</div>}
+  </div>
+}
+
+function budget(job:Job){
+  const min=job.budget_min_cents?Math.round(job.budget_min_cents/100):null;
+  const max=job.budget_max_cents?Math.round(job.budget_max_cents/100):null;
+  if(min&&max)return new Intl.NumberFormat("ru-RU").format(min)+"–"+new Intl.NumberFormat("ru-RU").format(max)+" ₽";
+  if(min)return "от "+new Intl.NumberFormat("ru-RU").format(min)+" ₽";
+  if(max)return "до "+new Intl.NumberFormat("ru-RU").format(max)+" ₽";
+  return "Бюджет по договорённости";
+}
