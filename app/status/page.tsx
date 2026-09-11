@@ -13,7 +13,7 @@ type Status = {
     yookassa: { configured: boolean; mode: string };
   };
 };
-type AiHealth={configured:boolean;connected:boolean;model:string;status?:number};
+type AiHealth={configured:boolean;connected:boolean;model:string;status?:number;errorCode?:string|null;errorType?:string|null};
 
 export default function StatusPage() {
   const [data,setData]=useState<Status|null>(null);
@@ -35,7 +35,7 @@ export default function StatusPage() {
 
       {!data?<section className="legal-card"><p>Проверяем конфигурацию…</p></section>:<div className="status-grid">
         <Service title="OpenAI" ok={Boolean(ai?.connected)}
-          text={!data.services.openai.configured?"Нужен OPENAI_API_KEY":ai?.connected?("API отвечает · "+ai.model):("Ключ есть, но API не подтвердил соединение"+(ai?.status?" · HTTP "+ai.status:""))}/>
+          text={!data.services.openai.configured?"Нужен OPENAI_API_KEY":ai?.connected?("API отвечает · "+ai.model):("Ключ есть, но API не подтвердил соединение"+(ai?.status?" · HTTP "+ai.status:"")+(ai?.errorCode?" · "+ai.errorCode:""))}/>
         <Service title="База / Auth" ok={data.services.supabase.configured&&data.services.supabase.serverWrites}
           text={data.services.supabase.configured?(data.services.supabase.serverWrites?"Client + server writes configured":"Auth/client настроены, server writes ещё выключены"):"Production database не подключена"}/>
         <Service title="ЮKassa" ok={data.services.yookassa.configured}
