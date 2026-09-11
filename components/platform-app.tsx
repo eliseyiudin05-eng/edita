@@ -91,7 +91,9 @@ export default function PlatformApp(){
 
      {tab==="coach"&&<Page title="AI Coach" sub="Наставник знает твой уровень, программу и карьерную цель."><div className="card chat"><div className="feed">{messages.map((m,i)=><div className={"bubble "+m.from} key={i}>{m.text}</div>)}{loading&&<div className="bubble">Разбираю…</div>}</div><form className="form" onSubmit={ask}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Почему мой Reel выглядит скучно?"/><button className="btn btn-lime">Спросить</button></form></div></Page>}
 
-     {tab==="review"&&<Page title="AI Video Review" sub="Загрузи ролик и получи структурированный разбор по кадрам и таймкодам."><VideoReview/></Page>}\n\n     {tab==="arena"&&<Page title="Arena" sub="Реальные ТЗ, одинаковые исходники, реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="arena"/></Page>}
+     {tab==="review"&&<Page title="AI Video Review" sub="Загрузи ролик и получи структурированный разбор по кадрам и таймкодам."><VideoReview/></Page>}
+
+     {tab==="arena"&&<Page title="Arena" sub="Реальные ТЗ, одинаковые исходники, реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="arena"/></Page>}
 
      {tab==="portfolio"&&<Page title={viewer.role==="editor"?viewer.name:"Публичное портфолио"} sub="Verified Editor · CapCut · Short-form"><div className="grid"><Card title="VOLT / Gym Promo"><b>AI Score 91</b></Card><Card title="Finance Expert Reel"><b>AI Score 86</b></Card><Card title="North Coffee"><b>🏆 Challenge Winner</b></Card></div></Page>}
 
