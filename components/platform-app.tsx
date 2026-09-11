@@ -22,6 +22,7 @@ type Viewer={
   onboarding?:Onboarding;
   earningsCents?:number;
   planExpiresAt?:string|null;
+  guardianVerified?:boolean;
 };
 
 const allTabs:[Tab,string][]=[
@@ -60,7 +61,7 @@ export default function PlatformApp(){
    supabase.auth.getUser().then(async({data})=>{
      if(!active||!data.user)return;
      const {data:profile}=await supabase.from("profiles")
-       .select("display_name,role,username,plan,plan_expires_at,ai_score,onboarding,earnings_cents")
+       .select("display_name,role,username,plan,plan_expires_at,ai_score,onboarding,earnings_cents,guardian_verified")
        .eq("id",data.user.id).single();
      if(!active)return;
      setViewer({
@@ -71,7 +72,8 @@ export default function PlatformApp(){
        aiScore:profile?.ai_score||null,
        onboarding:profile?.onboarding||data.user.user_metadata?.onboarding||{},
        earningsCents:Number(profile?.earnings_cents||0),
-       planExpiresAt:profile?.plan_expires_at||null
+       planExpiresAt:profile?.plan_expires_at||null,
+       guardianVerified:Boolean(profile?.guardian_verified)
      });
      if(profile?.role==="business")setTab("business");
    });
@@ -175,7 +177,7 @@ export default function PlatformApp(){
      </Page>}
 
      {tab==="review"&&<Page title="AI Video Review" sub="Загрузи ролик и получи структурированный разбор по кадрам и таймкодам.">{viewer.role==="editor"&&viewer.plan!=="pro"?<UpgradePro/>:<VideoReview/>}</Page>}
-     {tab==="arena"&&<Page title="Arena" sub="Реальные ТЗ, одинаковые исходники, реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} mode="arena"/></Page>}
+     {tab==="arena"&&<Page title="Arena" sub="Реальные ТЗ, одинаковые исходники, реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="arena"/></Page>}
 
      {tab==="portfolio"&&<Page title={viewer.role==="editor"?viewer.name:"Публичное портфолио"} sub="Verified Editor · Skill Graph · реальные работы">
        <PortfolioPanel/>
@@ -200,7 +202,7 @@ export default function PlatformApp(){
 
      {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><JobBoard mode="editor"/></Page>}
      {tab==="community"&&<Page title="Community" sub="Публичный рейтинг строится только на безопасных карьерных данных."><CommunityLeaderboard/></Page>}
-     {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, храните контекст бренда и нанимайте по реальному результату."><div className="business-grid"><Stat n="2" t="активных конкурса"/><Stat n="126" t="работ"/><Stat n="418" t="талантов"/><Stat n="3.2 дня" t="до найма"/></div><div className="business-stack"><BrandBrain/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} mode="business"/><JobBoard mode="business"/></div></Page>}
+     {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, храните контекст бренда и нанимайте по реальному результату."><div className="business-grid"><Stat n="2" t="активных конкурса"/><Stat n="126" t="работ"/><Stat n="418" t="талантов"/><Stat n="3.2 дня" t="до найма"/></div><div className="business-stack"><BrandBrain/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business"/></div></Page>}
    </section>
 
    <nav className="mobile-nav">{tabs.map(([id,l])=><button key={id} className={tab===id?"active":""} onClick={()=>setTab(id)}>{l}</button>)}</nav>
