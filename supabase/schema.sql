@@ -1,5 +1,6 @@
 
 alter table public.profiles add column if not exists onboarding jsonb not null default '{}'::jsonb;
+alter table public.profiles add column if not exists guardian_verified boolean not null default false;
 alter table public.profiles add column if not exists plan text not null default 'free';
 alter table public.profiles add column if not exists plan_expires_at timestamptz;
 create extension if not exists "pgcrypto";
