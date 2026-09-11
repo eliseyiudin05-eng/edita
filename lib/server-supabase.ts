@@ -1,21 +1,89 @@
 import { createClient } from "@supabase/supabase-js";
 
+const EDITA_SUPABASE_URL="https://jehrhsdzzbnptrqeatqh.supabase.co";
+const EDITA_SUPABASE_PUBLISHABLE_KEY="sb_publishable_NMNSId1Ozz3_MDG81friXw_-CKhCG6y";
+
+function publicConfig(){
+  return {
+    url:process.env.NEXT_PUBLIC_SUPABASE_URL||EDITA_SUPABASE_URL,
+    key:process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||EDITA_SUPABASE_PUBLISHABLE_KEY,
+  };
+}
+
 export function getSupabaseServiceClient(){
-  const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const {url}=publicConfig();
   const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if(!url||!serviceKey)return null;
+  if(!serviceKey)return null;
   return createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
 }
 
 export async function getUserFromAccessToken(token?:string|null){
   if(!token)return null;
-  const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if(!url||!key)return null;
+  const {url,key}=publicConfig();
   const client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data,error}=await client.auth.getUser(token);
   if(error)return null;
   return data.user||null;
+}
+
+export async function getAuthenticatedProfile(token?:string|null){
+  const user=await getUserFromAccessToken(token);
+  if(!user)return null;
+
+  const service=getSupabaseServiceClient();
+  if(service){
+    const {data}=await service.from("profiles")
+      .select("id,role,plan,plan_expires_at,guardian_verified")
+      .eq("id",user.id).maybeSingle();
+    return data?{user,profile:data}:null;
+  }
+
+  const {url,key}=publicConfig();
+  const client=createClient(url,key,{
+    auth:{persistSession:false,autoRefreshToken:false},
+    global:{headers:{Authorization:"Bearer "+token}}
+  });
+  const {data}=await client.from("profiles")
+    .select("id,role,plan,plan_expires_at,guardian_verified")
+    .eq("id",user.id).maybeSingle();
+
+  return data?{user,profile:data}:null;
+}
+
+export async function canUseArenaReview(token:string|undefined|null,challengeId?:string|null){
+  if(!challengeId)return false;
+  const auth=await getAuthenticatedProfile(token);
+  if(!auth||auth.profile.role!=="editor")return false;
+
+  const service=getSupabaseServiceClient();
+  if(service){
+    const {data}=await service.from("challenge_submissions")
+      .select("id")
+      .eq("challenge_id",challengeId)
+      .eq("editor_id",auth.user.id)
+      .maybeSingle();
+    return Boolean(data);
+  }
+
+  const {url,key}=publicConfig();
+  const client=createClient(url,key,{
+    auth:{persistSession:false,autoRefreshToken:false},
+    global:{headers:{Authorization:"Bearer "+token}}
+  });
+  const {data}=await client.from("challenge_submissions")
+    .select("id")
+    .eq("challenge_id",challengeId)
+    .eq("editor_id",auth.user.id)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+export async function hasActivePro(token?:string|null){
+  const auth=await getAuthenticatedProfile(token);
+  if(!auth)return false;
+  if(auth.profile.plan!=="pro")return false;
+  if(!auth.profile.plan_expires_at)return true;
+  return new Date(auth.profile.plan_expires_at).getTime()>Date.now();
 }
 
 export async function grantPaidAccess(payment:any){
