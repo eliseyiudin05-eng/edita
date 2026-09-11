@@ -25,11 +25,11 @@ export default function CommunityLeaderboard(){
       .not("ai_score","is",null)
       .order("ai_score",{ascending:false})
       .limit(20);
-    if(!error&&data?.length){setRows(data as Row[]);setDemoMode(false)}
+    if(!error){setRows((data||[]) as Row[]);setDemoMode(false)}
   }
 
   return <div className="leaderboard">
-    {demoMode&&<div className="auth-msg">Пока показываем demo-рейтинг. После подключения production DB он станет живым.</div>}
+    {demoMode&&<div className="auth-msg">Гостевой demo-рейтинг. В аккаунте показываются только реальные участники.</div>}{!demoMode&&rows.length===0&&<div className="auth-msg">Рейтинг пока пуст — он заполнится после первых AI Score.</div>}
     {rows.map((row,i)=><article className="leader-row" key={row.id}>
       <div className="leader-rank">#{i+1}</div>
       <div className="leader-main"><b>{row.display_name||"Editor"}</b><span>{(row.skills||[]).slice(0,3).join(" · ")||"Video editing"}</span></div>
