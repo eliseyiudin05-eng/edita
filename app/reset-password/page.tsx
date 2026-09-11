@@ -1,0 +1,30 @@
+"use client";
+import {FormEvent,useState} from "react";
+import Link from "next/link";
+import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
+
+export default function ResetPassword(){
+  const [password,setPassword]=useState("");
+  const [message,setMessage]=useState("");
+  const [loading,setLoading]=useState(false);
+
+  async function submit(e:FormEvent){
+    e.preventDefault();
+    const supabase=getSupabaseBrowserClient();
+    if(!supabase){setMessage("Production Auth ещё не подключён.");return;}
+    setLoading(true);
+    const {error}=await supabase.auth.updateUser({password});
+    setLoading(false);
+    setMessage(error?error.message:"Пароль обновлён. Теперь можно войти.");
+  }
+
+  return <main className="auth-wrap"><section className="auth-card">
+    <div className="eyebrow">NEW PASSWORD</div><h1>Новый пароль</h1>
+    <form className="auth-form" onSubmit={submit}>
+      <input required minLength={8} type="password" placeholder="Минимум 8 символов" value={password} onChange={e=>setPassword(e.target.value)}/>
+      <button className="btn btn-dark" disabled={loading}>{loading?"Сохраняем…":"Сохранить пароль"}</button>
+    </form>
+    {message&&<div className="auth-msg">{message}</div>}
+    <div className="auth-footer"><Link href="/login">Войти в EDITA</Link></div>
+  </section></main>
+}
