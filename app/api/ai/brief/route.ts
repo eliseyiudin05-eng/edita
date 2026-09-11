@@ -1,4 +1,5 @@
 import {NextRequest,NextResponse} from "next/server";
+import {getUserFromAccessToken} from "@/lib/server-supabase";
 
 const schema={
   type:"object",
@@ -21,8 +22,11 @@ export async function POST(req:NextRequest){
     const {brief,brandContext}=await req.json();
     if(!brief||typeof brief!=="string")return NextResponse.json({error:"brief required"},{status:400});
 
-    if(!process.env.OPENAI_API_KEY){
-      return NextResponse.json({demo:true,result:demo(brief)});
+    const bearer=req.headers.get("authorization");
+    const token=bearer?.startsWith("Bearer ")?bearer.slice(7):null;
+    const user=await getUserFromAccessToken(token);
+    if(!process.env.OPENAI_API_KEY||!user){
+      return NextResponse.json({demo:true,result:demo(brief),reason:!user?"auth_required_for_live_ai":"openai_not_configured"});
     }
 
     const r=await fetch("https://api.openai.com/v1/responses",{
@@ -36,7 +40,7 @@ export async function POST(req:NextRequest){
         text:{format:{type:"json_schema",name:"edita_brief",strict:true,schema}}
       })
     });
-    if(!r.ok)return NextResponse.json({error:"AI brief failed",status:r.status},{status:502});
+    if(!r.ok){const detail=await r.text();console.error("AI brief OpenAI error",r.status,detail);return NextResponse.json({demo:true,degraded:true,result:demo(brief),upstreamStatus:r.status});}
     const data=await r.json();
     const raw=data.output_text||data.output?.flatMap((x:any)=>x.content||[]).find((x:any)=>x.type==="output_text")?.text;
     return NextResponse.json({demo:false,result:JSON.parse(raw)});
