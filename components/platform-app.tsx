@@ -53,7 +53,7 @@ export default function PlatformApp(){
    setInput("");
    setLoading(true);
    try{
-     const r=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:q,context:{level:5,xp,editor:"CapCut",goal:"первые 30 000 ₽",role:viewer.role}})});
+     const r=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:q,context:{level:5,xp,editor:"CapCut",goal:"первые 30 000 ₽",role:viewer.role},history:messages})});
      const d=await r.json();
      setMessages(m=>[...m,{from:"ai",text:d.reply||"Не получилось ответить."}]);
    } finally {setLoading(false)}
