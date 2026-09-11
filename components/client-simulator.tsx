@@ -1,6 +1,7 @@
 "use client";
 
 import {FormEvent,useState} from "react";
+import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 
 type Msg={from:"client"|"user";text:string};
 type Result={client_reply:string;score:number;feedback:string;better_answer:string};
@@ -19,7 +20,11 @@ export default function ClientSimulator(){
     setMessages(m=>[...m,{from:"user",text}]);
     setInput("");setLoading(true);
     try{
-      const r=await fetch("/api/ai/simulator",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text,history:messages,scenario})});
+      const supabase=getSupabaseBrowserClient();
+      const {data:{session}}=await supabase.auth.getSession();
+      const headers:Record<string,string>={"Content-Type":"application/json"};
+      if(session?.access_token)headers.Authorization="Bearer "+session.access_token;
+      const r=await fetch("/api/ai/simulator",{method:"POST",headers,body:JSON.stringify({message:text,history:messages,scenario})});
       const data=await r.json();
       if(!r.ok||!data.result)throw new Error(data?.error||"Simulator failed");
       setResult(data.result);
