@@ -10,6 +10,8 @@ type Review = {
   subtitles_score: number;
   visual_variety_score: number;
   brief_match_score: number;
+  format_score: number;
+  technical_checks?: Array<{label:string;status:"ok"|"warn";detail:string}>;
   summary: string;
   strengths: string[];
   timeline: Array<{
@@ -146,7 +148,7 @@ export default function VideoReview() {
               <Score label="Pacing" value={review.pacing_score} />
               <Score label="Subtitles" value={review.subtitles_score} />
               <Score label="Visual variety" value={review.visual_variety_score} />
-              <Score label="Brief match" value={review.brief_match_score} />
+              <Score label="Brief match" value={review.brief_match_score} />\n              <Score label="Format" value={review.format_score} />
             </div>
 
             <div className="card review-section">
