@@ -1,3 +1,7 @@
+
+alter table public.profiles add column if not exists onboarding jsonb not null default '{}'::jsonb;
+alter table public.profiles add column if not exists plan text not null default 'free';
+alter table public.profiles add column if not exists plan_expires_at timestamptz;
 create extension if not exists "pgcrypto";
 do $$ begin create type public.user_role as enum ('editor','business','admin'); exception when duplicate_object then null; end $$;
 
@@ -97,11 +101,13 @@ create table if not exists public.job_applications(
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path=public as $$
 begin
-  insert into public.profiles(id,role,display_name)
+  insert into public.profiles(id,role,display_name,username,onboarding)
   values(
     new.id,
     case when new.raw_user_meta_data->>'role'='business' then 'business'::public.user_role else 'editor'::public.user_role end,
-    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email,'@',1))
+    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email,'@',1)),
+    case when new.raw_user_meta_data->>'role'='business' then 'business-'||left(new.id::text,8) else 'editor-'||left(new.id::text,8) end,
+    coalesce(new.raw_user_meta_data->'onboarding','{}'::jsonb)
   )
   on conflict(id) do nothing;
   return new;
@@ -229,3 +235,38 @@ using(
     where s.video_url=storage.objects.name and b.owner_id=auth.uid()
   )
 );
+
+
+create table if not exists public.payments(
+  id text primary key,
+  user_id uuid references public.profiles(id) on delete set null,
+  product text not null,
+  amount_cents bigint not null default 0,
+  currency text not null default 'RUB',
+  status text not null,
+  provider text not null default 'yookassa',
+  provider_payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.entitlements(
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  product text not null,
+  source_payment_id text unique not null references public.payments(id) on delete cascade,
+  starts_at timestamptz not null default now(),
+  expires_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table public.payments enable row level security;
+alter table public.entitlements enable row level security;
+
+drop policy if exists "users read own payments" on public.payments;
+create policy "users read own payments" on public.payments
+for select using(auth.uid()=user_id);
+
+drop policy if exists "users read own entitlements" on public.entitlements;
+create policy "users read own entitlements" on public.entitlements
+for select using(auth.uid()=user_id);
