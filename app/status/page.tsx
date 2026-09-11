@@ -13,54 +13,40 @@ type Status = {
     yookassa: { configured: boolean; mode: string };
   };
 };
+type AiHealth={configured:boolean;connected:boolean;model:string;status?:number};
 
 export default function StatusPage() {
-  const [data, setData] = useState<Status | null>(null);
+  const [data,setData]=useState<Status|null>(null);
+  const [ai,setAi]=useState<AiHealth|null>(null);
 
-  useEffect(() => {
-    fetch("/api/system/status", { cache: "no-store" })
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => setData(null));
-  }, []);
+  useEffect(()=>{
+    Promise.all([
+      fetch("/api/system/status",{cache:"no-store"}).then(r=>r.json()),
+      fetch("/api/ai/health",{cache:"no-store"}).then(r=>r.json())
+    ]).then(([system,health])=>{setData(system);setAi(health)}).catch(()=>{setData(null);setAi(null)});
+  },[]);
 
-  return (
-    <main className="legal-page">
-      <div className="legal-shell">
-        <Link href="/" className="brand">EDITA<span>.</span></Link>
-        <div className="eyebrow">SYSTEM STATUS</div>
-        <h1>Готовность сервисов</h1>
-        <p>Безопасная проверка конфигурации: секретные ключи здесь никогда не показываются.</p>
+  return <main className="legal-page">
+    <div className="legal-shell">
+      <Link href="/" className="brand">EDITA<span>.</span></Link>
+      <div className="eyebrow">SYSTEM STATUS</div>
+      <h1>Готовность сервисов</h1>
+      <p>Безопасная проверка конфигурации: секретные ключи здесь никогда не показываются.</p>
 
-        {!data ? (
-          <section className="legal-card"><p>Проверяем конфигурацию…</p></section>
-        ) : (
-          <div className="status-grid">
-            <Service title="OpenAI" ok={data.services.openai.configured}
-              text={data.services.openai.configured ? data.services.openai.model : "Нужен OPENAI_API_KEY"} />
-            <Service title="База / Auth" ok={data.services.supabase.configured}
-              text={data.services.supabase.configured ? (data.services.supabase.serverWrites ? "Client + server configured" : "Client configured, server writes off") : "Production database не подключена"} />
-            <Service title="ЮKassa" ok={data.services.yookassa.configured}
-              text={data.services.yookassa.configured ? "Подключена · " + data.services.yookassa.mode : "Ожидаем shopId и Secret Key"} />
-          </div>
-        )}
+      {!data?<section className="legal-card"><p>Проверяем конфигурацию…</p></section>:<div className="status-grid">
+        <Service title="OpenAI" ok={Boolean(ai?.connected)}
+          text={!data.services.openai.configured?"Нужен OPENAI_API_KEY":ai?.connected?("API отвечает · "+ai.model):("Ключ есть, но API не подтвердил соединение"+(ai?.status?" · HTTP "+ai.status:""))}/>
+        <Service title="База / Auth" ok={data.services.supabase.configured&&data.services.supabase.serverWrites}
+          text={data.services.supabase.configured?(data.services.supabase.serverWrites?"Client + server writes configured":"Auth/client настроены, server writes ещё выключены"):"Production database не подключена"}/>
+        <Service title="ЮKassa" ok={data.services.yookassa.configured}
+          text={data.services.yookassa.configured?("Подключена · "+data.services.yookassa.mode):"Ожидаем подтверждение магазина и ключи"}/>
+      </div>}
 
-        <div className="legal-actions">
-          <Link className="btn btn-dark" href="/platform">Платформа</Link>
-          <Link className="btn btn-ghost" href="/pricing">Тарифы</Link>
-        </div>
-      </div>
-    </main>
-  );
+      <div className="legal-actions"><Link className="btn btn-dark" href="/platform">Платформа</Link><Link className="btn btn-ghost" href="/pricing">Тарифы</Link></div>
+    </div>
+  </main>
 }
 
-function Service({ title, ok, text }: { title: string; ok: boolean; text: string }) {
-  return (
-    <section className="legal-card status-card">
-      <div className={"service-dot " + (ok ? "ok" : "warn")} />
-      <h2>{title}</h2>
-      <p>{text}</p>
-      <b>{ok ? "Готово" : "Требует настройки"}</b>
-    </section>
-  );
+function Service({title,ok,text}:{title:string;ok:boolean;text:string}){
+  return <section className="legal-card status-card"><div className={"service-dot "+(ok?"ok":"warn")}/><h2>{title}</h2><p>{text}</p><b>{ok?"Готово":"Требует настройки"}</b></section>
 }
