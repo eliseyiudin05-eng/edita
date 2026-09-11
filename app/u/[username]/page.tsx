@@ -15,7 +15,7 @@ export default async function PublicPortfolio({params}:{params:Promise<{username
 
   if(url&&key){
     const supabase=createClient(url,key,{auth:{persistSession:false}});
-    const {data}=await supabase.from("profiles")
+    const {data}=await supabase.from("public_profiles")
       .select("id,display_name,username,level,ai_score,skills")
       .eq("username",username).maybeSingle();
     profile=data;
