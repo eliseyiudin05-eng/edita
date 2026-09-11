@@ -16,7 +16,7 @@ export default function RequisitesPage(){
           <h2>Информация о продавце</h2>
           <dl>
             <div><dt>Наименование сервиса</dt><dd>EDITA</dd></div>
-            <div><dt>Сайт</dt><dd>https://edita-eliseyiudin05-9623.vercel.app</dd></div>
+            <div><dt>Сайт</dt><dd>https://getedita.app</dd></div>
             <div><dt>Формат услуг</dt><dd>Цифровые услуги / онлайн-доступ</dd></div>
             <div><dt>Товар 1</dt><dd>EDITA Start — 1 490 ₽</dd></div>
             <div><dt>Товар 2</dt><dd>EDITA AI PRO — 499 ₽ / месяц</dd></div>
