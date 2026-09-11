@@ -147,7 +147,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
     if(!supabase){
       try{
         setMessage("Видео принято в demo. AI анализирует ключевые кадры…");
-        const review=await runAutoReview(currentFile,selected.brief);
+        const review=await runAutoReview(currentFile,selected.brief,selected.id);
         setMessage("Демо-отправка завершена. AI Score: "+review.overall_score+"/100.");
       }catch{
         setMessage("Демо: работа принята, но AI-разбор не завершился.");
@@ -179,7 +179,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
 
     try{
       setMessage("Работа отправлена. EDITA AI делает первичный разбор…");
-      const review=await runAutoReview(currentFile,selected.brief);
+      const review=await runAutoReview(currentFile,selected.brief,selected.id);
       const {error:reviewError}=await supabase.from("challenge_submissions")
         .update({ai_score:review.overall_score,ai_feedback:review}).eq("id",submission.id);
       setMessage(reviewError
@@ -192,9 +192,13 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
     setFile(null);setLoading(false);
   }
 
-  async function runAutoReview(videoFile:File,brief:string){
+  async function runAutoReview(videoFile:File,brief:string,challengeId:string){
     const extracted=await extractVideoFrames(videoFile,6);
-    const response=await fetch("/api/ai/video-review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({frames:extracted.frames,duration:extracted.duration,width:extracted.width,height:extracted.height,brief,filename:videoFile.name})});
+    const supabase=getSupabaseBrowserClient();
+    const {data:{session}}=await supabase.auth.getSession();
+    const token=session?.access_token;
+    if(!token)throw new Error("Нужна авторизация.");
+    const response=await fetch("/api/ai/video-review",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify({frames:extracted.frames,duration:extracted.duration,width:extracted.width,height:extracted.height,brief,filename:videoFile.name,purpose:"arena",challengeId})});
     const data=await response.json();
     if(!response.ok||!data.review)throw new Error(data?.error||"AI review failed");
     return data.review;
