@@ -33,7 +33,7 @@ const demoChallenges:Challenge[]=[
   {id:"demo-motion",brand:"MOTION LAB",title:"Talking-head Short",brief:"Сделай экспертный Short до 35 секунд: чистая речь, крупные субтитры, B-roll только по смыслу.",prize_cents:750000,ends_at:new Date(Date.now()+2*86400000).toISOString(),status:"open",source_assets:[]},
 ];
 
-export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewerName:string;mode:"arena"|"business"}){
+export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerified,mode}:{role:Role;viewerName:string;ageGroup?:string;guardianVerified?:boolean;mode:"arena"|"business"}){
   const [challenges,setChallenges]=useState<Challenge[]>(demoChallenges);
   const [selectedId,setSelectedId]=useState(demoChallenges[0].id);
   const [submissions,setSubmissions]=useState<Submission[]>([]);
@@ -134,6 +134,10 @@ export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewer
   async function submitWork(e:FormEvent){
     e.preventDefault();
     if(!selected||!file){setMessage("Сначала выбери видеофайл.");return;}
+    if(role==="editor"&&ageGroup&&ageGroup!=="18+"&&!guardianVerified){
+      setMessage("Коммерческие Challenge для пользователей младше 18 лет доступны только после подтверждения законного представителя. Обучение, Practice и AI доступны без этой отправки.");
+      return;
+    }
 
     setLoading(true);
     setMessage("Готовлю работу к отправке…");
@@ -321,7 +325,7 @@ export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewer
       <div className="challenge-meta"><span>{selected.brand}</span><b>{money(selected.prize_cents)}</b><span>{deadline(selected.ends_at)}</span></div>
       <p>{selected.brief}</p>
       {selected.source_assets.length>0&&<div className="source-assets"><b>Исходники:</b>{selected.source_assets.map((url,i)=><a key={i} href={url} target="_blank" rel="noreferrer">Открыть материалы ↗</a>)}</div>}
-      <div className="brief-checklist"><b>Перед отправкой проверь:</b><span>✓ формат 9:16</span><span>✓ понятный hook</span><span>✓ голос читается поверх музыки</span><span>✓ работа соответствует ТЗ</span></div>
+      {role==="editor"&&ageGroup&&ageGroup!=="18+"&&!guardianVerified&&<div className="minor-safety-note"><b>Безопасный режим</b><span>Отправка коммерческой работы заблокирована до подтверждения законного представителя.</span></div>}<div className="brief-checklist"><b>Перед отправкой проверь:</b><span>✓ формат 9:16</span><span>✓ понятный hook</span><span>✓ голос читается поверх музыки</span><span>✓ работа соответствует ТЗ</span></div>
       <form className="upload-box" onSubmit={submitWork}>
         <label><b>Загрузить готовую работу</b><span>MP4/MOV/WebM. Файл хранится приватно, бизнес получает временную signed-ссылку.</span><input type="file" accept="video/*" onChange={e=>setFile(e.target.files?.[0]||null)}/></label>
         <button className="btn btn-dark" disabled={loading}>{loading?"Отправляем...":"Отправить на конкурс"}</button>
