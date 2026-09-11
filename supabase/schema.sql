@@ -125,7 +125,8 @@ alter table public.portfolio_items enable row level security;
 alter table public.job_applications enable row level security;
 
 drop policy if exists "profiles readable" on public.profiles;
-create policy "profiles readable" on public.profiles for select using(true);
+drop policy if exists "own profile readable" on public.profiles;
+create policy "own profile readable" on public.profiles for select using(auth.uid()=id);
 drop policy if exists "own profile" on public.profiles;
 create policy "own profile" on public.profiles for update using(auth.uid()=id);
 drop policy if exists "business owner manages business" on public.businesses;
@@ -307,3 +308,15 @@ for update using(exists(
   join public.businesses b on b.id=j.business_id
   where j.id=job_id and b.owner_id=auth.uid()
 ));
+
+
+create or replace view public.public_profiles as
+select id,display_name,username,level,ai_score,skills
+from public.profiles;
+
+create or replace view public.public_businesses as
+select id,name,verified
+from public.businesses;
+
+grant select on public.public_profiles to anon, authenticated;
+grant select on public.public_businesses to anon, authenticated;
