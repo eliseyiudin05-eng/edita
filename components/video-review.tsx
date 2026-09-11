@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { extractVideoFrames } from "@/lib/video-frames";
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type Review = {
   overall_score: number;
@@ -43,14 +44,23 @@ export default function VideoReview() {
       const extracted = await extractVideoFrames(file, 7);
 
       setStatus("AI анализирует hook, pacing, субтитры и соответствие брифу…");
+      const supabase=getSupabaseBrowserClient();
+      const {data:{session}}=await supabase.auth.getSession();
+      const token=session?.access_token;
+      if(!token)throw new Error("Войди в аккаунт с AI PRO, чтобы запустить разбор.");
+
       const response = await fetch("/api/ai/video-review", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization:"Bearer "+token
+        },
         body: JSON.stringify({
           frames: extracted.frames,
           duration: extracted.duration,
           brief,
           filename: file.name,
+          purpose: "standalone",
         }),
       });
 
