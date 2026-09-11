@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type State = {
   role: "editor" | "business";
@@ -23,9 +24,53 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [state, setState] = useState<State>(defaults);
   const progress = useMemo(() => ((step + 1) / 5) * 100, [step]);
+  const [saving,setSaving]=useState(false);
 
-  function finish() {
+  useEffect(()=>{
+    let active=true;
+    try{
+      const raw=localStorage.getItem("edita_onboarding");
+      if(raw){
+        const saved=JSON.parse(raw);
+        setState(v=>({...v,...saved}));
+      }
+    }catch{}
+
+    const supabase=getSupabaseBrowserClient();
+    supabase.auth.getUser().then(async({data})=>{
+      if(!active||!data.user)return;
+      const {data:profile}=await supabase.from("profiles")
+        .select("role,onboarding")
+        .eq("id",data.user.id)
+        .maybeSingle();
+      if(!active||!profile)return;
+      setState(v=>({
+        ...v,
+        ...(profile.onboarding||{}),
+        role:profile.role==="business"?"business":"editor"
+      }));
+    });
+    return()=>{active=false};
+  },[]);
+
+  async function finish() {
     localStorage.setItem("edita_onboarding", JSON.stringify(state));
+    setSaving(true);
+    const supabase=getSupabaseBrowserClient();
+    const {data:{user}}=await supabase.auth.getUser();
+
+    if(user){
+      const {error}=await supabase.from("profiles")
+        .update({role:state.role,onboarding:state})
+        .eq("id",user.id);
+      setSaving(false);
+      if(!error){
+        window.location.href="/platform";
+        return;
+      }
+    }
+
+    setSaving(false);
     window.location.href = "/signup";
   }
 
@@ -94,7 +139,7 @@ export default function OnboardingPage() {
           {step > 0 ? <button className="btn btn-ghost" onClick={() => setStep((s) => s - 1)}>Назад</button> : <span />}
           {step < 4
             ? <button className="btn btn-dark" onClick={() => setStep((s) => s + 1)}>Дальше</button>
-            : <button className="btn btn-lime" onClick={finish}>Создать маршрут</button>}
+            : <button className="btn btn-lime" onClick={finish} disabled={saving}>{saving?"Сохраняем…":"Создать маршрут"}</button>}
         </div>
       </section>
     </main>
