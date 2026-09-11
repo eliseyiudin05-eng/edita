@@ -1,5 +1,9 @@
 # EDITA — Learn. Compete. Earn.
 
+[Open live dev preview in StackBlitz](https://stackblitz.com/github/eliseyiudin05-eng/edita?startScript=dev)
+
+[Deploy with Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Feliseyiudin05-eng%2Fedita&project-name=edita&repository-name=edita)
+
 Первый MVP карьерной платформы для видеомонтажёров и бизнеса.
 
 ## Что уже есть
