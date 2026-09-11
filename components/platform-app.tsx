@@ -38,6 +38,7 @@ export default function PlatformApp(){
  const [input,setInput]=useState("");
  const [loading,setLoading]=useState(false);
  const [aiConfigured,setAiConfigured]=useState<boolean|null>(null);
+ const [wins,setWins]=useState(0);
 
  const xp=useMemo(()=>920+done.reduce((sum,slug)=>sum+(curriculum.find(l=>l.slug===slug)?.xp||0),0),[done]);
  const tabs=useMemo(()=>{
@@ -64,6 +65,11 @@ export default function PlatformApp(){
        .select("display_name,role,username,plan,plan_expires_at,ai_score,onboarding,earnings_cents,guardian_verified")
        .eq("id",data.user.id).single();
      if(!active)return;
+     const {count:winsCount}=await supabase.from("challenge_submissions")
+       .select("id",{count:"exact",head:true})
+       .eq("editor_id",data.user.id)
+       .eq("status","winner");
+     setWins(winsCount||0);
      setViewer({
        name:profile?.display_name||data.user.user_metadata?.display_name||data.user.email?.split("@")[0]||"Пользователь",
        role:profile?.role==="business"?"business":"editor",
@@ -158,8 +164,8 @@ export default function PlatformApp(){
      {tab==="home"&&<Page title={viewer.role?"Продолжай движение, "+viewer.name+".":"Добро пожаловать в EDITA."} sub={viewer.role?"Твой маршрут адаптируется под прогресс, программу и цель.":"Демо платформы. Пройди onboarding, чтобы получить персональный маршрут."}>
        <section className="mission"><small>МИССИЯ ДНЯ</small><h2>Hook за первые 2 секунды</h2><p>Собери 20-секундный Reel и сравни три версии первого кадра.</p><button className="btn btn-lime" onClick={()=>setTab("academy")}>Открыть обучение →</button></section>
        <div className="grid">
-         <Card title="Твой рост"><div className="stats"><Stat n={String(viewer.aiScore||82)} t="AI Score"/><Stat n={String(done.length)} t="уроков"/><Stat n="1" t="победа"/></div></Card>
-         <Card title="Arena"><p>NORTH COFFEE · 10 000 ₽</p><button className="btn btn-dark" onClick={()=>setTab("arena")}>Участвовать</button></Card>
+         <Card title="Твой рост"><div className="stats"><Stat n={viewer.aiScore!=null?String(viewer.aiScore):"—"} t="AI Score"/><Stat n={String(done.length)} t="уроков"/><Stat n={String(wins)} t="побед"/></div></Card>
+         <Card title="Arena"><p className="muted">Открытые Challenge и training-задания появляются здесь после публикации бизнесом.</p><button className="btn btn-dark" onClick={()=>setTab("arena")}>Открыть Arena</button></Card>
          <Card title="Маршрут"><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"freelance"}</p><Link className="btn btn-ghost" href="/onboarding">Изменить цель</Link></Card>
        </div>
      </Page>}
