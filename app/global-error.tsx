@@ -1,0 +1,2 @@
+"use client";
+export default function ErrorPage({reset}:{error:Error&{digest?:string};reset:()=>void}){return <html lang="ru"><body><main className="auth-wrap"><section className="auth-card"><div className="eyebrow">ERROR</div><h1>Что-то пошло не так</h1><p>Ошибка уже изолирована. Попробуй повторить действие.</p><button className="btn btn-dark" onClick={()=>reset()}>Попробовать снова</button></section></main></body></html>}
