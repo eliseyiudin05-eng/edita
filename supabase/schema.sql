@@ -1,8 +1,3 @@
-
-alter table public.profiles add column if not exists onboarding jsonb not null default '{}'::jsonb;
-alter table public.profiles add column if not exists guardian_verified boolean not null default false;
-alter table public.profiles add column if not exists plan text not null default 'free';
-alter table public.profiles add column if not exists plan_expires_at timestamptz;
 create extension if not exists "pgcrypto";
 do $$ begin create type public.user_role as enum ('editor','business','admin'); exception when duplicate_object then null; end $$;
 
@@ -16,6 +11,10 @@ create table if not exists public.profiles(
   ai_score int check(ai_score between 0 and 100),
   skills text[] not null default '{}',
   earnings_cents bigint not null default 0,
+  onboarding jsonb not null default '{}'::jsonb,
+  guardian_verified boolean not null default false,
+  plan text not null default 'free',
+  plan_expires_at timestamptz,
   created_at timestamptz not null default now()
 );
 
