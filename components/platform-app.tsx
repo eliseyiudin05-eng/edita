@@ -98,6 +98,7 @@ export default function PlatformApp(){
 
      {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, принимайте работы и нанимайте по реальному результату."><div className="business-grid"><Stat n="2" t="активных конкурса"/><Stat n="126" t="работ"/><Stat n="418" t="талантов"/><Stat n="3.2 дня" t="до найма"/></div><div style={{marginTop:14}}><ChallengeCenter role={viewer.role} viewerName={viewer.name} mode="business"/></div></Page>}
    </section>
+   <nav className="mobile-nav">{tabs.map(([id,l])=><button key={id} className={tab===id?"active":""} onClick={()=>setTab(id)}>{l}</button>)}</nav>
  </main>
 }
 
