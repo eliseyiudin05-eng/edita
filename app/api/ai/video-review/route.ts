@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canUseArenaReview, hasActivePro } from "@/lib/server-supabase";
 
 const REVIEW_SCHEMA = {
   type: "object",
@@ -77,6 +78,21 @@ export async function POST(req: NextRequest) {
     const duration = Number(body.duration || 0);
     const width = Number(body.width || 0);
     const height = Number(body.height || 0);
+    const purpose = body.purpose === "arena" ? "arena" : "standalone";
+    const challengeId = typeof body.challengeId === "string" ? body.challengeId : null;
+    const bearer=req.headers.get("authorization");
+    const accessToken=bearer?.startsWith("Bearer ")?bearer.slice(7):null;
+
+    const allowed = purpose==="arena"
+      ? await canUseArenaReview(accessToken,challengeId)
+      : await hasActivePro(accessToken);
+
+    if(!allowed){
+      return NextResponse.json(
+        {error:purpose==="arena"?"Нужна авторизованная отправка в Arena.":"AI Video Review доступен на активном AI PRO."},
+        {status:403}
+      );
+    }
 
     if (!frames.length) {
       return NextResponse.json({ error: "frames required" }, { status: 400 });
