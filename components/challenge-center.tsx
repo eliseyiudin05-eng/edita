@@ -28,9 +28,9 @@ type Submission={
 };
 
 const demoChallenges:Challenge[]=[
-  {id:"demo-coffee",brand:"NORTH COFFEE",title:"Reel из утренней съёмки",brief:"Собери вертикальный Reel 20–30 секунд. Покажи атмосферу утра, продукт крупно и закончи понятным CTA. Музыка не должна перебивать естественный звук.",prize_cents:1000000,ends_at:new Date(Date.now()+3*86400000).toISOString(),status:"open",source_assets:[]},
-  {id:"demo-fitness",brand:"VOLT FITNESS",title:"Реклама нового зала",brief:"30 секунд. Быстрый hook, 3 ключевых преимущества, динамичный sound design. Избегай перегруза переходами.",prize_cents:2500000,ends_at:new Date(Date.now()+5*86400000).toISOString(),status:"open",source_assets:[]},
-  {id:"demo-motion",brand:"MOTION LAB",title:"Talking-head Short",brief:"Сделай экспертный Short до 35 секунд: чистая речь, крупные субтитры, B-roll только по смыслу.",prize_cents:750000,ends_at:new Date(Date.now()+2*86400000).toISOString(),status:"open",source_assets:[]},
+  {id:"demo-coffee",brand:"DEMO · NORTH COFFEE",title:"Reel из утренней съёмки",brief:"Собери вертикальный Reel 20–30 секунд. Покажи атмосферу утра, продукт крупно и закончи понятным CTA. Музыка не должна перебивать естественный звук.",prize_cents:0,ends_at:new Date(Date.now()+3*86400000).toISOString(),status:"open",source_assets:[]},
+  {id:"demo-fitness",brand:"DEMO · VOLT FITNESS",title:"Реклама нового зала",brief:"30 секунд. Быстрый hook, 3 ключевых преимущества, динамичный sound design. Избегай перегруза переходами.",prize_cents:0,ends_at:new Date(Date.now()+5*86400000).toISOString(),status:"open",source_assets:[]},
+  {id:"demo-motion",brand:"DEMO · MOTION LAB",title:"Talking-head Short",brief:"Сделай экспертный Short до 35 секунд: чистая речь, крупные субтитры, B-roll только по смыслу.",prize_cents:0,ends_at:new Date(Date.now()+2*86400000).toISOString(),status:"open",source_assets:[]},
 ];
 
 export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerified,mode}:{role:Role;viewerName:string;ageGroup?:string;guardianVerified?:boolean;mode:"arena"|"business"}){
@@ -91,6 +91,9 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
       }));
       setChallenges(mapped);
       setSelectedId(mapped[0].id);
+    } else if(!error) {
+      setChallenges([]);
+      setSelectedId("");
     }
 
     if(mode==="business"&&ownedBusinessId)await loadBusinessSubmissions(ownedBusinessId);
@@ -313,6 +316,10 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
         </div>}
       </section>
     </div>
+  }
+
+  if(role&&challenges.length===0){
+    return <div className="card"><div className="eyebrow">ARENA</div><h3>Пока нет открытых Challenge</h3><p className="muted">Когда бизнес опубликует первое реальное ТЗ, оно появится здесь. Демо-призы зарегистрированным пользователям не показываются.</p></div>
   }
 
   return <div className="challenge-layout">
