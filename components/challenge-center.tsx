@@ -2,6 +2,7 @@
 
 import {FormEvent,useEffect,useMemo,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
+import {extractVideoFrames} from "@/lib/video-frames";
 
 type Role="editor"|"business"|null;
 type Challenge={
@@ -105,22 +106,107 @@ export default function ChallengeCenter({role,viewerName,mode}:{role:Role;viewer
   async function submitWork(e:FormEvent){
     e.preventDefault();
     if(!selected||!file){setMessage("Сначала выбери видеофайл.");return;}
-    setLoading(true);setMessage("");
+
+    setLoading(true);
+    setMessage("Готовлю работу к отправке…");
+    const currentFile=file;
     const supabase=getSupabaseBrowserClient();
+
     if(!supabase){
-      await new Promise(r=>setTimeout(r,500));
-      setMessage("Демо: работа принята. После подключения Supabase файл будет сохранён в Storage.");
-      setFile(null);setLoading(false);return;
+      try{
+        setMessage("Видео принято в demo. AI анализирует ключевые кадры…");
+        const review=await runAutoReview(currentFile,selected.brief);
+        setMessage("Демо-отправка завершена. AI Score: "+review.overall_score+"/100.");
+      }catch{
+        setMessage("Демо: работа принята, но AI-разбор не завершился.");
+      }finally{
+        setFile(null);
+        setLoading(false);
+      }
+      return;
     }
+
     const {data:{user}}=await supabase.auth.getUser();
-    if(!user){setMessage("Войди в аккаунт монтажёра, чтобы отправить работу.");setLoading(false);return;}
-    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    if(!user){
+      setMessage("Войди в аккаунт монтажёра, чтобы отправить работу.");
+      setLoading(false);
+      return;
+    }
+
+    const safe=currentFile.name.replace(/[^a-zA-Z0-9._-]/g,"_");
     const path=user.id+"/"+selected.id+"/"+Date.now()+"-"+safe;
-    const upload=await supabase.storage.from("challenge-submissions").upload(path,file,{upsert:false,contentType:file.type||"video/mp4"});
-    if(upload.error){setMessage("Не удалось загрузить видео: "+upload.error.message);setLoading(false);return;}
-    const insert=await supabase.from("challenge_submissions").upsert({challenge_id:selected.id,editor_id:user.id,video_url:path,status:"submitted"},{onConflict:"challenge_id,editor_id"});
-    setMessage(insert.error?"Видео загружено, но запись не сохранилась: "+insert.error.message:"Работа отправлена. AI-разбор появится после обработки.");
-    setFile(null);setLoading(false);
+
+    setMessage("Загружаю видео в защищённое хранилище…");
+    const upload=await supabase.storage
+      .from("challenge-submissions")
+      .upload(path,currentFile,{upsert:false,contentType:currentFile.type||"video/mp4"});
+
+    if(upload.error){
+      setMessage("Не удалось загрузить видео: "+upload.error.message);
+      setLoading(false);
+      return;
+    }
+
+    const {data:submission,error:insertError}=await supabase
+      .from("challenge_submissions")
+      .upsert({
+        challenge_id:selected.id,
+        editor_id:user.id,
+        video_url:path,
+        status:"submitted"
+      },{onConflict:"challenge_id,editor_id"})
+      .select("id")
+      .single();
+
+    if(insertError||!submission){
+      setMessage("Видео загружено, но submission не сохранился: "+(insertError?.message||"unknown error"));
+      setLoading(false);
+      return;
+    }
+
+    try{
+      setMessage("Работа отправлена. EDITA AI делает первичный разбор…");
+      const review=await runAutoReview(currentFile,selected.brief);
+
+      const {error:reviewError}=await supabase
+        .from("challenge_submissions")
+        .update({
+          ai_score:review.overall_score,
+          ai_feedback:review
+        })
+        .eq("id",submission.id);
+
+      if(reviewError){
+        setMessage("Работа отправлена. AI Score "+review.overall_score+"/100, но feedback не сохранился: "+reviewError.message);
+      }else{
+        setMessage("Готово. Работа отправлена, AI Score: "+review.overall_score+"/100. Бизнес уже увидит оценку.");
+      }
+    }catch{
+      setMessage("Работа отправлена. AI Review не завершился — submission всё равно сохранён.");
+    }
+
+    setFile(null);
+    setLoading(false);
+  }
+
+  async function runAutoReview(videoFile:File,brief:string){
+    const extracted=await extractVideoFrames(videoFile,6);
+    const response=await fetch("/api/ai/video-review",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        frames:extracted.frames,
+        duration:extracted.duration,
+        brief,
+        filename:videoFile.name
+      })
+    });
+
+    const data=await response.json();
+    if(!response.ok||!data.review){
+      throw new Error(data?.error||"AI review failed");
+    }
+    return data.review;
   }
 
   async function createChallenge(e:FormEvent){
