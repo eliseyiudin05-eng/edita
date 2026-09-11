@@ -32,9 +32,13 @@ export default function JobBoard({mode}:{mode:"editor"|"business"}){
       if(error){setMessage(error.message);return;}
       setJobs((data||[]) as Job[]);
     }else{
-      const {data,error}=await supabase.from("jobs").select("id,title,description,budget_min_cents,budget_max_cents,businesses(name)").eq("status","open").order("created_at",{ascending:false});
+      const {data,error}=await supabase.from("jobs").select("id,business_id,title,description,budget_min_cents,budget_max_cents").eq("status","open").order("created_at",{ascending:false});
       if(error){setMessage(error.message);setJobs(demoJobs);return;}
-      setJobs((data||[]) as Job[]);
+      const rows=(data||[]) as any[];
+      const businessIds=[...new Set(rows.map(j=>j.business_id).filter(Boolean))];
+      const {data:brands}=businessIds.length?await supabase.from("public_businesses").select("id,name").in("id",businessIds):{data:[] as any[]};
+      const names=Object.fromEntries((brands||[]).map((b:any)=>[b.id,b.name]));
+      setJobs(rows.map(j=>({...j,businesses:{name:names[j.business_id]||"Verified Business"}})) as Job[]);
     }
   }
 
