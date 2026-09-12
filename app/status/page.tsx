@@ -14,16 +14,19 @@ type Status = {
   };
 };
 type AiHealth={configured:boolean;connected:boolean;model:string;status?:number;errorCode?:string|null;errorType?:string|null};
+type YooHealth={configured:boolean;connected:boolean;mode:string;error?:string};
 
 export default function StatusPage() {
   const [data,setData]=useState<Status|null>(null);
   const [ai,setAi]=useState<AiHealth|null>(null);
+  const [yoo,setYoo]=useState<YooHealth|null>(null);
 
   useEffect(()=>{
     Promise.all([
       fetch("/api/system/status",{cache:"no-store"}).then(r=>r.json()),
-      fetch("/api/ai/health",{cache:"no-store"}).then(r=>r.json())
-    ]).then(([system,health])=>{setData(system);setAi(health)}).catch(()=>{setData(null);setAi(null)});
+      fetch("/api/ai/health",{cache:"no-store"}).then(r=>r.json()),
+      fetch("/api/payments/yookassa/health",{cache:"no-store"}).then(r=>r.json())
+    ]).then(([system,health,yooHealth])=>{setData(system);setAi(health);setYoo(yooHealth)}).catch(()=>{setData(null);setAi(null);setYoo(null)});
   },[]);
 
   return <main className="legal-page">
@@ -37,9 +40,9 @@ export default function StatusPage() {
         <Service title="OpenAI" ok={Boolean(ai?.connected)}
           text={!data.services.openai.configured?"Нужен OPENAI_API_KEY":ai?.connected?("API отвечает · "+ai.model):("Ключ есть, но API не подтвердил соединение"+(ai?.status?" · HTTP "+ai.status:"")+(ai?.errorCode?" · "+ai.errorCode:""))}/>
         <Service title="База / Auth" ok={data.services.supabase.configured&&data.services.supabase.serverWrites}
-          text={data.services.supabase.configured?(data.services.supabase.serverWrites?"Client + server writes configured":"Auth/client настроены, server writes ещё выключены"):"Production database не подключена"}/>
-        <Service title="ЮKassa" ok={data.services.yookassa.configured}
-          text={data.services.yookassa.configured?("Подключена · "+data.services.yookassa.mode):"Ожидаем подтверждение магазина и ключи"}/>
+          text={data.services.supabase.configured?(data.services.supabase.serverWrites?"Клиент и серверные записи работают":"Вход работает, но серверные записи ещё выключены"):"База данных не подключена"}/>
+        <Service title="ЮKassa" ok={Boolean(yoo?.connected)}
+          text={!data.services.yookassa.configured?"Нужны ключи ЮKassa":yoo?.connected?("API отвечает · "+yoo.mode):(yoo?.error||"Ключи есть, но API не подтвердил соединение")}/>
       </div>}
 
       <div className="legal-actions"><Link className="btn btn-dark" href="/platform">Платформа</Link><Link className="btn btn-ghost" href="/pricing">Тарифы</Link></div>
