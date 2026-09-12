@@ -3,11 +3,14 @@ type ModerationResult={allowed:boolean;reason?:"abuse"|"off_topic"|"personal_inf
 const abusivePattern=/(?:^|[^\p{L}\p{N}])(?:бл(?:я|ять|ядь)|сук(?:а|и|у|ой)?|х(?:у[йеяи]|ер)|пизд[\p{L}]*|(?:е|ё)б(?:ать|ан|уч|ло|нут)[\p{L}]*|fuck\w*|shit\w*|bitch\w*)(?=$|[^\p{L}\p{N}])/iu;
 const emailPattern=/\b[^\s@]+@[^\s@]+\.[^\s@]+\b/i;
 const phonePattern=/(?:\+?\d[\s().-]*){10,}/;
+const editingTopicPattern=/(монтаж|видео|ролик|reels?|shorts?|tiktok|youtube|capcut|premiere|davinci|final cut|inshot|\bvn\b|canva|таймлайн|кадр|склейк|субтитр|звук|музык|эффект|переход|экспорт|съ[её]м|сценар|контент|портфолио|клиент|задани|урок|проект|групп)/iu;
+const obviousOffTopicPattern=/(казино|ставк[аи]|букмекер|политик|выборы|президент|знакомств|встречаться|майнкрафт|minecraft|fortnite|ставьте деньги|продам аккаунт)/iu;
 
 export async function moderateGroupMessage(raw:string):Promise<ModerationResult>{
   const text=raw.trim();
   if(abusivePattern.test(text))return {allowed:false,reason:"abuse",message:"Сообщение не отправлено: в учебном чате нельзя использовать оскорбления или мат."};
   if(emailPattern.test(text)||phonePattern.test(text))return {allowed:false,reason:"personal_info",message:"Не публикуй в группе email или номер телефона. Общайтесь внутри EDITA."};
+  if(obviousOffTopicPattern.test(text)&&!editingTopicPattern.test(text))return {allowed:false,reason:"off_topic",message:"Это учебный чат про видео и совместные проекты. Переформулируй сообщение по теме монтажа."};
   if(!process.env.OPENAI_API_KEY)return {allowed:true};
 
   try{

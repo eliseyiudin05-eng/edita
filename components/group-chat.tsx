@@ -1,6 +1,6 @@
 "use client";
 
-import {FormEvent,useEffect,useRef,useState} from "react";
+import {FormEvent,useCallback,useEffect,useRef,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 
 type GroupMessage={
@@ -20,13 +20,13 @@ export default function GroupChat({groupId,groupName}:{groupId:string;groupName:
   const [notice,setNotice]=useState("");
   const feedRef=useRef<HTMLDivElement>(null);
 
-  async function accessToken(){
+  const accessToken=useCallback(async()=>{
     const supabase=getSupabaseBrowserClient();
     const {data:{session}}=await supabase.auth.getSession();
     return session?.access_token||"";
-  }
+  },[]);
 
-  async function load(silent=false){
+  const load=useCallback(async(silent=false)=>{
     try{
       const access=await accessToken();
       if(!access){setNotice("Войди в аккаунт, чтобы открыть групповой чат.");return}
@@ -38,13 +38,13 @@ export default function GroupChat({groupId,groupName}:{groupId:string;groupName:
     }catch(reason){
       if(!silent)setNotice(reason instanceof Error?reason.message:"Не удалось загрузить чат.");
     }finally{if(!silent)setLoading(false)}
-  }
+  },[accessToken,groupId]);
 
   useEffect(()=>{
     void load();
     const timer=window.setInterval(()=>void load(true),12000);
     return()=>window.clearInterval(timer);
-  },[groupId]);
+  },[load]);
 
   useEffect(()=>{
     feedRef.current?.scrollTo({top:feedRef.current.scrollHeight,behavior:"smooth"});
