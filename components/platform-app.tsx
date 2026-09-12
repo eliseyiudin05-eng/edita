@@ -12,6 +12,7 @@ import JobBoard from "@/components/job-board";
 import CommunityLeaderboard from "@/components/community-leaderboard";
 import SiteTour from "@/components/site-tour";
 import BusinessVerification from "@/components/business-verification";
+import GuardianVerification from "@/components/guardian-verification";
 
 type Tab="home"|"academy"|"practice"|"coach"|"review"|"arena"|"portfolio"|"jobs"|"community"|"wallet"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string;ageGroup?:string};
@@ -234,6 +235,7 @@ export default function PlatformApp(){
 
      {tab==="portfolio"&&<Page title={viewer.role==="editor"?viewer.name:"Публичное портфолио"} sub="Verified Editor · Skill Graph · реальные работы">
        <PortfolioPanel/>
+       {viewer.onboarding?.ageGroup&&viewer.onboarding.ageGroup!=="18+"&&<div style={{marginTop:14}}><GuardianVerification/></div>}
        <div style={{marginTop:14}}>{viewer.username?<Link className="btn btn-dark" href={"/u/"+viewer.username}>Открыть публичный URL</Link>:<Link className="btn btn-dark" href="/u/demo">Посмотреть demo-портфолио</Link>}</div>
      </Page>}
 
@@ -249,11 +251,11 @@ export default function PlatformApp(){
        <div className="profile-grid">
          <Card title="Career Passport"><p><b>{viewer.name}</b></p><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"freelance"} · {planLabel}</p>{viewer.username&&<Link className="btn btn-dark" href={"/u/"+viewer.username}>Публичный профиль ↗</Link>}</Card>
          <Card title="Навыки"><Skill label="Основа монтажа" value={Math.min(100,done.filter(s=>["what-is-editing","hook-basics","story-basics","retention-basics","editor-words","clean-cut"].includes(s)).length*16)}/><Skill label="Удержание зрителя" value={Math.min(100,done.filter(s=>["hook-basics","retention-basics","hook-2-seconds","subtitles","b-roll","sound"].includes(s)).length*16)}/><Skill label="Работа с клиентом" value={Math.min(100,done.filter(s=>["client-brief","pricing","portfolio"].includes(s)).length*33)}/></Card>
-         <Card title="Настройки маршрута"><p className="muted">Уровень: {viewer.onboarding?.level||"не указан"}<br/>Софт: {viewer.onboarding?.software||"не указан"}<br/>Цель: {viewer.onboarding?.goal||"не указана"}</p><Link className="btn btn-ghost" href="/onboarding">Изменить onboarding</Link></Card>
+         <Card title="Настройки обучения"><p className="muted">Уровень: {viewer.onboarding?.level||"не указан"}<br/>Программа: {viewer.onboarding?.software||"не указана"}<br/>Цель: {viewer.onboarding?.goal||"не указана"}</p><Link className="btn btn-ghost" href="/onboarding">Изменить настройки</Link></Card>{viewer.onboarding?.ageGroup&&viewer.onboarding.ageGroup!=="18+"&&<GuardianVerification/>}
        </div>
      </Page>}
 
-     {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><JobBoard mode="editor"/></Page>}
+     {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><JobBoard mode="editor" ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified}/></Page>}
      {tab==="community"&&<Page title="Рейтинг" sub="Здесь видны только безопасные данные: имя, уровень и подтверждённые навыки."><CommunityLeaderboard/></Page>}
      {tab==="business"&&<Page title="Кабинет бизнеса" sub="Сначала подтвердите компанию. После проверки можно публиковать реальные задания и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных Challenge"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n="BETA" t="режим workspace"/></div><div className="business-stack"><BusinessVerification/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/></div></Page>}
    </section>
