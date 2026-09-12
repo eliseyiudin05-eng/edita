@@ -178,3 +178,10 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none!important}
   .business-signup-steps{grid-template-columns:1fr 1fr}
   .auth-resend{align-items:stretch;flex-direction:column}
 }
+
+.verification-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+.verification-checks>div{display:grid;gap:5px;border-radius:14px;padding:14px;border:1px solid var(--line)}
+.verification-checks b{font-size:14px}.verification-checks span{font-size:12px;line-height:1.4;color:var(--muted)}
+.verification-checks .check-ok{background:#e9f8e7;border-color:#b8ddb4}
+.verification-checks .check-wait{background:#fafaf7}
+@media(max-width:700px){.verification-checks{grid-template-columns:1fr}}
