@@ -11,6 +11,7 @@ import PortfolioPanel from "@/components/portfolio-panel";
 import JobBoard from "@/components/job-board";
 import SocialHub from "@/components/social-hub";
 import BusinessGrowth from "@/components/business-growth";
+import CampaignHub from "@/components/campaign-hub";
 import SiteTour from "@/components/site-tour";
 import BusinessVerification from "@/components/business-verification";
 import GuardianVerification from "@/components/guardian-verification";
@@ -265,9 +266,9 @@ export default function PlatformApp(){
        </div>
      </Page>}
 
-     {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><JobBoard mode="editor" ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified}/></Page>}
+     {tab==="jobs"&&<Page title="Работа" sub="Вакансии и маркетинговые кампании проверенных компаний — в одном месте."><div className="business-stack"><CampaignHub mode="editor"/><JobBoard mode="editor" ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified}/></div></Page>}
      {tab==="community"&&<Page title="Сообщество" sub="Рейтинг, друзья, учебные группы, соревнования и приглашения — без лишних личных данных."><SocialHub ageGroup={viewer.onboarding?.ageGroup}/></Page>}
-     {tab==="business"&&<Page title="Кабинет бизнеса" sub="Сначала подтвердите компанию. После проверки можно публиковать реальные задания и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных Challenge"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n="ЗАКРЫТО" t="предзапуск"/></div><div className="business-stack"><BusinessVerification/><BusinessGrowth/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/></div></Page>}
+     {tab==="business"&&<Page title="Кабинет бизнеса" sub="Сначала подтвердите компанию. После проверки можно публиковать реальные задания и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных Challenge"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n="ЗАКРЫТО" t="предзапуск"/></div><div className="business-stack"><BusinessVerification/><BusinessGrowth/><CampaignHub mode="business"/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/></div></Page>}
    </section>
 
    <SiteTour role={viewer.role} onGo={(value)=>setTab(value as Tab)}/>
