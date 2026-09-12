@@ -17,7 +17,7 @@ type AiHealth={configured:boolean;connected:boolean;model:string;status?:number;
 type YooHealth={configured:boolean;connected:boolean;mode:string;error?:string};
 type EmailHealth={
   configured:boolean;connected:boolean;domain:string;verified:boolean;domainStatus?:string;
-  apiStatus?:number;errorCode?:string|null;keyFormatValid?:boolean;senderAdjusted?:boolean;
+  apiStatus?:number;errorCode?:string|null;keyFormatValid?:boolean;sendingEnabled?:boolean;senderAdjusted?:boolean;
 };
 
 export default function StatusPage() {
@@ -56,7 +56,7 @@ export default function StatusPage() {
             :!emailHealth?.connected
               ?("Resend-ключ есть, но API не подтвердил соединение"+(emailHealth?.apiStatus?" · HTTP "+emailHealth.apiStatus:"")+(emailHealth?.errorCode?" · "+emailHealth.errorCode:""))
               :emailHealth?.verified
-                ?("Resend отвечает · домен "+emailHealth.domain+" подтверждён"+(emailHealth.senderAdjusted?" · адрес отправителя исправлен автоматически":""))
+                ?("Resend отвечает · отправка с "+emailHealth.domain+" разрешена"+(emailHealth?.domainStatus==="partially_verified"?" · приём писем не требуется":"")+(emailHealth.senderAdjusted?" · адрес отправителя исправлен автоматически":""))
                 :("Resend отвечает, но домен "+emailHealth.domain+" ещё не подтверждён · "+(emailHealth.domainStatus||"unknown"))}/>
         <Service title="ЮKassa" ok={Boolean(yoo?.connected)}
           text={!data.services.yookassa.configured?"Нужны ключи ЮKassa":yoo?.connected?("API отвечает · "+yoo.mode):(yoo?.error||"Ключи есть, но API не подтвердил соединение")}/>

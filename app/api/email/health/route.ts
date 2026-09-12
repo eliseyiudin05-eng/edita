@@ -59,6 +59,7 @@ export async function GET(){
     apiStatus:resend.apiStatus,
     errorCode:resend.errorCode,
     keyFormatValid:resend.keyFormatValid,
+    sendingEnabled:resend.sendingEnabled,
     senderAdjusted:resend.senderAdjusted,
     requestedDomain:resend.requestedDomain,
     checks,

@@ -123,6 +123,7 @@ export async function getResendServiceStatus(){
     apiStatus:0,
     errorCode:null as string|null,
     keyFormatValid:config.keyFormatValid,
+    sendingEnabled:false,
     senderAdjusted:config.senderAdjusted,
     requestedDomain:config.requestedDomain,
   };
@@ -150,11 +151,13 @@ export async function getResendServiceStatus(){
       :undefined;
     const status=domain?.status||"missing";
     const sending=domain?.capabilities?.sending||"unknown";
+    const sendingEnabled=sending==="enabled";
 
     return {
       ...base,
       connected:true,
-      verified:status==="verified"&&sending!=="disabled",
+      verified:sendingEnabled,
+      sendingEnabled,
       domainStatus:status,
       apiStatus:r.status,
       errorCode:null,
