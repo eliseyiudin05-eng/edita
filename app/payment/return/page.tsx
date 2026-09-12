@@ -35,7 +35,7 @@ export default function PaymentReturnPage(){
 
   return <main className="auth-wrap">
     <section className="auth-card payment-result">
-      <div className="eyebrow">YOOKASSA</div>
+      <div className="eyebrow">ОПЛАТА ЧЕРЕЗ ЮKASSA</div>
       {!status&&<>
         <h1>Проверяем оплату…</h1>
         <p>Получаем подтверждение платежа от ЮKassa.</p>
