@@ -1,4 +1,5 @@
 import Link from "next/link";
+import DemoAccessButton from "@/components/demo-access-button";
 
 export default function DemoAccessPage(){
   return (
@@ -7,17 +8,20 @@ export default function DemoAccessPage(){
         <div className="eyebrow">REVIEW ACCESS</div>
         <h1>Доступ для проверки EDITA</h1>
         <p>
-          Для проверки сайта регистрация не требуется. Основной функционал
-          платформы доступен в демо-режиме.
+          Нажмите одну кнопку — EDITA безопасно откроет готовый аккаунт ученика.
+          Email и пароль вводить не нужно.
         </p>
         <div className="auth-msg">
-          <b>Логин:</b> не требуется<br/>
-          <b>Пароль:</b> не требуется
+          <b>Роль:</b> ученик 14–17 лет<br/>
+          <b>Маршрут:</b> CapCut с нуля → первый Reel
         </div>
         <div className="auth-form">
-          <Link className="btn btn-dark" href="/platform">Войти в демо</Link>
+          <DemoAccessButton/>
+          <Link className="btn btn-dark" href="/login">Войти в свой аккаунт</Link>
+          <Link className="btn btn-ghost" href="/onboarding">Создать аккаунт</Link>
           <Link className="btn btn-ghost" href="/requisites">Реквизиты</Link>
         </div>
+        <small>Это общий тестовый аккаунт: прогресс и история AI могут быть видны другим проверяющим.</small>
       </section>
     </main>
   );

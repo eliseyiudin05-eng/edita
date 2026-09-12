@@ -14,7 +14,9 @@ export default function PrelaunchPage(){
       const r=await fetch("/api/prelaunch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code})});
       const data=await r.json();
       if(!r.ok){setMessage(data?.error||"Код не подошёл.");return;}
-      window.location.href="/";
+      const requested=new URLSearchParams(window.location.search).get("from");
+      const destination=requested?.startsWith("/")&&!requested.startsWith("//")?requested:"/review-access";
+      window.location.assign(destination);
     }catch{
       setMessage("Не удалось проверить код. Попробуй ещё раз.");
     }finally{setLoading(false)}
@@ -31,6 +33,7 @@ export default function PrelaunchPage(){
         <button className="btn btn-lime" disabled={loading}>{loading?"Проверяем…":"Открыть EDITA"}</button>
       </form>
       {message&&<div className="auth-msg">{message}</div>}
+      <small>После проверки кода вернём туда, куда вы шли. При первом входе откроется страница с демо-доступом.</small>
       <small>Публичный запуск ещё не начался. Поисковые системы закрыты от индексации.</small>
     </section>
   </main>
