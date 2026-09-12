@@ -49,17 +49,19 @@ export async function GET(){
     cname:cname.some((v:string)=>v.toLowerCase().replace(/\.$/,"")===expected.cname.value.toLowerCase())
   };
   const dnsVerified=Object.values(checks).every(Boolean);
+  const sendOnlyKey=resend.domainStatus==="send_only_key";
 
   return NextResponse.json({
     configured:resend.configured,
     connected:resend.connected,
     domain,
-    verified:resend.verified&&dnsVerified,
+    verified:(resend.verified||sendOnlyKey)&&dnsVerified,
     domainStatus:resend.domainStatus,
     apiStatus:resend.apiStatus,
     errorCode:resend.errorCode,
     keyFormatValid:resend.keyFormatValid,
-    sendingEnabled:resend.sendingEnabled,
+    sendingEnabled:resend.sendingEnabled||sendOnlyKey,
+    permissionMode:sendOnlyKey?"send_only":"full",
     senderAdjusted:resend.senderAdjusted,
     requestedDomain:resend.requestedDomain,
     checks,

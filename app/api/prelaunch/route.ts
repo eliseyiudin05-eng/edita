@@ -1,15 +1,27 @@
 import {NextRequest,NextResponse} from "next/server";
 import {createHash} from "crypto";
-
-const ACCESS_HASH="bfc66c41fc002c17d37c9649cce339179454851d26591ccae64b489df56ff3e1";
+import {isAcceptedAccessHash,isTesterAccessHash} from "@/lib/prelaunch-access";
+import {getSupabaseServiceClient} from "@/lib/server-supabase";
 
 export async function POST(req:NextRequest){
   const body=await req.json().catch(()=>({}));
   const code=String(body?.code||"").trim().toUpperCase();
   const hash=createHash("sha256").update(code).digest("hex");
 
-  if(hash!==ACCESS_HASH){
+  if(!isAcceptedAccessHash(hash)){
     return NextResponse.json({error:"Код не подошёл. Проверь символы и попробуй ещё раз."},{status:401});
+  }
+
+  if(isTesterAccessHash(hash)){
+    const service=getSupabaseServiceClient();
+    if(!service)return NextResponse.json({error:"Проверка бета-кода временно недоступна."},{status:503});
+    const {data:invite,error}=await service.from("beta_access_codes")
+      .select("id,active,expires_at")
+      .eq("code_hash",hash)
+      .maybeSingle();
+    if(error||!invite||!invite.active||(invite.expires_at&&new Date(invite.expires_at).getTime()<=Date.now())){
+      return NextResponse.json({error:"Этот бета-код выключен или срок его действия закончился."},{status:401});
+    }
   }
 
   const res=NextResponse.json({ok:true});

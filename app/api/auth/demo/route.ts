@@ -32,6 +32,8 @@ export async function POST(req:NextRequest){
 
   await service.from("profiles").update({
     display_name:"Демо-ученик",
+    plan:"pro",
+    plan_expires_at:"2026-11-12T23:59:59Z",
     onboarding:{role:"editor",level:"new",software:"CapCut",goal:"first-reel",ageGroup:"14-17"}
   }).eq("id",user.id);
 

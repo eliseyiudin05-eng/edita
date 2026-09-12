@@ -1,9 +1,20 @@
 name: Build Vercel deployment bundle
-# refresh-2
 on:
   push:
     branches: [main]
-    paths: [".github/workflows/vercel-bundle.yml"]
+    paths:
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "public/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "next.config.ts"
+      - "next-env.d.ts"
+      - "proxy.ts"
+      - ".github/workflows/vercel-bundle.yml"
 permissions:
   contents: write
 jobs:
@@ -24,13 +35,13 @@ jobs:
               rel=p.as_posix()
               if rel=="vercel-deploy-bundle.json": continue
               if p.parts[0] in roots or rel in fileset:
-              try:
-                  data=p.read_text(encoding="utf-8")
-                  encoding="utf-8"
-              except UnicodeDecodeError:
-                  data=base64.b64encode(p.read_bytes()).decode("ascii")
-                  encoding="base64"
-              files.append({"file":rel,"data":data,"encoding":encoding})
+                  try:
+                      data=p.read_text(encoding="utf-8")
+                      encoding="utf-8"
+                  except UnicodeDecodeError:
+                      data=base64.b64encode(p.read_bytes()).decode("ascii")
+                      encoding="base64"
+                  files.append({"file":rel,"data":data,"encoding":encoding})
           Path("vercel-deploy-bundle.json").write_text(json.dumps(files,ensure_ascii=False),encoding="utf-8")
           PY
       - name: Commit bundle

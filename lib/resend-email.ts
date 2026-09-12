@@ -151,11 +151,21 @@ export async function getResendServiceStatus(){
     });
     const body:ResendApiErrorBody&{data?:Array<{name?:string;status?:string;capabilities?:{sending?:string}}>}=await r.json().catch(()=>({}));
     if(!r.ok){
+      const code=errorCode(body);
+      if(r.status===401&&code==="restricted_api_key"){
+        return {
+          ...base,
+          connected:true,
+          apiStatus:r.status,
+          domainStatus:"send_only_key",
+          errorCode:null,
+        };
+      }
       return {
         ...base,
         apiStatus:r.status,
         domainStatus:"api_error",
-        errorCode:errorCode(body),
+        errorCode:code,
       };
     }
 

@@ -21,7 +21,8 @@ export async function GET() {
       },
       yookassa:{
         configured:Boolean(process.env.YOOKASSA_SHOP_ID&&process.env.YOOKASSA_SECRET_KEY),
-        mode:process.env.YOOKASSA_MODE||"test",
+        acceptingPayments:process.env.BETA_FREE_MODE==="false",
+        mode:process.env.BETA_FREE_MODE==="false"?(process.env.YOOKASSA_MODE||"test"):"disabled_for_beta",
       },
       email:{
         configured:Boolean(process.env.RESEND_API_KEY),

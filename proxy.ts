@@ -1,6 +1,5 @@
 import {NextRequest,NextResponse} from "next/server";
-
-const ACCESS_HASH="bfc66c41fc002c17d37c9649cce339179454851d26591ccae64b489df56ff3e1";
+import {isAcceptedAccessHash} from "@/lib/prelaunch-access";
 
 async function sha256(value:string){
   const bytes=new TextEncoder().encode(value);
@@ -25,7 +24,7 @@ export default async function proxy(req:NextRequest){
   }
 
   const code=req.cookies.get("edita_prelaunch")?.value||"";
-  if(code && await sha256(code)===ACCESS_HASH){
+  if(code && isAcceptedAccessHash(await sha256(code.trim().toUpperCase()))){
     return NextResponse.next();
   }
 

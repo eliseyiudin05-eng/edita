@@ -1,5 +1,5 @@
 import {NextRequest,NextResponse} from "next/server";
-import {lessonBySlug} from "@/lib/curriculum";
+import {curriculum,lessonBySlug} from "@/lib/curriculum";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 
 function bearer(req:NextRequest){
@@ -15,7 +15,22 @@ export async function POST(req:NextRequest){
   const body=await req.json().catch(()=>({}));
   const lesson=lessonBySlug(String(body?.slug||""));
   const completed=body?.completed!==false;
+  const taskConfirmed=body?.taskConfirmed===true;
+  const submissionNote=String(body?.submissionNote||"").trim().slice(0,1000);
   if(!lesson)return NextResponse.json({error:"Урок не найден."},{status:404});
+  if(completed&&!taskConfirmed)return NextResponse.json({error:"Сначала выполни практическое задание урока."},{status:400});
+
+  const lessonIndex=curriculum.findIndex(item=>item.slug===lesson.slug);
+  if(completed&&lessonIndex>0){
+    const required=curriculum.slice(0,lessonIndex).map(item=>item.slug);
+    const {data:completedRows}=await service.from("lesson_progress")
+      .select("status,lessons!inner(slug)")
+      .eq("user_id",user.id)
+      .eq("status","completed");
+    const completedSlugs=new Set((completedRows||[]).map((row:any)=>row.lessons?.slug).filter(Boolean));
+    const missing=required.find(slug=>!completedSlugs.has(slug));
+    if(missing)return NextResponse.json({error:"Сначала выполни задание предыдущего урока."},{status:409});
+  }
 
   const {data:lessonRow,error:lessonError}=await service.from("lessons").upsert({
     slug:lesson.slug,
@@ -31,7 +46,8 @@ export async function POST(req:NextRequest){
       user_id:user.id,
       lesson_id:lessonRow.id,
       status:"completed",
-      completed_at:new Date().toISOString()
+      completed_at:new Date().toISOString(),
+      submission_note:submissionNote||null
     },{onConflict:"user_id,lesson_id"});
     if(error)return NextResponse.json({error:"Не удалось сохранить прогресс."},{status:503});
   }else{
@@ -39,5 +55,12 @@ export async function POST(req:NextRequest){
     if(error)return NextResponse.json({error:"Не удалось снять отметку."},{status:503});
   }
 
-  return NextResponse.json({ok:true,completed,slug:lesson.slug});
+  const {data:progress}=await service.from("lesson_progress")
+    .select("status,lessons!inner(xp_reward)")
+    .eq("user_id",user.id)
+    .eq("status","completed");
+  const xp=(progress||[]).reduce((sum:number,row:any)=>sum+Number(row.lessons?.xp_reward||0),0);
+  await service.from("profiles").update({xp}).eq("id",user.id);
+
+  return NextResponse.json({ok:true,completed,slug:lesson.slug,xp});
 }

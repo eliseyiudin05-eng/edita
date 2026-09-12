@@ -49,6 +49,13 @@ export async function POST(req:NextRequest){
     const scopeKey=normalizeAiScope(context.scopeKey);
     let conversationId:string|null=null;
     let saved=false;
+    let activePro=false;
+    if(user&&service){
+      const {data:profile}=await service.from("profiles").select("plan,plan_expires_at").eq("id",user.id).maybeSingle();
+      activePro=profile?.plan==="pro"&&(!profile.plan_expires_at||new Date(profile.plan_expires_at).getTime()>Date.now());
+    }
+    const attachment=normalizeAttachment(body?.attachment,activePro);
+    const historyMessage=(attachment?"Файл: "+attachment.name+"\n":"")+message;
     let history=suppliedHistory.slice(-12).map((item:any)=>({
       role:item.from==="ai"?"assistant":"user",
       content:String(item.text||"").slice(0,6000)
@@ -68,7 +75,7 @@ export async function POST(req:NextRequest){
         if(stored.length){
           history=stored.slice(-12).map(item=>({role:item.from==="ai"?"assistant":"user",content:item.text}));
         }
-        await saveConversationMessage(service,user.id,conversation.id,"user",message,{scope:scopeKey});
+        await saveConversationMessage(service,user.id,conversation.id,"user",historyMessage,{scope:scopeKey,attachment:attachment?{name:attachment.name,kind:attachment.kind}:null,tier:activePro?"pro":"basic"});
         saved=true;
       }catch(error){
         console.error("AI history write error",error);
@@ -76,7 +83,7 @@ export async function POST(req:NextRequest){
     }
 
     if(!process.env.OPENAI_API_KEY||!user){
-      const reply=demoReply(message,context);
+      const reply=demoReply(message,{...context,attachmentName:attachment?.name});
       if(saved&&service&&conversationId&&user){
         try{await saveConversationMessage(service,user.id,conversationId,"assistant",reply,{model:"demo"})}catch(error){console.error("AI demo history write error",error)}
       }
@@ -89,17 +96,39 @@ export async function POST(req:NextRequest){
       });
     }
 
+    const userContent:any[]=[{
+      type:"input_text",
+      text:
+        "Контекст ученика: "+JSON.stringify({...context,plan:activePro?"pro":"basic"})+"\n\n"+
+        "Текущий вопрос: "+message+"\n\n"+
+        (activePro
+          ?"Режим PRO: дай углублённый разбор, расставь правки по приоритету и используй таймкоды только переданных кадров."
+          :"Базовый режим: дай только простой словесный разбор без баллов и перегруза. Максимум 5 коротких действий.")
+    }];
+    if(attachment?.text){
+      userContent.push({type:"input_text",text:"Содержимое файла «"+attachment.name+"»:\n"+attachment.text});
+    }
+    if(attachment?.frames?.length){
+      for(const frame of attachment.frames){
+        userContent.push({type:"input_text",text:"Кадр из файла «"+attachment.name+"» · "+frame.timecode});
+        userContent.push({type:"input_image",image_url:frame.image,detail:activePro?"high":"low"});
+      }
+    }
+    if(attachment?.kind==="video"){
+      userContent.push({type:"input_text",text:"Метаданные видео: "+Math.round(attachment.duration||0)+" сек., "+(attachment.width||0)+"×"+(attachment.height||0)+". Это отдельные кадры, а не полный просмотр со звуком."});
+    }
+
     const response=await fetch("https://api.openai.com/v1/responses",{
       method:"POST",
       headers:{"Content-Type":"application/json",Authorization:`Bearer ${process.env.OPENAI_API_KEY}`},
       body:JSON.stringify({
         model:process.env.OPENAI_MODEL||"gpt-5.6-luna",
-        instructions:SYSTEM,
+        instructions:SYSTEM+(activePro?PRO_INSTRUCTIONS:BASIC_INSTRUCTIONS),
         input:[
           ...history,
-          {role:"user",content:"Контекст ученика: "+JSON.stringify(context)+"\n\nТекущий вопрос: "+message}
+          {role:"user",content:userContent}
         ],
-        max_output_tokens:1200
+        max_output_tokens:activePro?1700:750
       })
     });
 
@@ -110,7 +139,7 @@ export async function POST(req:NextRequest){
       if(saved&&service&&conversationId){
         try{await saveConversationMessage(service,user.id,conversationId,"assistant",reply,{model:"demo",degraded:true})}catch(error){console.error("AI degraded history write error",error)}
       }
-      return NextResponse.json({reply,demo:true,degraded:true,saved,model:"demo",upstreamStatus:response.status});
+      return NextResponse.json({reply,demo:true,degraded:true,saved,model:"demo",tier:activePro?"pro":"basic",upstreamStatus:response.status});
     }
 
     const data=await response.json();
@@ -118,11 +147,44 @@ export async function POST(req:NextRequest){
     if(saved&&service&&conversationId){
       try{await saveConversationMessage(service,user.id,conversationId,"assistant",reply,{model:process.env.OPENAI_MODEL||"gpt-5.6-luna"})}catch(error){console.error("AI reply history write error",error)}
     }
-    return NextResponse.json({reply,model:process.env.OPENAI_MODEL||"gpt-5.6-luna",demo:false,saved});
+    return NextResponse.json({reply,model:process.env.OPENAI_MODEL||"gpt-5.6-luna",demo:false,saved,tier:activePro?"pro":"basic"});
   }catch(error){
     console.error("AI route error",error);
     return NextResponse.json({error:"bad request"},{status:400});
   }
+}
+
+const BASIC_INSTRUCTIONS=`
+Базовый режим файла:
+- Никаких числовых оценок, длинного scorecard и профессионального жаргона.
+- Скажи простыми словами: что уже понятно, что исправить первым, и какие 3–5 действий сделать.
+- Если переданы кадры видео, честно напомни, что звук и переходы между кадрами не проверялись.
+`;
+
+const PRO_INSTRUCTIONS=`
+Режим PRO:
+- Начни с короткого вывода, затем раздели наблюдения на сильные стороны, проблемы и порядок правок.
+- Для переданных кадров используй их таймкоды. Не придумывай промежуточные моменты и звук.
+- Отдельно проверь hook, композицию, субтитры, визуальное разнообразие, формат и соответствие вопросу/брифу.
+- Дай точные действия в выбранной программе и финальный чек-лист перед публикацией.
+`;
+
+type AiAttachment={kind:"video"|"image"|"text";name:string;text?:string;frames?:Array<{timecode:string;image:string}>;duration?:number;width?:number;height?:number};
+
+function normalizeAttachment(raw:any,pro:boolean):AiAttachment|null{
+  if(!raw||typeof raw!=="object")return null;
+  const kind=raw.kind;
+  if(!["video","image","text"].includes(kind))return null;
+  const name=String(raw.name||"файл").slice(0,160);
+  const text=typeof raw.text==="string"?raw.text.slice(0,pro?16000:7000):undefined;
+  const limit=pro?7:3;
+  const frames=Array.isArray(raw.frames)?raw.frames.slice(0,limit).map((frame:any)=>({
+    timecode:String(frame?.timecode||"кадр").slice(0,24),
+    image:String(frame?.image||"")
+  })).filter((frame:any)=>/^data:image\/(jpeg|png|webp);base64,/i.test(frame.image)&&frame.image.length<=1600000):[];
+  if(kind==="text"&&!text)return null;
+  if((kind==="video"||kind==="image")&&!frames.length)return null;
+  return {kind,name,text,frames,duration:Number(raw.duration||0),width:Number(raw.width||0),height:Number(raw.height||0)};
 }
 
 function demoReply(message:string,context:Record<string,any>){

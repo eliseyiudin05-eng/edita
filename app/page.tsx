@@ -1,8 +1,9 @@
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
+import SiteFooter from "@/components/site-footer";
+import {curriculumStats} from "@/lib/curriculum";
 import {getSupabasePublicConfig} from "@/lib/public-config";
 import {createClient} from "@supabase/supabase-js";
-import SiteFooter from "@/components/site-footer";
 
 async function getTestimonials(){
   try{
@@ -19,203 +20,157 @@ async function getTestimonials(){
 }
 
 const features=[
-  ["Академия","Большой маршрут от первого запуска CapCut до портфолио, работы с клиентом и профессиональных программ."],
-  ["AI Помощник","Можно спросить обычными словами. Он объясняет термины и подсказывает следующий шаг."],
-  ["Практика","Тренируй ответы клиенту: цена, сроки, правки и вопросы до начала работы."],
-  ["Разбор видео","Загрузи ролик и получи понятный список, что стоит улучшить."],
-  ["Arena","Проверенные компании дают одинаковое ТЗ участникам. Победителя выбирает человек, не AI."],
-  ["Портфолио и работа","Собирай лучшие работы и откликайся на вакансии внутри одной системы."]
+  ["Академия",`${curriculumStats.lessons} уроков от установки CapCut до портфолио, клиентов и профессиональных программ.`],
+  ["AI рядом","Задай простой вопрос в любом уроке. История разговора сохраняется в аккаунте."],
+  ["Разбор своего Reel","Добавь видео, кадр, сценарий или субтитры и получи правки именно по своей работе."],
+  ["Практика с клиентом","Тренируй цену, сроки, правки и сложные сообщения до реального заказа."],
+  ["Друзья и школы","Аватары, рейтинг друзей, учебные группы и добровольный командный рейтинг учебных заведений."],
+  ["Путь к работе","Портфолио, проверенные компании, задания и вакансии собраны в одном кабинете."]
 ];
 
 const faq=[
-  ["Я вообще не умею монтировать. Мне подойдёт?","Да. Стартовый модуль сделан для человека, который впервые открыл редактор: от файлов и таймлайна до экспорта первого ролика."],
-  ["Нужно сразу покупать тариф?","Нет. Сначала можно создать аккаунт, пройти базовую настройку и посмотреть платформу. Платные функции подключаются отдельно."],
-  ["AI выберет победителя конкурса?","Нет. AI может дать подсказку и первичный разбор, но победителя выбирает бизнес или человек, который проводит задание."],
-  ["Можно ли пользоваться до 18 лет?","Учиться можно. Коммерческие задания, вакансии и оплата закрыты до подтверждения родителя или другого законного представителя."],
-  ["Можно ли доверять компаниям?","Реальные Challenge и вакансии могут публиковать только компании, которые прошли проверку EDITA."],
-  ["Какие программы поддерживаются?","Маршрут можно настроить под CapCut, Premiere Pro, DaVinci Resolve и Final Cut."]
+  ["Я впервые открыл редактор. Я пойму?","Да. Первый маршрут начинается с установки, создания проекта, импорта файлов и таймлайна. Английские слова сразу объясняются по-русски."],
+  ["Сейчас нужно платить?","Нет. Во время закрытой беты касса выключена. Участник с персональным кодом создаёт аккаунт без письма и без карты."],
+  ["Почему следующий урок закрыт?","Каждый следующий урок открывается после практического задания предыдущего. Так эффекты и сложные приёмы не обгоняют основу."],
+  ["Чем базовый AI отличается от PRO?","База даёт короткий словесный разбор до пяти действий. PRO смотрит больше кадров, расставляет приоритеты и даёт подробный план с доступными таймкодами."],
+  ["AI выбирает победителя конкурса?","Нет. Система хранит подтверждённые просмотры, а команда вручную проверяет ссылки, накрутку и соблюдение правил."],
+  ["Можно пользоваться в 14–17 лет?","Учиться можно. Денежные конкурсы и коммерческие функции требуют подтверждения законного представителя. Название школы по умолчанию скрыто."],
+  ["Какие программы есть в маршруте?","CapCut, Premiere Pro, DaVinci Resolve и Final Cut. База монтажа одна, а пути к кнопкам адаптированы под программу."]
 ];
 
 export default async function Home(){
   const testimonials=await getTestimonials();
 
   return <main className="landing">
-    <nav className="topbar shell">
+    <nav className="topbar shell sticky-public-nav">
       <Link className="brand" href="/">EDITA<span>.</span></Link>
       <div className="nav-actions">
-        <a href="#start">С чего начать</a>
+        <a href="#beta">Бета</a>
+        <a href="#challenge">10 000 ₽</a>
         <a href="#inside">Что внутри</a>
-        <a href="#business">Для бизнеса</a><Link href="/creators">Для креаторов</Link>
         <Link href="/pricing">Тарифы</Link>
         <Link href="/login">Войти</Link>
-        <Link className="btn btn-dark" href="/signup">Попробовать</Link>
+        <Link className="btn btn-dark" href="/signup/editor">Занять место</Link>
       </div>
     </nav>
 
     <section className="hero shell hero-new">
       <div className="hero-grid">
         <div>
-          <div className="eyebrow">ОТ ПЕРВОГО МОНТАЖА ДО ПЕРВОЙ РАБОТЫ</div>
-          <h1>Научись монтировать.<br/><span>Потом покажи, что умеешь.</span></h1>
-          <p className="hero-copy">EDITA объясняет монтаж простыми словами, даёт практику, помогает собрать портфолио и приводит к реальным заданиям от проверенных компаний.</p>
+          <div className="eyebrow">МОНТАЖ С НУЛЯ · AI · ПРАКТИКА · РАБОТА</div>
+          <h1 className="structured-title">Научись монтировать.<span>Сделай первый Reel.</span><span>Покажи, что умеешь.</span></h1>
+          <p className="hero-copy">EDITA ведёт от первой кнопки в CapCut до сильного ролика, портфолио и понятного общения с клиентом. Уроки открываются постепенно, а AI отвечает прямо внутри обучения.</p>
           <div className="hero-actions">
-            <Link className="btn btn-primary" href="/signup">Начать с нуля</Link>
-            <a className="btn btn-ghost" href="#start">Посмотреть, как это работает</a>
+            <Link className="btn btn-primary" href="/signup/editor">Войти в бесплатную бету</Link>
+            <Link className="btn btn-ghost" href="/review-access">Посмотреть готовый аккаунт</Link>
           </div>
           <div className="simple-proof">
-            <span>✓ 40+ уроков — от первого клика до портфолио</span>
-            <span>✓ AI объясняет непонятные слова</span>
-            <span>✓ Бизнес проходит проверку</span>
+            <span>{curriculumStats.lessons} уроков и {curriculumStats.assignments} заданий</span>
+            <span>Подросткам 14+ и взрослым</span>
+            <span>Прогресс и AI-чаты сохраняются</span>
           </div>
         </div>
         <figure className="hero-photo">
           <Image priority src="/images/edita-hero-community.webp" width={1586} height={992} sizes="(max-width: 900px) 100vw, 48vw" alt="Подростки старше 14 лет и взрослый автор вместе учатся видеомонтажу в современной студии"/>
-          <figcaption>Для первого ролика в 14 лет, нового навыка во взрослом возрасте и роста в профессии.</figcaption>
+          <figcaption>Для первого ролика в 14 лет, новой профессии во взрослом возрасте и команды, которой нужны авторы.</figcaption>
         </figure>
+      </div>
+    </section>
+
+    <section className="founder-line">
+      <div className="shell founder-line-inner"><div><span>С чего началась идея EDITA</span><strong>С денег, сэкономленных в школьном буфете, — к первому заработку на монтаже.</strong></div><p>Начать можно с малого: телефона, бесплатного редактора и одного понятного задания.</p></div>
+    </section>
+
+    <section id="beta" className="section shell beta-home-section">
+      <div className="beta-home-head"><div><div className="section-kicker">ЗАКРЫТАЯ БЕТА ДО 12 НОЯБРЯ 2026</div><h2>Первые 50 человек тестируют EDITA бесплатно</h2><p>Без карты, кассы и автоматического продления. Персональный код создаёт подтверждённый аккаунт сразу — письмо Resend для тестировщика не требуется.</p></div><div className="zero-price"><small>СЕЙЧАС</small><strong>0 ₽</strong><span>50 мест</span></div></div>
+      <div className="beta-plan-grid">
+        <article><span>БАЗА</span><h3>Учёба и простой AI</h3><p>Весь маршрут, задания, сохранение прогресса, чат, друзья, рейтинги и короткий словесный разбор файла.</p><b>После беты: 1 490 ₽</b></article>
+        <article className="pro"><span>AI PRO</span><h3>Максимальный разбор</h3><p>Больше кадров, доступные таймкоды, приоритет правок, hook, композиция, субтитры и финальный чек-лист.</p><b>После беты: 499 ₽ / 30 дней</b></article>
+      </div>
+      <div className="beta-home-actions"><Link className="btn btn-dark" href="/signup/editor">Использовать персональный код</Link><Link className="btn btn-ghost" href="/pricing">Сравнить базу и PRO</Link></div>
+    </section>
+
+    <section id="challenge" className="challenge-home-band">
+      <div className="shell challenge-home-grid">
+        <div><div className="section-kicker light">EDITA REELS · СЕЗОН 1</div><h2>Сними честный Reel про EDITA. Забери часть 10 000 ₽.</h2><p>Опубликуй ролик в открытой социальной сети, отметь EDITA и отправь ссылку до 12 ноября 2026 года. Три места определяются по подтверждённым просмотрам.</p><div className="challenge-home-actions"><Link className="btn btn-lime" href="/platform#community">Участвовать</Link><Link className="btn btn-light" href="/challenge-rules">Прочитать правила</Link></div></div>
+        <div className="challenge-prize-card"><div><span>1 место</span><strong>5 000 ₽</strong></div><div><span>2 место</span><strong>3 000 ₽</strong></div><div><span>3 место</span><strong>2 000 ₽</strong></div><p>До 100 участников · новый сезон каждые 2 месяца · с 14 лет</p></div>
       </div>
     </section>
 
     <section className="section shell audience-section">
       <div className="section-kicker">ОДНА ПЛАТФОРМА · РАЗНЫЕ ЦЕЛИ</div>
-      <h2>Здесь не «детский курс» и не закрытый клуб профессионалов</h2>
+      <h2>Не детский курс и не закрытый клуб профессионалов</h2>
       <div className="audience-grid">
-        <article><span>14–17</span><h3>Первый творческий навык</h3><p>Безопасное обучение, понятные подсказки, учебные группы и первые работы без давления «ты уже должен всё знать».</p></article>
-        <article><span>18+</span><h3>Контент и новая профессия</h3><p>Reels, Shorts, YouTube, портфолио, работа с заказчиком и переход к Premiere Pro или DaVinci Resolve.</p></article>
-        <article><span>B2B</span><h3>Авторы для компаний</h3><p>Проверка бизнеса, честные задания, просмотр реальных работ и поиск людей по навыкам, а не только по резюме.</p></article>
-      </div>
-    </section>
-
-    <section id="start" className="section shell">
-      <div className="section-kicker">ЕСЛИ ТЫ НОВИЧОК</div>
-      <h2>Не нужно сначала учить словарь монтажёра</h2>
-      <p className="section-lead">Мы специально начинаем не с эффектов и сложных кнопок, а с понимания: что такое монтаж и зачем вообще нужен каждый приём.</p>
-      <div className="steps-road">
-        <article><b>1</b><div><h3>Пойми основу</h3><p>Что такое кадр, склейка, хук, ритм, B-roll, CTA и ТЗ — на обычных примерах.</p></div></article>
-        <article><b>2</b><div><h3>Попробуй сам</h3><p>После каждого урока есть маленькое задание. Не теория ради теории.</p></div></article>
-        <article><b>3</b><div><h3>Спроси AI</h3><p>Если не понял — напиши: «Объясни ещё проще». Помощник не должен стыдить за простые вопросы.</p></div></article>
-        <article><b>4</b><div><h3>Собери работу</h3><p>Переходи к настоящим роликам, портфолио и заданиям от бизнеса.</p></div></article>
-      </div>
-    </section>
-
-    <section className="visual-band">
-      <div className="shell visual-grid">
-        <figure>
-          <Image src="/images/edita-company-collaboration.webp" width={1448} height={1086} sizes="(max-width: 900px) 100vw, 50vw" alt="Молодой монтажёр показывает ролик взрослой команде компании"/>
-        </figure>
-        <div>
-          <div className="section-kicker light">ПОНЯТНО ДАЖЕ В ПЕРВЫЙ ДЕНЬ</div>
-          <h2>Не понял слово? Это проблема объяснения, а не твоя.</h2>
-          <p>В EDITA сложные слова либо убираются, либо сразу переводятся на обычный язык. Например: <b>B-roll</b> — дополнительный кадр, который показывает то, о чём сейчас говорят.</p>
-          <Link className="btn btn-light" href="/signup">Получить свой маршрут</Link>
-        </div>
+        <article><span>14–17</span><h3>Первый сильный навык</h3><p>Безопасный маршрут, понятные подсказки, учебные группы и практика без давления «ты уже должен всё знать».</p></article>
+        <article><span>18+</span><h3>Контент и профессия</h3><p>Reels, Shorts, YouTube, портфолио, переговоры и переход от CapCut к Premiere Pro или DaVinci Resolve.</p></article>
+        <article><span>КОМПАНИИ</span><h3>Авторы по реальным работам</h3><p>Проверенные задания, портфолио, сравнение навыков и поиск людей не только по красивому резюме.</p></article>
       </div>
     </section>
 
     <section id="inside" className="section shell">
-      <div className="section-kicker">ЧТО ЕСТЬ ВНУТРИ</div>
-      <h2>Один путь вместо десяти разных сервисов</h2>
+      <div className="section-kicker">ВСЁ В ОДНОМ КАБИНЕТЕ</div>
+      <h2>Не десять вкладок и случайные видео, а один связанный маршрут</h2>
       <div className="feature-grid">{features.map(([title,text])=><article className="feature-card" key={title}><h3>{title}</h3><p>{text}</p></article>)}</div>
     </section>
 
-    <section className="section shell">
-      <div className="section-kicker">КАК ВЫГЛЯДИТ ПЕРВЫЙ ДЕНЬ</div>
-      <h2>Человек вошёл — и сразу понимает, куда нажать</h2>
-      <div className="first-day-grid">
-        <div className="first-day-card"><span>09:00</span><b>Прошёл подсказки по сайту</b><p>EDITA показывает Главную, Академию, Практику, AI, Arena, Портфолио и Работу.</p></div>
-        <div className="first-day-card"><span>09:10</span><b>Узнал, что такое монтаж</b><p>Первый урок объясняет кадр, склейку и таймлайн без сложной теории.</p></div>
-        <div className="first-day-card"><span>09:25</span><b>Разобрался с хуком</b><p>Понял, почему первые секунды ролика важны и придумал три варианта начала.</p></div>
-        <div className="first-day-card"><span>09:45</span><b>Задал вопрос AI</b><p>Получил шаги под свою программу монтажа и понял, что делать дальше.</p></div>
+    <section className="visual-band">
+      <div className="shell visual-grid">
+        <figure><Image src="/images/edita-company-collaboration.webp" width={1448} height={1086} sizes="(max-width: 900px) 100vw, 50vw" alt="Молодой монтажёр показывает ролик взрослой команде компании"/></figure>
+        <div><div className="section-kicker light">ОТ ПЕРВОЙ КНОПКИ ДО РЕАЛЬНОГО ТЗ</div><h2>Не понял слово? Значит, объяснение нужно сделать проще.</h2><p>Каждый урок показывает, зачем нужен приём, куда нажать, что должно появиться на экране и как самому проверить результат. Если интерфейс изменился, AI уточнит устройство и версию программы.</p><Link className="btn btn-light" href="/signup/editor">Получить свой маршрут</Link></div>
       </div>
     </section>
 
-    <section id="community-learning" className="section shell">
-      <div className="section-kicker">УЧИСЬ НЕ ОДИН</div>
-      <h2>Друзья, группы и соревнования — прямо внутри EDITA</h2>
-      <p className="section-lead">Можно добавить друзей по @username, собрать маленькую учебную группу, сравнивать прогресс и участвовать в безопасных соревнованиях. Для пользователей до 18 лет взрослые аккаунты и детские группы не смешиваются.</p>
-      <div className="feature-grid">
-        <article className="feature-card"><h3>Рейтинг друзей</h3><p>Смотри, кто прошёл больше уроков и набрал больше очков — без показа email, возраста и дохода.</p></article>
-        <article className="feature-card"><h3>Учебные группы</h3><p>Одноклассники или друзья входят по коду, видят общий прогресс и обсуждают монтаж в чате с AI-помощником и модерацией.</p></article>
-        <article className="feature-card"><h3>Соревнования</h3><p>Короткие учебные задания за XP и место в рейтинге. Денежные коммерческие задания остаются отдельно в Arena.</p></article>
-        <article className="feature-card"><h3>Пригласи друга</h3><p>Награда появляется только когда друг реально начинает учиться и проходит первые уроки — не за пустую регистрацию.</p></article>
+    <section className="section shell path-section">
+      <div className="section-kicker">КАК РАСТЁТ СЛОЖНОСТЬ</div>
+      <h2>Сначала первый уверенный ролик. Потом скорость, стиль и клиенты.</h2>
+      <div className="steps-road">
+        <article><b>1</b><div><h3>Открой и не потеряйся</h3><p>Установка, новый проект, файлы, экран редактора, таймлайн и экспорт.</p></div></article>
+        <article><b>2</b><div><h3>Собери основу</h3><p>Чистые склейки, hook, ритм, звук, субтитры и B-roll без лишних эффектов.</p></div></article>
+        <article><b>3</b><div><h3>Сделай свой Reel</h3><p>Сценарий, съёмка, монтаж, проверка файла и разбор понятным языком.</p></div></article>
+        <article><b>4</b><div><h3>Работай увереннее</h3><p>ТЗ, цена, правки, портфолио, Premiere Pro, DaVinci Resolve и Final Cut.</p></div></article>
       </div>
     </section>
 
-    <section id="business" className="business-band">
-      <div className="shell business-grid business-new">
-        <div>
-          <div className="section-kicker light">ДЛЯ КОМПАНИЙ</div>
-          <h2>Смотрите не на резюме.<br/>Смотрите на реальную работу.</h2>
-          <p>Компания подтверждает себя, создаёт понятное задание, получает работы монтажёров и сама выбирает лучшего человека. Сильных авторов можно сохранять в свой пул талантов, а проверенные бренды участвуют в EDITA Brand League.</p>
-          <div className="verification-explain">
-            <span>✓ Проверенная компания — документы сверены</span>
-            <span>★ Известный бренд — документы + публичные страницы проверены вручную</span>
-          </div>
-        </div>
-        <div className="business-card">
-          <h3>Почему нужна проверка</h3>
-          <p>Она нужна не для красивой галочки. Непроверенный бизнес не может публиковать реальную вакансию или Challenge. Так меньше фейковых работодателей и ложных призов.</p>
-          <Link href="/signup" className="btn btn-light">Создать бизнес-аккаунт</Link>
-        </div>
+    <section className="section shell difference-section">
+      <div className="section-kicker">ЧЕМ EDITA ОТЛИЧАЕТСЯ</div>
+      <h2>Сильнее обычного курса там, где всё связано между собой</h2>
+      <div className="difference-grid">
+        <article><span>Обычные видеоуроки</span><p>Посмотрел и сам решаешь, понял ли материал.</p><b>В EDITA</b><p>Задание, чек-лист и следующий урок только после практики.</p></article>
+        <article><span>Редактор с шаблонами</span><p>Помогает быстро собрать ролик, но не строит профессию.</p><b>В EDITA</b><p>Навык переносится между CapCut, Premiere, DaVinci и Final Cut.</p></article>
+        <article><span>Обычный AI-чат</span><p>Не знает твой маршрут, прогресс и прошлый вопрос.</p><b>В EDITA</b><p>Помнит диалог, видит контекст урока и разбирает твой файл по уровню тарифа.</p></article>
+        <article><span>Доска вакансий</span><p>Показывает объявления, но не готовит к работе.</p><b>В EDITA</b><p>Сначала навык и практика, затем портфолио, проверенная компания и ТЗ.</p></article>
       </div>
+      <p className="honest-claim">Мы не называем EDITA «лучшей в мире» без данных. Наша проверяемая ставка — самый понятный связанный путь от первой кнопки до первой сильной работы.</p>
     </section>
 
-    <section id="creators" className="creator-home-band">
-      <div className="shell creator-home-grid">
-        <div>
-          <div className="section-kicker">ДЛЯ КРЕАТОРОВ</div>
-          <h2>Снимай про EDITA и получай реальные оплачиваемые брифы</h2>
-          <p>Мы собираем постоянную Creator Squad: монтажёров, UGC-креаторов и авторов коротких видео. Сначала согласуем оплату и условия, потом начинается работа.</p>
-          <Link className="btn btn-dark" href="/creators">Открыть EDITA Creators</Link>
-        </div>
-        <div className="creator-home-card">
-          <span className="eyebrow">ПЕРВОЕ ОФИЦИАЛЬНОЕ ТЗ</span>
-          <h3>«EDITA глазами новичка»</h3>
-          <p>Вертикальное видео 25–45 секунд: честно показать, как человек впервые заходит в EDITA и начинает понимать монтаж.</p>
-          <b>Никакой обязательной бесплатной работы.</b>
-        </div>
-      </div>
+    <section className="community-vision-band">
+      <div className="shell community-vision-grid"><div><div className="section-kicker">БОЛЬШЕ, ЧЕМ ПЛАТФОРМА</div><h2>Строим маркетинговую семью для миллиона авторов и компаний</h2><p>Это цель, а не выдуманная цифра аудитории. Внутри уже заложены профили с аватарами, друзья, группы, общий рейтинг, команды школ, соревнования и безопасный чат с AI-модерацией.</p></div><div className="community-metrics"><div><strong>1</strong><span>единый профиль</span></div><div><strong>3</strong><span>рейтинга: общий, друзья, школы</span></div><div><strong>24/7</strong><span>AI рядом в обучении</span></div></div></div>
     </section>
 
     <section className="section shell safety-home">
-      <div className="section-kicker">БЕЗОПАСНОСТЬ</div>
-      <h2>До 18 лет — обучение сначала, коммерция только после подтверждения взрослого</h2>
+      <div className="section-kicker">БЕЗОПАСНОСТЬ И ЧЕСТНОСТЬ</div>
+      <h2>То, что особенно важно перед первым публичным днём</h2>
       <div className="safety-grid">
-        <article><h3>Можно сразу</h3><p>Уроки, практика, AI Помощник и развитие навыков.</p></article>
-        <article><h3>Требует подтверждения</h3><p>Оплата, отклик на работу и участие в коммерческих заданиях.</p></article>
-        <article><h3>Паспорт ребёнка</h3><p>Мы не хотим хранить его в обычной базе. Для публичного запуска проверку личности родителя нужно вынести в специализированный сервис.</p></article>
+        <article><h3>Подростки</h3><p>Школа скрыта по умолчанию. Коммерция и денежный конкурс до 18 лет требуют подтверждения взрослого.</p></article>
+        <article><h3>Компании</h3><p>Реальные вакансии и задания публикуются после проверки бизнеса. AI не назначает победителей.</p></article>
+        <article><h3>Бета</h3><p>Касса выключена. Мы сначала собираем ошибки у 50 тестировщиков и только потом включаем оплату.</p></article>
       </div>
-    </section>
-
-    <section className="section shell price-preview">
-      <div><div className="section-kicker">ТАРИФЫ</div><h2>Сначала разберись. Потом решай, нужно ли больше.</h2></div>
-      <div className="price-preview-grid">
-        <article><span>START</span><strong>1 490 ₽</strong><p>Стартовая программа и путь от базы к первым работам.</p></article>
-        <article><span>AI PRO · 30 ДНЕЙ</span><strong>499 ₽</strong><p>Расширенный AI и полный разбор видео. Без автоматического продления.</p></article>
-      </div>
-      <Link className="btn btn-dark" href="/pricing">Все тарифы</Link>
     </section>
 
     <section className="section shell">
       <div className="section-kicker">ОТЗЫВЫ</div>
       <h2>Только настоящие</h2>
-      {testimonials.length?<div className="testimonial-grid">{testimonials.map((t:any,i:number)=><article className="testimonial-card" key={i}><div className="stars">{"★".repeat(Math.max(1,Math.min(5,Number(t.rating||5))))}</div><p>«{t.text}»</p><b>{t.display_name}</b><span>{t.role_label}</span></article>)}</div>:<div className="honest-empty"><b>Пока здесь пусто — и это нормально.</b><p>Мы не будем писать выдуманные отзывы. Во время закрытого предзапуска соберём реальные отзывы тестировщиков, и только после их разрешения они появятся здесь.</p></div>}
+      {testimonials.length?<div className="testimonial-grid">{testimonials.map((t:any,i:number)=><article className="testimonial-card" key={i}><div className="stars">{"★".repeat(Math.max(1,Math.min(5,Number(t.rating||5))))}</div><p>«{t.text}»</p><b>{t.display_name}</b><span>{t.role_label}</span></article>)}</div>:<div className="honest-empty"><b>Пока здесь пусто — и это нормально.</b><p>Мы не публикуем выдуманные отзывы. После беты здесь появятся только тексты реальных тестировщиков, которые разрешили публикацию.</p></div>}
     </section>
 
     <section className="section shell faq-section">
-      <div className="section-kicker">ВОПРОСЫ</div>
-      <h2>Если бы я впервые открыл EDITA</h2>
+      <div className="section-kicker">ВОПРОСЫ ПЕРЕД СТАРТОМ</div>
+      <h2>Коротко и без мелкого шрифта</h2>
       <div className="faq-grid">{faq.map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div>
     </section>
 
-    <section className="final-cta">
-      <div className="shell">
-        <div className="eyebrow">EDITA</div>
-        <h2>Открой сайт. Пройди первый урок. Сделай первый монтаж.</h2>
-        <p>Не нужно уже быть монтажёром, чтобы начать.</p>
-        <Link className="btn btn-lime" href="/signup">Начать</Link>
-      </div>
-    </section>
+    <section className="final-cta"><div className="shell"><div className="eyebrow">EDITA · ЗАКРЫТАЯ БЕТА</div><h2>Открой первый урок. Сделай первый Reel. Помоги нам найти ошибки до запуска.</h2><p>Персональный код — один новый аккаунт. Карта не нужна.</p><div className="hero-actions"><Link className="btn btn-lime" href="/signup/editor">Создать аккаунт</Link><Link className="btn btn-light" href="/review-access">Войти в демо</Link></div></div></section>
 
     <SiteFooter/>
-  </main>
+  </main>;
 }

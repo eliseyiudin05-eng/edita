@@ -18,7 +18,7 @@ export default function DemoAccessPage(){
         <div className="auth-form">
           <DemoAccessButton/>
           <Link className="btn btn-dark" href="/login">Войти в свой аккаунт</Link>
-          <Link className="btn btn-ghost" href="/onboarding">Создать аккаунт</Link>
+          <Link className="btn btn-ghost" href="/signup/editor">Создать свой бета-аккаунт</Link>
           <Link className="btn btn-ghost" href="/requisites">Реквизиты</Link>
         </div>
         <small>Это общий тестовый аккаунт: прогресс и история AI могут быть видны другим проверяющим.</small>

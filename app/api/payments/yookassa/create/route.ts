@@ -5,6 +5,9 @@ import { getSupabaseServiceClient, getUserFromAccessToken } from "@/lib/server-s
 
 export async function POST(req: NextRequest) {
   try {
+    if(process.env.BETA_FREE_MODE!=="false"){
+      return NextResponse.json({error:"На закрытой бете оплата отключена. Первые 50 участников тестируют EDITA бесплатно."},{status:503});
+    }
     const body = await req.json();
     const product = body?.product as EditaProduct;
     if (!PRODUCTS[product]) return NextResponse.json({ error: "Unknown product" }, { status: 400 });

@@ -26,14 +26,15 @@ export default function PrelaunchPage(){
     <section className="prelaunch-card">
       <div className="brand">EDITA<span>.</span></div>
       <div className="eyebrow">ЗАКРЫТЫЙ ПРЕДЗАПУСК</div>
-      <h1>Сайт уже онлайн,<br/>но пока только для проверки.</h1>
-      <p>Введите код доступа. После входа можно проверить регистрацию, обучение, AI, бизнес-кабинет и оплату.</p>
+      <h1>Сайт уже онлайн и готов к закрытой бете.</h1>
+      <p>Введи персональный код. После проверки откроется регистрация, готовый демо-аккаунт, Академия, AI и конкурс. Платежи во время беты выключены.</p>
       <form className="auth-form" onSubmit={submit}>
         <input autoFocus required autoComplete="off" placeholder="Код доступа" value={code} onChange={e=>setCode(e.target.value.toUpperCase())}/>
         <button className="btn btn-lime" disabled={loading}>{loading?"Проверяем…":"Открыть EDITA"}</button>
       </form>
       {message&&<div className="auth-msg">{message}</div>}
-      <small>После проверки кода вернём туда, куда вы шли. При первом входе откроется страница с демо-доступом.</small>
+      <small>Один персональный код создаёт один новый аккаунт. Повторно вводить его на том же устройстве не нужно.</small>
+      <small>После проверки кода вернём туда, куда ты шёл. Если адрес не был указан, откроется страница с демо-доступом.</small>
       <small>Публичный запуск ещё не начался. Поисковые системы закрыты от индексации.</small>
     </section>
   </main>

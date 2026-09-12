@@ -1,8 +1,9 @@
 "use client";
 
-import {FormEvent,useEffect,useMemo,useState} from "react";
+import {FormEvent,useEffect,useMemo,useRef,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 import type {AiChatMessage} from "@/lib/ai-history";
+import {extractVideoFrames} from "@/lib/video-frames";
 
 type CoachContext={
   level?:string;
@@ -15,6 +16,7 @@ type CoachContext={
   lessonTitle?:string;
   lessonSummary?:string;
   lessonSteps?:string[];
+  plan?:string;
 };
 
 type AiCoachProps={
@@ -36,6 +38,12 @@ export default function AiCoach({scopeKey,title="AI Помощник",welcome=de
   const [historyLoading,setHistoryLoading]=useState(true);
   const [storageMode,setStorageMode]=useState<"account"|"browser">("browser");
   const [notice,setNotice]=useState("");
+  const [file,setFile]=useState<File|null>(null);
+  const feedRef=useRef<HTMLDivElement>(null);
+  const textareaRef=useRef<HTMLTextAreaElement>(null);
+  const fileRef=useRef<HTMLInputElement>(null);
+
+  const isPro=context.plan==="pro";
 
   useEffect(()=>{
     let active=true;
@@ -70,12 +78,26 @@ export default function AiCoach({scopeKey,title="AI Помощник",welcome=de
     try{localStorage.setItem(localKey,JSON.stringify(messages.slice(-80)))}catch{}
   },[historyLoading,localKey,messages,storageMode]);
 
+  useEffect(()=>{
+    const feed=feedRef.current;
+    if(feed)feed.scrollTo({top:feed.scrollHeight,behavior:"smooth"});
+  },[messages,loading,historyLoading]);
+
+  function resizeInput(value:string){
+    setInput(value);
+    const area=textareaRef.current;
+    if(area){area.style.height="auto";area.style.height=Math.min(180,area.scrollHeight)+"px"}
+  }
+
   async function send(text:string){
-    const question=text.trim();
+    const question=text.trim()||(file?"Разбери этот файл и скажи, что улучшить в моём Reel.":"");
     if(!question||loading)return;
-    const next=[...messages,{from:"user" as const,text:question}];
+    const shownQuestion=(file?"Файл: "+file.name+"\n":"")+question;
+    const next=[...messages,{from:"user" as const,text:shownQuestion}];
     setMessages(next);setInput("");setLoading(true);setNotice("");
+    if(textareaRef.current)textareaRef.current.style.height="auto";
     try{
+      const attachment=file?await prepareAttachment(file,isPro):null;
       const supabase=getSupabaseBrowserClient();
       const {data:{session}}=await supabase.auth.getSession();
       const headers:Record<string,string>={"Content-Type":"application/json"};
@@ -86,15 +108,19 @@ export default function AiCoach({scopeKey,title="AI Помощник",welcome=de
         body:JSON.stringify({
           message:question,
           context:{...context,scopeKey},
-          history:messages.slice(-12)
+          history:messages.slice(-12),
+          attachment
         })
       });
       const data=await response.json();
       const reply=data.reply||"Не получилось ответить. Попробуй ещё раз чуть позже.";
       setMessages(current=>[...current,{from:"ai",text:reply}]);
       if(data.saved)setStorageMode("account");
-    }catch{
-      setMessages(current=>[...current,{from:"ai",text:"Связь прервалась. Вопрос не потерян — нажми «Спросить» ещё раз, когда интернет восстановится."}]);
+      setFile(null);
+      if(fileRef.current)fileRef.current.value="";
+    }catch(error){
+      const reason=error instanceof Error?error.message:"Не удалось обработать запрос или файл.";
+      setMessages(current=>[...current,{from:"ai",text:reason+" Проверь файл и попробуй ещё раз."}]);
     }finally{setLoading(false)}
   }
 
@@ -120,7 +146,7 @@ export default function AiCoach({scopeKey,title="AI Помощник",welcome=de
       <div><span className="ai-orb" aria-hidden="true">AI</span><div><b>{title}</b><small>{storageMode==="account"?"Диалог сохраняется в аккаунте":"Диалог сохраняется в этом браузере"}</small></div></div>
       <button type="button" className="ai-clear" onClick={clear}>Очистить</button>
     </div>
-    <div className="ai-feed" aria-live="polite">
+    <div className="ai-feed" aria-live="polite" ref={feedRef}>
       {historyLoading?<div className="ai-thinking">Загружаю диалог…</div>:messages.map((message,index)=><article className={"ai-message "+message.from} key={message.id||index}>
         <span>{message.from==="ai"?"EDITA AI":"Ты"}</span>
         <AiMessageText text={message.text}/>
@@ -128,13 +154,59 @@ export default function AiCoach({scopeKey,title="AI Помощник",welcome=de
       {loading?<div className="ai-thinking">Разбираю вопрос и готовлю шаги…</div>:null}
     </div>
     {prompts.length?<div className="ai-prompts">{prompts.slice(0,4).map(prompt=><button type="button" key={prompt} onClick={()=>void send(prompt)} disabled={loading}>{prompt}</button>)}</div>:null}
+    <div className={"ai-file-mode "+(isPro?"pro":"basic")}><b>{isPro?"PRO-разбор":"Базовый разбор"}</b><span>{isPro?"до 7 кадров, таймкоды и подробный порядок правок":"до 3 кадров и короткие словесные рекомендации"}</span></div>
     <form className="ai-form" onSubmit={submit}>
-      <textarea value={input} onChange={event=>setInput(event.target.value)} maxLength={4000} rows={compact?2:3} placeholder="Например: я не вижу кнопку «Разделить». Что нажать?"/>
-      <button className="btn btn-lime" disabled={loading||!input.trim()}>{loading?"Думаю…":"Спросить AI"}</button>
+      <label className="ai-attach" title="Добавить свой Reel, кадр, сценарий или субтитры"><span>＋ Файл</span><input ref={fileRef} type="file" accept="video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp,.txt,.srt,.vtt" onChange={event=>{setFile(event.target.files?.[0]||null);setNotice("")}}/></label>
+      <textarea ref={textareaRef} value={input} onChange={event=>resizeInput(event.target.value)} maxLength={4000} rows={compact?2:3} placeholder="Например: я не вижу кнопку «Разделить». Что нажать?"/>
+      <button className="btn btn-lime" disabled={loading||(!input.trim()&&!file)}>{loading?"Разбираю…":"Спросить AI"}</button>
     </form>
+    {file?<div className="ai-selected-file"><span><b>{file.name}</b> · {formatBytes(file.size)}</span><button type="button" onClick={()=>{setFile(null);if(fileRef.current)fileRef.current.value=""}}>Убрать</button></div>:null}
     {notice?<div className="ai-notice">{notice}</div>:null}
     <small className="ai-disclaimer">Кнопки в приложениях иногда переезжают после обновлений. AI уточнит устройство и версию, если это важно.</small>
   </section>
+}
+
+type PreparedAttachment={kind:"video"|"image"|"text";name:string;mime:string;frames?:Array<{timecode:string;image:string}>;text?:string;duration?:number;width?:number;height?:number};
+
+async function prepareAttachment(file:File,isPro:boolean):Promise<PreparedAttachment>{
+  if(file.type.startsWith("video/")){
+    const limit=isPro?300*1024*1024:120*1024*1024;
+    if(file.size>limit)throw new Error("Видео слишком большое.");
+    const extracted=await extractVideoFrames(file,isPro?7:3);
+    return {kind:"video",name:file.name,mime:file.type,frames:extracted.frames.map(frame=>({timecode:frame.timecode,image:frame.image})),duration:extracted.duration,width:extracted.width,height:extracted.height};
+  }
+  if(file.type.startsWith("image/")){
+    if(file.size>8*1024*1024)throw new Error("Изображение должно быть меньше 8 МБ.");
+    const image=await imageToJpeg(file);
+    return {kind:"image",name:file.name,mime:"image/jpeg",frames:[{timecode:"кадр",image}]};
+  }
+  if(/\.(txt|srt|vtt)$/i.test(file.name)||file.type.startsWith("text/")){
+    if(file.size>2*1024*1024)throw new Error("Текстовый файл должен быть меньше 2 МБ.");
+    return {kind:"text",name:file.name,mime:file.type||"text/plain",text:(await file.text()).slice(0,isPro?16000:7000)};
+  }
+  throw new Error("Поддерживаются MP4, MOV, WebM, JPG, PNG, WebP, TXT, SRT и VTT.");
+}
+
+function imageToJpeg(file:File){
+  return new Promise<string>((resolve,reject)=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{
+      const max=1400;const scale=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+      const canvas=document.createElement("canvas");
+      canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+      const ctx=canvas.getContext("2d");
+      if(!ctx){URL.revokeObjectURL(url);reject(new Error("Не удалось прочитать изображение."));return;}
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);URL.revokeObjectURL(url);resolve(canvas.toDataURL("image/jpeg",.76));
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("Не удалось прочитать изображение."))};
+    img.src=url;
+  });
+}
+
+function formatBytes(bytes:number){
+  if(bytes<1024*1024)return Math.max(1,Math.round(bytes/1024))+" КБ";
+  return (bytes/1024/1024).toFixed(1)+" МБ";
 }
 
 function AiMessageText({text}:{text:string}){

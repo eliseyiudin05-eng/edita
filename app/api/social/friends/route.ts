@@ -19,7 +19,7 @@ export async function GET(req:NextRequest){
 
   if(search){
     const {data}=await a.service.from("public_profiles")
-      .select("id,username,display_name,level,xp,rating_points")
+      .select("id,username,display_name,level,xp,rating_points,ai_score,avatar_url,school_name")
       .ilike("username",search)
       .neq("id",a.user.id)
       .limit(8);
@@ -34,7 +34,7 @@ export async function GET(req:NextRequest){
 
   const ids=[...new Set((rels||[]).flatMap((r:any)=>[r.requester_id,r.addressee_id]).filter((id:string)=>id!==a.user.id))];
   const {data:profiles}=ids.length
-    ? await a.service.from("public_profiles").select("id,username,display_name,level,xp,rating_points").in("id",ids)
+    ? await a.service.from("public_profiles").select("id,username,display_name,level,xp,rating_points,ai_score,avatar_url,school_name").in("id",ids)
     : {data:[] as any[]};
   const map=Object.fromEntries((profiles||[]).map((p:any)=>[p.id,p]));
 

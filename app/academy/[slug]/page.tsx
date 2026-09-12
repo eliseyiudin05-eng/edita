@@ -2,6 +2,7 @@ import Link from "next/link";
 import {notFound} from "next/navigation";
 import AiCoach from "@/components/ai-coach";
 import LessonProgressButton from "@/components/lesson-progress-button";
+import LessonRouteGate from "@/components/lesson-route-gate";
 import {curriculum,lessonBySlug} from "@/lib/curriculum";
 
 export default async function LessonPage({params}:{params:Promise<{slug:string}>}){
@@ -14,8 +15,8 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
 
   return <main className="lesson-shell-page">
     <nav className="lesson-topbar">
-      <Link href="/platform" className="brand">EDITA<span>.</span></Link>
-      <Link href="/platform" className="btn btn-ghost">← В Академию</Link>
+      <Link href="/platform#academy" className="brand">EDITA<span>.</span></Link>
+      <div className="lesson-top-actions"><Link href="/platform#academy" className="btn btn-ghost">← В Академию</Link><Link href="/platform#home" className="btn btn-ghost">В кабинет</Link></div>
     </nav>
 
     <header className="lesson-hero">
@@ -30,6 +31,7 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
       </div>
     </header>
 
+    <LessonRouteGate requiredSlugs={curriculum.slice(0,index).map(item=>item.slug)} previousSlug={previous?.slug}>
     <div className="lesson-layout">
       <div className="lesson-content">
         <section className="lesson-panel lesson-simple">
@@ -81,14 +83,14 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
           <div className="eyebrow">МАЛЕНЬКАЯ ПРАКТИКА</div>
           <h2>Теперь попробуй сам</h2>
           <p>{lesson.assignment}</p>
-          <LessonProgressButton slug={lesson.slug} xp={lesson.xp}/>
+          <LessonProgressButton slug={lesson.slug} xp={lesson.xp} nextSlug={next?.slug}/>
         </section>
 
         {lesson.source?<p className="lesson-source">Интерфейс сверяется с материалом: <a href={lesson.source.url} target="_blank" rel="noreferrer">{lesson.source.label} ↗</a></p>:null}
 
         <nav className="lesson-next">
           {previous?<Link href={"/academy/"+previous.slug}><small>Предыдущий урок</small><b>← {previous.title}</b></Link>:<span/>}
-          {next?<Link href={"/academy/"+next.slug}><small>Следующий урок</small><b>{next.title} →</b></Link>:<Link href="/platform"><small>Маршрут завершён</small><b>Вернуться в EDITA →</b></Link>}
+          {next?<Link href={"/academy/"+next.slug}><small>Откроется после задания</small><b>{next.title} →</b></Link>:<Link href="/platform#academy"><small>Маршрут завершён</small><b>Вернуться в EDITA →</b></Link>}
         </nav>
       </div>
 
@@ -103,5 +105,6 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
         />
       </aside>
     </div>
+    </LessonRouteGate>
   </main>
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServiceClient } from "@/lib/server-supabase";
+import ProfileAvatar from "@/components/profile-avatar";
 
 type PortfolioItem={id:string;title:string;video_url:string;display_url?:string;tags:string[];ai_score:number|null};
 
@@ -16,7 +17,7 @@ export default async function PublicPortfolio({params}:{params:Promise<{username
   if(url&&key){
     const supabase=createClient(url,key,{auth:{persistSession:false}});
     const {data}=await supabase.from("public_profiles")
-      .select("id,display_name,username,level,ai_score,skills")
+      .select("id,display_name,username,level,ai_score,skills,avatar_url,school_name")
       .eq("username",username).maybeSingle();
     profile=data;
     if(profile){
@@ -53,7 +54,7 @@ export default async function PublicPortfolio({params}:{params:Promise<{username
     <div className="portfolio-shell">
       <nav className="pricing-nav"><Link href="/" className="brand">EDITA<span>.</span></Link><Link href="/signup">Создать свой профиль</Link></nav>
       <div className="portfolio-hero">
-        <div><div className="eyebrow">VERIFIED EDITOR</div><h1>{profile.display_name}</h1><p>@{profile.username}</p></div>
+        <div className="portfolio-person"><ProfileAvatar src={profile.avatar_url} name={profile.display_name} size="lg"/><div><div className="eyebrow">ПРОФИЛЬ МОНТАЖЁРА</div><h1>{profile.display_name}</h1><p>@{profile.username}{profile.school_name?" · "+profile.school_name:""}</p></div></div>
         <div className="portfolio-score"><strong>{profile.ai_score||"—"}</strong><span>AI Skill Score</span></div>
       </div>
       <div className="portfolio-tags">{(profile.skills||[]).map((s:string)=><span className="tag" key={s}>{s}</span>)}</div>

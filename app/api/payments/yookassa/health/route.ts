@@ -3,7 +3,9 @@ import {getYooKassaConfig,yookassaRequest} from "@/lib/yookassa";
 
 export async function GET(){
   const configured=Boolean(getYooKassaConfig());
-  const mode=process.env.YOOKASSA_MODE||"test";
+  const enabled=process.env.BETA_FREE_MODE==="false";
+  const mode=enabled?(process.env.YOOKASSA_MODE||"test"):"disabled_for_beta";
+  if(!enabled)return NextResponse.json({configured,connected:false,enabled:false,mode});
   if(!configured)return NextResponse.json({configured:false,connected:false,mode});
   try{
     const data=await yookassaRequest("/payments?limit=1",{method:"GET"});

@@ -10,11 +10,11 @@ type Status = {
   services: {
     openai: { configured: boolean; model: string };
     supabase: { configured: boolean; serverWrites: boolean };
-    yookassa: { configured: boolean; mode: string };
+    yookassa: { configured: boolean; acceptingPayments?:boolean; mode: string };
   };
 };
 type AiHealth={configured:boolean;connected:boolean;model:string;status?:number;errorCode?:string|null;errorType?:string|null};
-type YooHealth={configured:boolean;connected:boolean;mode:string;error?:string};
+type YooHealth={configured:boolean;connected:boolean;enabled?:boolean;mode:string;error?:string};
 type EmailHealth={
   configured:boolean;connected:boolean;domain:string;verified:boolean;domainStatus?:string;
   apiStatus?:number;errorCode?:string|null;keyFormatValid?:boolean;sendingEnabled?:boolean;senderAdjusted?:boolean;
@@ -58,8 +58,8 @@ export default function StatusPage() {
               :emailHealth?.verified
                 ?("Resend отвечает · отправка с "+emailHealth.domain+" разрешена"+(emailHealth.senderAdjusted?" · адрес отправителя исправлен автоматически":""))
                 :("Resend отвечает, но домен "+emailHealth.domain+" ещё не подтверждён · "+(emailHealth.domainStatus||"unknown"))}/>
-        <Service title="ЮKassa" ok={Boolean(yoo?.connected)}
-          text={!data.services.yookassa.configured?"Нужны ключи ЮKassa":yoo?.connected?("API отвечает · "+yoo.mode):(yoo?.error||"Ключи есть, но API не подтвердил соединение")}/>
+        <Service title="Платежи" ok={yoo?.enabled===false||Boolean(yoo?.connected)}
+          text={yoo?.enabled===false?"Отключены для бесплатной беты · списаний нет":!data.services.yookassa.configured?"Нужны ключи ЮKassa":yoo?.connected?("API отвечает · "+yoo.mode):(yoo?.error||"Ключи есть, но API не подтвердил соединение")}/>
       </div>}
 
       <div className="legal-actions"><Link className="btn btn-dark" href="/platform">Платформа</Link><Link className="btn btn-ghost" href="/pricing">Тарифы</Link></div>

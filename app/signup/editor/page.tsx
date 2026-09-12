@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {FormEvent,useEffect,useState} from "react";
 import {authErrorRu} from "@/lib/auth-errors";
+import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 
 type Age="under14"|"14-17"|"18+";
 
@@ -14,6 +15,7 @@ export default function EditorSignup(){
   const [software,setSoftware]=useState("CapCut");
   const [level,setLevel]=useState("new");
   const [goal,setGoal]=useState("freelance");
+  const [schoolName,setSchoolName]=useState("");
   const [acceptTerms,setAcceptTerms]=useState(false);
   const [acceptPersonalData,setAcceptPersonalData]=useState(false);
   const [message,setMessage]=useState("");
@@ -31,16 +33,24 @@ export default function EditorSignup(){
     e.preventDefault();
     if(!acceptTerms||!acceptPersonalData){setMessage("Нужно принять условия и отдельно согласиться на обработку персональных данных.");return;}
     setLoading(true);setMessage("");
-    const onboarding={role:"editor",ageGroup,software,level,goal};
+    const onboarding={role:"editor",ageGroup,software,level,goal,schoolName:schoolName.trim()||undefined};
     localStorage.setItem("edita_onboarding",JSON.stringify(onboarding));
     const r=await fetch("/api/auth/signup",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({role:"editor",displayName:name,email,password,onboarding,referralCode:new URLSearchParams(window.location.search).get("ref")||""})
+      body:JSON.stringify({role:"editor",displayName:name,email,password,schoolName,onboarding,referralCode:new URLSearchParams(window.location.search).get("ref")||""})
     });
     const data=await r.json();
+    if(!r.ok){setLoading(false);setMessage(authErrorRu(data?.error));return;}
+    if(data.instant){
+      const supabase=getSupabaseBrowserClient();
+      const {error}=await supabase.auth.signInWithPassword({email:email.trim().toLowerCase(),password});
+      setLoading(false);
+      if(error){setMessage("Аккаунт создан. Войди с этим email и паролем на странице входа.");return;}
+      window.location.href="/platform";
+      return;
+    }
     setLoading(false);
-    if(!r.ok){setMessage(authErrorRu(data?.error));return;}
     setCreatedEmail(email.trim().toLowerCase());setCooldown(60);
     setMessage("Готово. Письмо отправлено через почтовый сервис EDITA. Проверь Входящие и Спам.");
   }
@@ -73,6 +83,10 @@ export default function EditorSignup(){
       </select>
 
       {ageGroup!=="18+"&&<div className="minor-safety-note"><b>Учиться можно сразу.</b><span>Оплата, вакансии и коммерческие задания откроются только после подтверждения родителя или законного представителя.</span></div>}
+
+      <label className="field-label">Школа, колледж или вуз — необязательно</label>
+      <input maxLength={160} placeholder="Например: школа № 1253 или РУДН" value={schoolName} onChange={e=>setSchoolName(e.target.value)}/>
+      <small className="field-hint">Сохраним только в твоём аккаунте. Включить школу в командный рейтинг можно потом в профиле. Класс, адрес и другие личные данные писать не нужно.</small>
 
       <label className="field-label">В какой программе монтируешь?</label>
       <select value={software} onChange={e=>setSoftware(e.target.value)}>

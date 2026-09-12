@@ -38,7 +38,7 @@ export async function GET(req:NextRequest){
     const userIds=(members||[]).map((m:any)=>m.user_id);
     const {data:profiles}=userIds.length
       ? await a.service.from("public_profiles")
-          .select("id,username,display_name,level,xp,rating_points")
+          .select("id,username,display_name,level,xp,rating_points,ai_score,avatar_url,school_name")
           .in("id",userIds)
       : {data:[] as any[]};
 

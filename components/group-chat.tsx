@@ -19,6 +19,7 @@ export default function GroupChat({groupId,groupName}:{groupId:string;groupName:
   const [sending,setSending]=useState(false);
   const [notice,setNotice]=useState("");
   const feedRef=useRef<HTMLDivElement>(null);
+  const inputRef=useRef<HTMLTextAreaElement>(null);
 
   const accessToken=useCallback(async()=>{
     const supabase=getSupabaseBrowserClient();
@@ -67,6 +68,7 @@ export default function GroupChat({groupId,groupName}:{groupId:string;groupName:
       if(!response.ok)throw new Error(data?.error||"Сообщение не отправлено.");
       setMessages(data.messages||[]);
       setInput("");
+      if(inputRef.current)inputRef.current.style.height="auto";
     }catch(reason){
       setNotice(reason instanceof Error?reason.message:"Сообщение не отправлено.");
     }finally{setSending(false)}
@@ -88,7 +90,7 @@ export default function GroupChat({groupId,groupName}:{groupId:string;groupName:
     </div>
     {notice?<div className="auth-msg">{notice}</div>:null}
     <form className="group-chat-form" onSubmit={submit}>
-      <textarea rows={2} maxLength={1400} value={input} onChange={event=>setInput(event.target.value)} placeholder="Сообщение по теме монтажа…"/>
+      <textarea ref={inputRef} rows={2} maxLength={1400} value={input} onChange={event=>{setInput(event.target.value);const area=inputRef.current;if(area){area.style.height="auto";area.style.height=Math.min(160,area.scrollHeight)+"px"}}} placeholder="Сообщение по теме монтажа…"/>
       <button className="btn btn-lime" disabled={sending||!input.trim()}>{sending?"Проверяем…":"Отправить"}</button>
     </form>
   </section>;

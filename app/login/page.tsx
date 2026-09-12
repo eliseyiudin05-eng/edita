@@ -21,7 +21,8 @@ export default function LoginPage(){
     const {error}=await supabase.auth.signInWithPassword({email,password});
     setLoading(false);
     if(error){setMessage(authErrorRu(error.message));return;}
-    router.push("/platform");
+    const requested=new URLSearchParams(window.location.search).get("from");
+    router.push(requested?.startsWith("/")&&!requested.startsWith("//")?requested:"/platform");
   }
 
   return <main className="auth-wrap">
@@ -37,7 +38,7 @@ export default function LoginPage(){
       {message&&<div className="auth-msg">{message}</div>}
       <div className="auth-divider"><span>или</span></div>
       <DemoAccessButton className="btn btn-ghost"/>
-      <div className="auth-footer"><Link href="/forgot-password">Забыли пароль?</Link><br/>Нет аккаунта? <Link href="/onboarding"><b>Регистрация</b></Link></div>
+      <div className="auth-footer"><Link href="/forgot-password">Забыли пароль?</Link><br/>Нет аккаунта? <Link href="/signup"><b>Регистрация</b></Link></div>
     </section>
   </main>
 }

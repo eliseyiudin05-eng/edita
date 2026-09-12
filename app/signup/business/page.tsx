@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {FormEvent,useEffect,useState} from "react";
 import {authErrorRu} from "@/lib/auth-errors";
+import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 
 export default function BusinessSignup(){
   const [contactName,setContactName]=useState("");
@@ -44,8 +45,16 @@ export default function BusinessSignup(){
       body:JSON.stringify({role:"business",displayName:contactName,businessName,email,password,onboarding,referralCode:new URLSearchParams(window.location.search).get("ref")||""})
     });
     const data=await r.json();
+    if(!r.ok){setLoading(false);setMessage(authErrorRu(data?.error));return;}
+    if(data.instant){
+      const supabase=getSupabaseBrowserClient();
+      const {error}=await supabase.auth.signInWithPassword({email:email.trim().toLowerCase(),password});
+      setLoading(false);
+      if(error){setMessage("Аккаунт создан. Войди с этим email и паролем на странице входа.");return;}
+      window.location.href="/platform";
+      return;
+    }
     setLoading(false);
-    if(!r.ok){setMessage(authErrorRu(data?.error));return;}
     setCreatedEmail(email.trim().toLowerCase());setCooldown(60);
     setMessage("Аккаунт создан. Подтверди email. После входа откроется проверка компании — без неё нельзя публиковать реальные вакансии и задания.");
   }
