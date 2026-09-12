@@ -12,7 +12,7 @@ export function resendConfigured(){
 export async function sendTransactionalEmail({to,subject,html,text}:SendEmailArgs){
   const key=process.env.RESEND_API_KEY;
   if(!key)throw new Error("RESEND_NOT_CONFIGURED");
-  const from=process.env.RESEND_FROM_EMAIL||"EDITA <no-reply@getedita.app>";
+  const from=process.env.RESEND_FROM_EMAIL||"EDITA <no-reply@auth.getedita.app>";
 
   const r=await fetch("https://api.resend.com/emails",{
     method:"POST",
