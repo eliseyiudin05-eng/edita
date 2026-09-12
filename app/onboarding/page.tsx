@@ -61,7 +61,7 @@ export default function OnboardingPage() {
 
     if(user){
       const {error}=await supabase.from("profiles")
-        .update({role:state.role,onboarding:state})
+        .update({onboarding:state})
         .eq("id",user.id);
       setSaving(false);
       if(!error){
@@ -82,7 +82,7 @@ export default function OnboardingPage() {
 
         {step === 0 && <>
           <div className="eyebrow">ШАГ 1 ИЗ 5</div>
-          <h1>Кто ты в EDITA?</h1>
+          <h1>Кто ты в EDITA?</h1><p className="muted">Для нового аккаунта выбери роль. Если ты уже вошёл, роль аккаунта здесь не меняется — сохранятся только настройки обучения.</p>
           <Choice active={state.role === "editor"} title="Монтажёр"
             text="Хочу учиться, собирать портфолио и находить заказы."
             onClick={() => setState({ ...state, role: "editor" })} />
