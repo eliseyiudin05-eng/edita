@@ -19,8 +19,5 @@ export function authErrorRu(message?:string|null){
   if(value.includes("unable to validate email")||value.includes("invalid email")){
     return "Проверь email: похоже, в адресе есть ошибка.";
   }
-  if(value.includes("signup is disabled")){
-    return "Регистрация временно закрыта.";
-  }
   return message||"Что-то пошло не так. Попробуй ещё раз.";
 }
