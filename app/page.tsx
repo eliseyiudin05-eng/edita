@@ -44,10 +44,10 @@ export default async function Home(){
       <div className="nav-actions">
         <a href="#start">С чего начать</a>
         <a href="#inside">Что внутри</a>
-        <a href="#business">Для бизнеса</a>
+        <a href="#business">Для бизнеса</a><Link href="/creators">Для креаторов</Link>
         <Link href="/pricing">Тарифы</Link>
         <Link href="/login">Войти</Link>
-        <Link className="btn btn-dark" href="/onboarding">Попробовать</Link>
+        <Link className="btn btn-dark" href="/signup">Попробовать</Link>
       </div>
     </nav>
 
@@ -58,7 +58,7 @@ export default async function Home(){
           <h1>Научись монтировать.<br/><span>Потом покажи, что умеешь.</span></h1>
           <p className="hero-copy">EDITA объясняет монтаж простыми словами, даёт практику, помогает собрать портфолио и приводит к реальным заданиям от проверенных компаний.</p>
           <div className="hero-actions">
-            <Link className="btn btn-primary" href="/onboarding">Начать с нуля</Link>
+            <Link className="btn btn-primary" href="/signup">Начать с нуля</Link>
             <a className="btn btn-ghost" href="#start">Посмотреть, как это работает</a>
           </div>
           <div className="simple-proof">
@@ -95,7 +95,7 @@ export default async function Home(){
           <div className="section-kicker light">ПОНЯТНО ДАЖЕ В ПЕРВЫЙ ДЕНЬ</div>
           <h2>Не понял слово? Это проблема объяснения, а не твоя.</h2>
           <p>В EDITA сложные слова либо убираются, либо сразу переводятся на обычный язык. Например: <b>B-roll</b> — дополнительный кадр, который показывает то, о чём сейчас говорят.</p>
-          <Link className="btn btn-light" href="/onboarding">Получить свой маршрут</Link>
+          <Link className="btn btn-light" href="/signup">Получить свой маршрут</Link>
         </div>
       </div>
     </section>
@@ -131,7 +131,24 @@ export default async function Home(){
         <div className="business-card">
           <h3>Почему нужна проверка</h3>
           <p>Она нужна не для красивой галочки. Непроверенный бизнес не может публиковать реальную вакансию или Challenge. Так меньше фейковых работодателей и ложных призов.</p>
-          <Link href="/onboarding" className="btn btn-light">Создать бизнес-аккаунт</Link>
+          <Link href="/signup" className="btn btn-light">Создать бизнес-аккаунт</Link>
+        </div>
+      </div>
+    </section>
+
+    <section id="creators" className="creator-home-band">
+      <div className="shell creator-home-grid">
+        <div>
+          <div className="section-kicker">ДЛЯ КРЕАТОРОВ</div>
+          <h2>Снимай про EDITA и получай реальные оплачиваемые брифы</h2>
+          <p>Мы собираем постоянную Creator Squad: монтажёров, UGC-креаторов и авторов коротких видео. Сначала согласуем оплату и условия, потом начинается работа.</p>
+          <Link className="btn btn-dark" href="/creators">Открыть EDITA Creators</Link>
+        </div>
+        <div className="creator-home-card">
+          <span className="eyebrow">ПЕРВОЕ ОФИЦИАЛЬНОЕ ТЗ</span>
+          <h3>«EDITA глазами новичка»</h3>
+          <p>Вертикальное видео 25–45 секунд: честно показать, как человек впервые заходит в EDITA и начинает понимать монтаж.</p>
+          <b>Никакой обязательной бесплатной работы.</b>
         </div>
       </div>
     </section>
@@ -172,7 +189,7 @@ export default async function Home(){
         <div className="eyebrow">EDITA</div>
         <h2>Открой сайт. Пройди первый урок. Сделай первый монтаж.</h2>
         <p>Не нужно уже быть монтажёром, чтобы начать.</p>
-        <Link className="btn btn-lime" href="/onboarding">Начать</Link>
+        <Link className="btn btn-lime" href="/signup">Начать</Link>
       </div>
     </section>
 
