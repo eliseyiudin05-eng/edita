@@ -42,10 +42,10 @@ export async function GET(){
   ]);
 
   const checks={
-    dkim:dkim.some(v=>v.includes(expected.dkim.value)),
-    spf:spf.some(v=>v.includes(expected.spf.value)),
-    mx:mx.some(v=>v.toLowerCase().includes(expected.mx.value.toLowerCase())),
-    cname:cname.some(v=>v.toLowerCase().replace(/\.$/,"")===expected.cname.value.toLowerCase())
+    dkim:dkim.some((v:string)=>v.includes(expected.dkim.value)),
+    spf:spf.some((v:string)=>v.includes(expected.spf.value)),
+    mx:mx.some((v:string)=>v.toLowerCase().includes(expected.mx.value.toLowerCase())),
+    cname:cname.some((v:string)=>v.toLowerCase().replace(/\.$/,"")===expected.cname.value.toLowerCase())
   };
   const verified=Object.values(checks).every(Boolean);
 
