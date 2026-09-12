@@ -13,6 +13,7 @@ export default async function proxy(req:NextRequest){
   if(
     path==="/prelaunch"||
     path==="/api/prelaunch"||
+    path==="/api/email/health"||
     path.startsWith("/_next/")||
     path==="/favicon.ico"||
     path==="/robots.txt"
