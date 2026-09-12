@@ -5,7 +5,8 @@ function publicConfig(){ return getSupabasePublicConfig(); }
 
 export function getSupabaseServiceClient(){
   const {url}=publicConfig();
-  const serviceKey=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const rawServiceKey=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey=rawServiceKey?.replace(/\s+/g,"").trim();
   if(!serviceKey)return null;
   return createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
 }
