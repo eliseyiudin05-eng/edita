@@ -58,7 +58,7 @@ export default function JobBoard({mode,viewerName="Business",ageGroup,guardianVe
   async function apply(jobId:string){
     if(mode==="editor"&&ageGroup&&ageGroup!=="18+"&&!guardianVerified){setMessage("Сначала нужно подтверждение родителя или законного представителя. Учиться можно без него.");return;}
     const supabase=getSupabaseBrowserClient();
-    if(!supabase){setMessage("Demo: заявка принята локально.");return;}
+    if(!supabase){setMessage("Пример: заявка сохранена только в браузере.");return;}
     const {data:{user}}=await supabase.auth.getUser();
     if(!user){setMessage("Войди, чтобы податься.");return;}
     const {error}=await supabase.from("job_applications").upsert({job_id:jobId,editor_id:user.id,status:"applied"},{onConflict:"job_id,editor_id"});
@@ -68,7 +68,7 @@ export default function JobBoard({mode,viewerName="Business",ageGroup,guardianVe
   async function create(e:FormEvent){
     e.preventDefault();
     const supabase=getSupabaseBrowserClient();
-    if(!supabase||!businessId){setMessage("В demo вакансия не публикуется в базе.");return;}
+    if(!supabase||!businessId){setMessage("Без аккаунта вакансия не публикуется.");return;}
     if(!businessVerified){setMessage("Сначала пройди проверку компании. После этого можно публиковать реальные вакансии.");return;}
     const {error}=await supabase.from("jobs").insert({
       business_id:businessId,title:form.title,description:form.description,status:"open",
@@ -81,7 +81,7 @@ export default function JobBoard({mode,viewerName="Business",ageGroup,guardianVe
   }
 
   return <div className="job-board">
-    {mode==="business"&&<section className="card"><div className="eyebrow">NEW JOB</div><h3>Опубликовать вакансию</h3>{!businessVerified&&<div className="auth-msg">Сначала нужна проверка компании. Это защищает монтажёров от фейковых работодателей.</div>}<form className="business-form" onSubmit={create}>
+    {mode==="business"&&<section className="card"><div className="eyebrow">НОВАЯ ВАКАНСИЯ</div><h3>Опубликовать вакансию</h3>{!businessVerified&&<div className="auth-msg">Сначала нужна проверка компании. Это защищает монтажёров от фейковых работодателей.</div>}<form className="business-form" onSubmit={create}>
       <input required placeholder="Название роли" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
       <textarea required placeholder="Задачи, объём, формат работы" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
       <div className="split-fields"><input type="number" min="0" placeholder="От, ₽" value={form.min} onChange={e=>setForm({...form,min:e.target.value})}/><input type="number" min="0" placeholder="До, ₽" value={form.max} onChange={e=>setForm({...form,max:e.target.value})}/></div>
@@ -89,7 +89,7 @@ export default function JobBoard({mode,viewerName="Business",ageGroup,guardianVe
     </form></section>}
 
     <section className="grid job-grid">{jobs.map(job=><article className="card job" key={job.id}>
-      <small>{mode==="editor"?(job.businesses?.name||"Business"):"YOUR JOB"}</small>
+      <small>{mode==="editor"?(job.businesses?.name||"Business"):"ВАША ВАКАНСИЯ"}</small>
       {mode==="editor"&&job.businesses?.verified&&<span className="tag verification-mini">{badgeName(job.businesses.verification_level)}</span>}
       <h3>{job.title}</h3><p className="muted">{job.description}</p>
       <b>{budget(job)}</b>
