@@ -17,6 +17,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({error:"Войди в EDITA перед оплатой, чтобы доступ привязался к твоему аккаунту."},{status:401});
     }
 
+    const service=getSupabaseServiceClient();
+    if(service){
+      const {data:profile}=await service.from("profiles")
+        .select("onboarding,guardian_verified")
+        .eq("id",user.id).maybeSingle();
+      const ageGroup=profile?.onboarding?.ageGroup||"18+";
+      if(ageGroup!=="18+"&&!profile?.guardian_verified){
+        return NextResponse.json({error:"Для оплаты пользователю младше 18 лет сначала нужно подтверждение родителя или законного представителя."},{status:403});
+      }
+    }
+
     const customerEmail=user?.email||
       (typeof body?.email==="string"&&body.email.includes("@")?body.email.trim():undefined);
     const siteUrl=process.env.NEXT_PUBLIC_SITE_URL||req.nextUrl.origin;
