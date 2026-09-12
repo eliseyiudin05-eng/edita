@@ -2,6 +2,7 @@
 import Link from "next/link";
 import {FormEvent,useEffect,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
+import {authErrorRu} from "@/lib/auth-errors";
 
 type Role="editor"|"business";
 type Onboarding={role?:Role;level?:string;software?:string;goal?:string;ageGroup?:"under14"|"14-17"|"18+"};
@@ -16,6 +17,8 @@ export default function SignupPage(){
   const [onboarding,setOnboarding]=useState<Onboarding>({});
   const [acceptTerms,setAcceptTerms]=useState(false);
   const [acceptPersonalData,setAcceptPersonalData]=useState(false);
+  const [createdEmail,setCreatedEmail]=useState("");
+  const [resendCooldown,setResendCooldown]=useState(0);
 
   useEffect(()=>{
     try{
@@ -53,12 +56,14 @@ export default function SignupPage(){
       }
     });
     setLoading(false);
-    if(error){setMessage(error.message);return;}
+    if(error){setMessage(authErrorRu(error.message));return;}
     if(data.session){
       window.location.href="/platform";
       return;
     }
-    setMessage("Аккаунт создан. Проверь почту и подтверди email, затем войди в EDITA.");
+    setCreatedEmail(email.trim().toLowerCase());
+    setResendCooldown(60);
+    setMessage("Аккаунт создан. Мы отправили письмо для подтверждения email. Проверь Входящие и папку Спам.");
   }
 
   return <main className="auth-wrap">
