@@ -14,9 +14,9 @@ jobs:
       - name: Build bundle
         run: |
           python - <<'PY'
-          import json
+          import base64, json
           from pathlib import Path
-          roots={"app","components","lib","scripts"}
+          roots={"app","components","lib","scripts","public"}
           fileset={"package.json","package-lock.json","tsconfig.json","next.config.ts","next-env.d.ts","proxy.ts"}
           files=[]
           for p in sorted(Path(".").rglob("*")):
@@ -24,9 +24,13 @@ jobs:
               rel=p.as_posix()
               if rel=="vercel-deploy-bundle.json": continue
               if p.parts[0] in roots or rel in fileset:
-                  try: data=p.read_text(encoding="utf-8")
-                  except UnicodeDecodeError: continue
-                  files.append({"file":rel,"data":data,"encoding":"utf-8"})
+              try:
+                  data=p.read_text(encoding="utf-8")
+                  encoding="utf-8"
+              except UnicodeDecodeError:
+                  data=base64.b64encode(p.read_bytes()).decode("ascii")
+                  encoding="base64"
+              files.append({"file":rel,"data":data,"encoding":encoding})
           Path("vercel-deploy-bundle.json").write_text(json.dumps(files,ensure_ascii=False),encoding="utf-8")
           PY
       - name: Commit bundle
