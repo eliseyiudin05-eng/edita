@@ -2,7 +2,7 @@ import {NextResponse} from "next/server";
 
 export async function GET(){
   const key=process.env.RESEND_API_KEY;
-  const expected=(process.env.RESEND_FROM_EMAIL||"no-reply@getedita.app").match(/@([^>\s]+)/)?.[1]||"getedita.app";
+  const expected=(process.env.RESEND_FROM_EMAIL||"no-reply@auth.getedita.app").match(/@([^>\s]+)/)?.[1]||"getedita.app";
   if(!key)return NextResponse.json({configured:false,connected:false,domain:expected,verified:false});
 
   try{
