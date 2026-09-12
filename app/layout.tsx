@@ -1,26 +1,27 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import CookieNotice from "@/components/cookie-notice";
 
 const siteUrl=process.env.NEXT_PUBLIC_SITE_URL || "https://getedita.app";
 
 export const metadata: Metadata = {
   metadataBase:new URL(siteUrl),
   title:{
-    default:"EDITA — Learn. Compete. Earn.",
+    default:"EDITA — от первого монтажа до первой работы",
     template:"%s · EDITA",
   },
-  description:"AI-платформа, где видеомонтажёры учатся, получают AI-разбор, собирают портфолио, соревнуются и находят реальную работу.",
+  description:"Понятная платформа для видеомонтажёров: обучение с нуля, AI-помощник, практика, портфолио, задания и работа.",
   openGraph:{
-    title:"EDITA — Learn. Compete. Earn.",
-    description:"От первого монтажа до реального клиента — в одной системе.",
+    title:"EDITA — учись монтажу и собирай карьеру",
+    description:"Простое обучение, практика, AI-помощник и реальные задания в одной системе.",
     url:siteUrl,
     siteName:"EDITA",
     locale:"ru_RU",
     type:"website",
   },
-  robots:{index:true,follow:true},
+  robots:{index:false,follow:false},
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru"><body>{children}</body></html>;
+  return <html lang="ru"><body>{children}<CookieNotice/></body></html>;
 }
