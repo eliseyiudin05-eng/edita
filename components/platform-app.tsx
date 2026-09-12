@@ -10,6 +10,8 @@ import ClientSimulator from "@/components/client-simulator";
 import PortfolioPanel from "@/components/portfolio-panel";
 import JobBoard from "@/components/job-board";
 import CommunityLeaderboard from "@/components/community-leaderboard";
+import SiteTour from "@/components/site-tour";
+import BusinessVerification from "@/components/business-verification";
 
 type Tab="home"|"academy"|"practice"|"coach"|"review"|"arena"|"portfolio"|"jobs"|"community"|"wallet"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string;ageGroup?:string};
@@ -34,14 +36,14 @@ export default function PlatformApp(){
  const [tab,setTab]=useState<Tab>("home");
  const [done,setDone]=useState<string[]>([]);
  const [viewer,setViewer]=useState<Viewer>({name:"Гость",role:null,onboarding:{}});
- const [messages,setMessages]=useState([{from:"ai",text:"Привет! Я твой AI-наставник EDITA. Спроси меня про монтаж, портфолио или клиента."}]);
+ const [messages,setMessages]=useState([{from:"ai",text:"Привет! Я помогу с монтажом простыми словами. Можешь спросить: «Что такое хук?», «Как сделать ролик интереснее?» или «Куда нажать в CapCut?»"}]);
  const [input,setInput]=useState("");
  const [loading,setLoading]=useState(false);
  const [aiConfigured,setAiConfigured]=useState<boolean|null>(null);
  const [wins,setWins]=useState(0);
  const [businessStats,setBusinessStats]=useState({challenges:0,submissions:0,jobs:0});
 
- const xp=useMemo(()=>920+done.reduce((sum,slug)=>sum+(curriculum.find(l=>l.slug===slug)?.xp||0),0),[done]);
+ const xp=useMemo(()=>done.reduce((sum,slug)=>sum+(curriculum.find(l=>l.slug===slug)?.xp||0),0),[done]);
  const tabs=useMemo(()=>{
    if(viewer.role==="business") return allTabs.filter(([id])=>["home","coach","review","arena","community","profile","business"].includes(id));
    if(viewer.role==="editor") return allTabs.filter(([id])=>id!=="business");
@@ -71,6 +73,15 @@ export default function PlatformApp(){
        .eq("editor_id",data.user.id)
        .eq("status","winner");
      setWins(winsCount||0);
+
+     const {data:progressRows}=await supabase.from("lesson_progress")
+       .select("status,lessons(slug)")
+       .eq("user_id",data.user.id)
+       .eq("status","completed");
+     const dbDone=(progressRows||[])
+       .map((row:any)=>row.lessons?.slug)
+       .filter((slug:any)=>typeof slug==="string");
+     if(dbDone.length)setDone(dbDone);
      setViewer({
        name:profile?.display_name||data.user.user_metadata?.display_name||data.user.email?.split("@")[0]||"Пользователь",
        role:profile?.role==="business"?"business":"editor",
@@ -105,12 +116,28 @@ export default function PlatformApp(){
    return()=>{active=false;listener.subscription.unsubscribe()};
  },[]);
 
- function toggleLesson(slug:string){
-   setDone(current=>{
-     const next=current.includes(slug)?current.filter(v=>v!==slug):[...current,slug];
-     localStorage.setItem("edita_lesson_done",JSON.stringify(next));
-     return next;
-   });
+ async function toggleLesson(slug:string){
+   const wasDone=done.includes(slug);
+   const next=wasDone?done.filter(v=>v!==slug):[...done,slug];
+   setDone(next);
+   localStorage.setItem("edita_lesson_done",JSON.stringify(next));
+
+   const supabase=getSupabaseBrowserClient();
+   const {data:{user}}=await supabase.auth.getUser();
+   if(!user)return;
+   const {data:lesson}=await supabase.from("lessons").select("id").eq("slug",slug).maybeSingle();
+   if(!lesson?.id)return;
+
+   if(wasDone){
+     await supabase.from("lesson_progress").delete().eq("user_id",user.id).eq("lesson_id",lesson.id);
+   }else{
+     await supabase.from("lesson_progress").upsert({
+       user_id:user.id,
+       lesson_id:lesson.id,
+       status:"completed",
+       completed_at:new Date().toISOString()
+     },{onConflict:"user_id,lesson_id"});
+   }
  }
 
  async function signOut(){
@@ -177,8 +204,8 @@ export default function PlatformApp(){
        <div className="user-pill"><span className="user-dot"/><span>{viewer.role?"online":"demo"} · {planLabel}{viewer.role==="editor"?" · "+xp+" XP":""}</span></div>
      </header>
 
-     {tab==="home"&&<Page title={viewer.role?"Продолжай движение, "+viewer.name+".":"Добро пожаловать в EDITA."} sub={viewer.role?"Твой маршрут адаптируется под прогресс, программу и цель.":"Демо платформы. Пройди onboarding, чтобы получить персональный маршрут."}>
-       <section className="mission"><small>МИССИЯ ДНЯ</small><h2>Hook за первые 2 секунды</h2><p>Собери 20-секундный Reel и сравни три версии первого кадра.</p><button className="btn btn-lime" onClick={()=>setTab("academy")}>Открыть обучение →</button></section>
+     {tab==="home"&&<Page title={viewer.role?"Продолжай, "+viewer.name+".":"Добро пожаловать в EDITA."} sub={viewer.role?"Если не знаешь, что делать — начни с Академии и первых 5 простых уроков.":"Демо платформы. Пройди короткую настройку, чтобы получить свой маршрут."}>
+       <section className="mission"><small>НАЧНИ ОТСЮДА</small><h2>{done.length?"Продолжи следующий урок":"Урок 1: что такое монтаж"}</h2><p>Сначала разберись в простых словах: монтаж, хук, ритм, B-roll, CTA и ТЗ. Потом переходи к практике.</p><button className="btn btn-lime" onClick={()=>setTab("academy")}>Открыть Академию →</button></section>
        <div className="grid">
          <Card title="Твой рост"><div className="stats"><Stat n={viewer.aiScore!=null?String(viewer.aiScore):"—"} t="AI Score"/><Stat n={String(done.length)} t="уроков"/><Stat n={String(wins)} t="побед"/></div></Card>
          <Card title="Arena"><p className="muted">Открытые Challenge и training-задания появляются здесь после публикации бизнесом.</p><button className="btn btn-dark" onClick={()=>setTab("arena")}>Открыть Arena</button></Card>
@@ -186,7 +213,7 @@ export default function PlatformApp(){
        </div>
      </Page>}
 
-     {tab==="academy"&&<Page title="Академия" sub={"Маршрут: "+(viewer.onboarding?.software||"CapCut")+" → "+(viewer.onboarding?.goal||"freelance")+". Реальные уроки + практика."}>
+     {tab==="academy"&&<Page title="Академия" sub="Иди сверху вниз. Первые 5 уроков объясняют базу совсем простыми словами, дальше начинается практика.">
        <div className="grid">{curriculum.map((lesson,i)=><div className={"card lesson "+(done.includes(lesson.slug)?"done":"")} key={lesson.slug}>
          <div className="num">{done.includes(lesson.slug)?"✓":i+1}</div>
          <div><div className="eyebrow">{lesson.module}</div><h3>{lesson.title}</h3><p className="muted">{lesson.summary}</p>
@@ -221,16 +248,17 @@ export default function PlatformApp(){
      {tab==="profile"&&<Page title="Профиль" sub="Skill Graph, персональный маршрут и публичная карьерная карточка.">
        <div className="profile-grid">
          <Card title="Career Passport"><p><b>{viewer.name}</b></p><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"freelance"} · {planLabel}</p>{viewer.username&&<Link className="btn btn-dark" href={"/u/"+viewer.username}>Публичный профиль ↗</Link>}</Card>
-         <Card title="Skill Graph"><Skill label="Монтаж" value={Math.min(100,55+done.length*5)}/><Skill label="Hook / retention" value={Math.min(100,50+done.filter(s=>["hook-2-seconds","subtitles","b-roll"].includes(s)).length*12)}/><Skill label="Client work" value={Math.min(100,45+done.filter(s=>["client-brief","pricing","portfolio"].includes(s)).length*15)}/></Card>
+         <Card title="Навыки"><Skill label="Основа монтажа" value={Math.min(100,done.filter(s=>["what-is-editing","hook-basics","story-basics","retention-basics","editor-words","clean-cut"].includes(s)).length*16)}/><Skill label="Удержание зрителя" value={Math.min(100,done.filter(s=>["hook-basics","retention-basics","hook-2-seconds","subtitles","b-roll","sound"].includes(s)).length*16)}/><Skill label="Работа с клиентом" value={Math.min(100,done.filter(s=>["client-brief","pricing","portfolio"].includes(s)).length*33)}/></Card>
          <Card title="Настройки маршрута"><p className="muted">Уровень: {viewer.onboarding?.level||"не указан"}<br/>Софт: {viewer.onboarding?.software||"не указан"}<br/>Цель: {viewer.onboarding?.goal||"не указана"}</p><Link className="btn btn-ghost" href="/onboarding">Изменить onboarding</Link></Card>
        </div>
      </Page>}
 
      {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><JobBoard mode="editor"/></Page>}
      {tab==="community"&&<Page title="Community" sub="Публичный рейтинг строится только на безопасных карьерных данных."><CommunityLeaderboard/></Page>}
-     {tab==="business"&&<Page title="Business Workspace" sub="Создавайте задания, храните контекст бренда и нанимайте по реальному результату."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных Challenge"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n="BETA" t="режим workspace"/></div><div className="business-stack"><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/></div></Page>}
+     {tab==="business"&&<Page title="Business Workspace" sub="Сначала подтвердите компанию. После проверки можно публиковать реальные Challenge и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных Challenge"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n="BETA" t="режим workspace"/></div><div className="business-stack"><BusinessVerification/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/></div></Page>}
    </section>
 
+   <SiteTour role={viewer.role} onGo={(value)=>setTab(value as Tab)}/>
    <nav className="mobile-nav">{tabs.map(([id,l])=><button key={id} className={tab===id?"active":""} onClick={()=>setTab(id)}>{l}</button>)}</nav>
  </main>
 }
