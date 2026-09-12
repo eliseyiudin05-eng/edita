@@ -13,8 +13,8 @@ export async function POST(req: NextRequest) {
     const accessToken=bearer?.startsWith("Bearer ")?bearer.slice(7):null;
     const user=await getUserFromAccessToken(accessToken);
 
-    if((process.env.YOOKASSA_MODE||"test")!=="test"&&!user){
-      return NextResponse.json({error:"Войди в EDITA перед покупкой платного доступа."},{status:401});
+    if(!user){
+      return NextResponse.json({error:"Войди в EDITA перед оплатой, чтобы доступ привязался к твоему аккаунту."},{status:401});
     }
 
     const customerEmail=user?.email||
