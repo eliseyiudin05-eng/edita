@@ -9,14 +9,17 @@ type GroupMember={user_id:string;member_role:string;profile:RankRow|null};
 type Group={id:string;name:string;owner_id:string;age_scope:string;join_code:string;members:GroupMember[]};
 type Competition={id:string;title:string;description:string;task:string;audience:string;points_reward:number;ends_at?:string|null;entry?:{id:string;status:string;judge_score?:number|null;work_url:string}|null};
 type Referral={code:string|null;points:number;qualified:number;pending:number};
+type BusinessRating={id:string;name:string;verification_level:string;reviews:number;rating:number|null;eligible:boolean;existing:boolean};
 
 export default function SocialHub({ageGroup}:{ageGroup?:string}){
-  const [view,setView]=useState<"rating"|"friends"|"groups"|"competitions"|"referrals">("rating");
+  const [view,setView]=useState<"rating"|"friends"|"groups"|"competitions"|"companies"|"referrals">("rating");
   const [ranking,setRanking]=useState<RankRow[]>([]);
   const [relations,setRelations]=useState<FriendRel[]>([]);
   const [groups,setGroups]=useState<Group[]>([]);
   const [competitions,setCompetitions]=useState<Competition[]>([]);
   const [referral,setReferral]=useState<Referral|null>(null);
+  const [businessRatings,setBusinessRatings]=useState<BusinessRating[]>([]);
+  const [ratingForm,setRatingForm]=useState<Record<string,{briefClarity:number;communication:number;fairness:number;comment:string}>>({});
   const [search,setSearch]=useState("");
   const [searchRows,setSearchRows]=useState<RankRow[]>([]);
   const [groupName,setGroupName]=useState("");
@@ -41,16 +44,18 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     setRanking((ranks||[]) as RankRow[]);
 
     const h=await headers();
-    const [f,g,c,r]=await Promise.all([
+    const [f,g,c,r,biz]=await Promise.all([
       fetch("/api/social/friends",{headers:h,cache:"no-store"}).then(x=>x.json()),
       fetch("/api/social/groups",{headers:h,cache:"no-store"}).then(x=>x.json()),
       fetch("/api/social/competitions",{headers:h,cache:"no-store"}).then(x=>x.json()),
-      fetch("/api/social/referrals",{headers:h,cache:"no-store"}).then(x=>x.json())
+      fetch("/api/social/referrals",{headers:h,cache:"no-store"}).then(x=>x.json()),
+      fetch("/api/community/business-ratings",{headers:h,cache:"no-store"}).then(x=>x.json())
     ]);
     setRelations(f.relations||[]);
     setGroups(g.groups||[]);
     setCompetitions(c.competitions||[]);
     setReferral(r?.code?r:null);
+    setBusinessRatings(biz.businesses||[]);
   }
 
   useEffect(()=>{void load()},[]);
@@ -108,6 +113,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
       <button className={view==="friends"?"active":""} onClick={()=>setView("friends")}>Друзья{incoming.length?" · "+incoming.length:""}</button>
       <button className={view==="groups"?"active":""} onClick={()=>setView("groups")}>Группы</button>
       <button className={view==="competitions"?"active":""} onClick={()=>setView("competitions")}>Соревнования</button>
+      <button className={view==="companies"?"active":""} onClick={()=>setView("companies")}>Компании</button>
       <button className={view==="referrals"?"active":""} onClick={()=>setView("referrals")}>Пригласить друга</button>
     </div>
 
@@ -190,6 +196,37 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
         </div>}
       </article>)}
       {competitions.length===0&&<div className="card"><p className="muted">Сейчас нет открытых учебных соревнований.</p></div>}
+    </div>}
+
+    {view==="companies"&&<div className="competition-grid">
+      {businessRatings.length===0&&<div className="card"><p className="muted">Проверенных компаний пока нет.</p></div>}
+      {businessRatings.map(b=><article className="card company-rating-card" key={b.id}>
+        <div className="verification-head">
+          <div><div className="eyebrow">ПРОВЕРЕННАЯ КОМПАНИЯ</div><h3>{b.name}</h3></div>
+          <span className="verification-badge ok">{b.rating==null?"Новый профиль":b.rating+" ★"}</span>
+        </div>
+        <p className="muted">{b.reviews?b.reviews+" реальных оценок от участников":"Пока нет оценок. Рейтинг появится после реальной работы с монтажёрами."}</p>
+        {b.eligible&&!b.existing&&(()=>{
+          const form=ratingForm[b.id]||{briefClarity:5,communication:5,fairness:5,comment:""};
+          return <div className="business-form">
+            <label className="field-label">Понятность ТЗ · {form.briefClarity}/5</label>
+            <input type="range" min="1" max="5" value={form.briefClarity} onChange={e=>setRatingForm({...ratingForm,[b.id]:{...form,briefClarity:Number(e.target.value)}})}/>
+            <label className="field-label">Общение · {form.communication}/5</label>
+            <input type="range" min="1" max="5" value={form.communication} onChange={e=>setRatingForm({...ratingForm,[b.id]:{...form,communication:Number(e.target.value)}})}/>
+            <label className="field-label">Честность условий · {form.fairness}/5</label>
+            <input type="range" min="1" max="5" value={form.fairness} onChange={e=>setRatingForm({...ratingForm,[b.id]:{...form,fairness:Number(e.target.value)}})}/>
+            <textarea placeholder="Комментарий — без личных данных и оскорблений" value={form.comment} onChange={e=>setRatingForm({...ratingForm,[b.id]:{...form,comment:e.target.value}})}/>
+            <button className="btn btn-dark" onClick={async()=>{
+              const h=await headers();
+              const r=await fetch("/api/community/business-ratings",{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({businessId:b.id,...form})});
+              const d=await r.json();
+              setMessage(r.ok?"Спасибо. Оценка сохранена.":d?.error||"Не удалось сохранить оценку.");
+              if(r.ok)await load();
+            }}>Оценить компанию</button>
+          </div>
+        })()}
+        {b.existing&&<div className="auth-msg">Ты уже оценивал эту компанию. Рейтинг учитывает только реальных участников.</div>}
+      </article>)}
     </div>}
 
     {view==="referrals"&&<section className="card referral-card">
