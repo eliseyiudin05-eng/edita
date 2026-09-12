@@ -15,7 +15,7 @@ export default function BusinessVerificationAdmin(){
   const [rows,setRows]=useState<Row[]>([]);
   const [message,setMessage]=useState("Загружаем…");
 
-  async function headers(){
+  async function headers():Promise<Record<string,string>>{
     const supabase=getSupabaseBrowserClient();
     const {data:{session}}=await supabase.auth.getSession();
     return session?.access_token?{Authorization:"Bearer "+session.access_token}:{};
