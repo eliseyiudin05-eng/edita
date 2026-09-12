@@ -21,6 +21,7 @@ export default function PayButton({product,label}:{product:"start"|"ai-pro-30";l
         body:JSON.stringify({product})
       });
       const data=await r.json();
+      if(r.status===401){window.location.href="/login";return;}
       if(!r.ok||!data.confirmationUrl)throw new Error(data?.error||"Не удалось создать платёж");
       window.location.href=data.confirmationUrl;
     }catch(e){
