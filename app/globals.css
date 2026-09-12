@@ -144,3 +144,37 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none!important}
   .cookie-notice{left:10px;right:10px;bottom:10px;align-items:stretch;flex-direction:column}
   .cookie-actions{justify-content:space-between}
 }
+
+
+/* Split registration */
+.auth-card-wide{width:min(760px,100%)}
+.signup-chooser{width:min(780px,100%)}
+.signup-paths{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:24px 0}
+.signup-path{display:grid;grid-template-columns:54px 1fr;gap:14px;border:1px solid var(--line);border-radius:20px;padding:20px;background:#fff;text-decoration:none;transition:.18s ease}
+.signup-path:hover{transform:translateY(-2px);border-color:#a8aa9d}
+.signup-path b{font-size:22px}.signup-path p{color:var(--muted);line-height:1.5;margin:6px 0 12px}.signup-path span:last-child{font-size:13px;font-weight:900}
+.signup-icon{width:48px;height:48px;border-radius:14px;background:var(--lime);display:grid;place-items:center;font-weight:1000;font-size:20px}
+.business-signup-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:20px 0}
+.business-signup-steps span{display:flex;align-items:center;gap:7px;background:var(--soft);border-radius:12px;padding:10px;font-size:12px;font-weight:800}
+.business-signup-steps b{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--dark);color:#fff}
+.auth-resend{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fafaf7}
+.auth-resend span{font-size:13px;color:var(--muted)}
+
+/* EDITA Creators */
+.creator-hero{padding-bottom:48px}
+.creator-hero h1{max-width:980px}
+.creator-home-band{padding:80px 0;background:#eef2df}
+.creator-home-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:28px;align-items:center}
+.creator-home-grid h2{font-size:clamp(38px,5vw,64px);letter-spacing:-3px;line-height:1.02;margin:10px 0 16px}
+.creator-home-grid p{font-size:17px;line-height:1.6;color:var(--muted);max-width:720px}
+.creator-home-card{background:white;border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 12px 34px rgba(0,0,0,.06)}
+.creator-home-card h3{font-size:28px;margin:8px 0}.creator-home-card p{font-size:14px}
+.creator-brief{border-width:2px}
+.creator-brief-text{background:#fafaf7;border-radius:16px;padding:16px;margin:14px 0}
+.creator-brief-text p{margin:4px 0;line-height:1.5}
+.creator-interest{margin-top:18px}
+@media(max-width:760px){
+  .signup-paths,.creator-home-grid{grid-template-columns:1fr}
+  .business-signup-steps{grid-template-columns:1fr 1fr}
+  .auth-resend{align-items:stretch;flex-direction:column}
+}
