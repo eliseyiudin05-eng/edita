@@ -106,16 +106,31 @@ export async function grantPaidAccess(payment:any){
   if(paymentError)throw paymentError;
   if(payment.status!=="succeeded")return {persisted:true,granted:false};
 
+  const {data:existingEntitlement}=await supabase.from("entitlements")
+    .select("id,product,expires_at")
+    .eq("source_payment_id",payment.id)
+    .maybeSingle();
+  if(existingEntitlement){
+    return {persisted:true,granted:true,duplicate:true,product:existingEntitlement.product,expiresAt:existingEntitlement.expires_at};
+  }
+
+  const {data:profile}=await supabase.from("profiles")
+    .select("plan,plan_expires_at")
+    .eq("id",userId)
+    .maybeSingle();
+
   let expiresAt:string|null=null;
-  let plan="start";
+  let plan=profile?.plan||"free";
 
   if(product==="ai-pro-30"){
     plan="pro";
-    const {data:profile}=await supabase.from("profiles").select("plan_expires_at").eq("id",userId).maybeSingle();
     const now=Date.now();
     const current=profile?.plan_expires_at?new Date(profile.plan_expires_at).getTime():0;
     const base=Math.max(now,current);
     expiresAt=new Date(base+30*24*60*60*1000).toISOString();
+  }else{
+    const activePro=profile?.plan==="pro"&&(!profile?.plan_expires_at||new Date(profile.plan_expires_at).getTime()>Date.now());
+    if(!activePro)plan="start";
   }
 
   const {error:entitlementError}=await supabase.from("entitlements").upsert({
@@ -128,7 +143,7 @@ export async function grantPaidAccess(payment:any){
   if(entitlementError)throw entitlementError;
 
   const update:any={plan};
-  if(plan==="pro")update.plan_expires_at=expiresAt;
+  if(product==="ai-pro-30")update.plan_expires_at=expiresAt;
   const {error:profileError}=await supabase.from("profiles").update(update).eq("id",userId);
   if(profileError)throw profileError;
 
