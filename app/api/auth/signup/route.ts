@@ -15,6 +15,7 @@ export async function POST(req:NextRequest){
   const displayName=String(body?.displayName||"").trim().slice(0,120);
   const businessName=String(body?.businessName||"").trim().slice(0,160);
   const onboarding=body?.onboarding&&typeof body.onboarding==="object"?body.onboarding:{};
+  const referralCode=String(body?.referralCode||"").trim().toUpperCase().slice(0,16);
 
   if(!validEmail(email))return NextResponse.json({error:"Проверь email."},{status:400});
   if(password.length<8)return NextResponse.json({error:"Пароль должен быть не короче 8 символов."},{status:400});
@@ -53,6 +54,19 @@ export async function POST(req:NextRequest){
     return NextResponse.json({error:"Не удалось создать аккаунт: "+error.message},{status:400});
   }
 
+  const createdId=(data as any)?.user?.id;
+  if(createdId&&referralCode){
+    const {data:referrer}=await service.from("profiles").select("id,referral_code").eq("referral_code",referralCode).maybeSingle();
+    if(referrer?.id&&referrer.id!==createdId){
+      await service.from("referrals").upsert({
+        referrer_id:referrer.id,
+        referred_id:createdId,
+        referral_code:referralCode,
+        status:"pending"
+      },{onConflict:"referred_id"});
+    }
+  }
+
   const link=(data as any)?.properties?.action_link||(data as any)?.properties?.actionLink;
   if(!link)return NextResponse.json({error:"Не удалось создать ссылку подтверждения."},{status:500});
 
@@ -69,7 +83,6 @@ export async function POST(req:NextRequest){
       text:"Подтверди email EDITA: "+link
     });
   }catch(e){
-    const createdId=(data as any)?.user?.id;
     if(createdId)await service.auth.admin.deleteUser(createdId).catch(()=>{});
     const code=e instanceof Error?e.message:"EMAIL_SEND_FAILED";
     return NextResponse.json({
