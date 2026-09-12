@@ -8,7 +8,7 @@ type FriendRel={id:string;status:string;direction:"incoming"|"outgoing";other:Ra
 type GroupMember={user_id:string;member_role:string;profile:RankRow|null};
 type Group={id:string;name:string;owner_id:string;age_scope:string;join_code:string;members:GroupMember[]};
 type Competition={id:string;title:string;description:string;task:string;audience:string;points_reward:number;ends_at?:string|null;entry?:{id:string;status:string;judge_score?:number|null;work_url:string}|null};
-type Referral={code:string|null;points:number;qualified:number;pending:number};
+type Referral={code:string|null;points:number;qualified:number;pending:number;reward?:{cost:number;label:string}};
 type BusinessRating={id:string;name:string;verification_level:string;reviews:number;rating:number|null;eligible:boolean;existing:boolean};
 
 export default function SocialHub({ageGroup}:{ageGroup?:string}){
@@ -107,6 +107,19 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     catch{setMessage("Твоя ссылка: "+link)}
   }
 
+  async function redeemReferral(){
+    if(!referral||referral.points<500)return;
+    const h=await headers();
+    const r=await fetch("/api/social/referrals",{
+      method:"POST",
+      headers:{...h,"Content-Type":"application/json"},
+      body:JSON.stringify({action:"redeem"})
+    });
+    const d=await r.json();
+    setMessage(r.ok?"Готово: 30 дней AI PRO добавлены в аккаунт.":d?.error||"Не удалось обменять баллы.");
+    if(r.ok)await load();
+  }
+
   return <div className="social-hub">
     <div className="social-tabs">
       <button className={view==="rating"?"active":""} onClick={()=>setView("rating")}>Рейтинг</button>
@@ -146,7 +159,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
         <div className="friend-search-results">
           {searchRows.map(row=><div className="friend-row" key={row.id}><div><b>@{row.username||"editor"}</b><span>{row.rating_points||0} рейтинга</span></div><button className="btn btn-ghost" onClick={()=>friendAction("send",{username:row.username})}>Добавить</button></div>)}
         </div>
-        <div className="minor-safety-note"><b>Безопасность</b><span>{ageGroup&&ageGroup!=="18+"?"Твой аккаунт до 18 лет может дружить только с другими аккаунтами до 18 лет.":"Аккаунты 18+ не могут добавлять несовершеннолетние аккаунты."} Личных сообщений между незнакомыми пользователями сейчас нет.</span></div>
+        <div className="minor-safety-note"><b>Безопасность</b><span>{ageGroup&&ageGroup!=="18+"?"Твой аккаунт до 18 лет может дружить только с другими аккаунтами до 18 лет.":"Дружба доступна только между аккаунтами одной возрастной группы."} Личных сообщений между незнакомыми пользователями сейчас нет.</span></div>
       </section>
 
       <section className="card">
@@ -178,7 +191,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
 
       <section className="group-list">
         {groups.length===0?<div className="card"><p className="muted">Ты пока не состоишь ни в одной группе.</p></div>:groups.map(g=><article className="card group-card" key={g.id}>
-          <div className="verification-head"><div><div className="eyebrow">{g.age_scope==="youth"?"УЧЕБНАЯ ГРУППА ДО 18":"УЧЕБНАЯ ГРУППА 18+"}</div><h3>{g.name}</h3></div><span className="verification-badge">Код {g.join_code}</span></div>
+          <div className="verification-head"><div><div className="eyebrow">{g.age_scope==="under14"?"ГРУППА · ДО 14":g.age_scope==="14-17"?"ГРУППА · 14–17":"ГРУППА · 18+"}</div><h3>{g.name}</h3></div><span className="verification-badge">Код {g.join_code}</span></div>
           <div className="mini-ranking">{g.members.map((m,i)=><div className="mini-rank-row" key={m.user_id}><b>#{i+1}</b><span>@{m.profile?.username||"editor"}{m.member_role==="owner"?" · создатель":""}</span><strong>{m.profile?.rating_points||0}</strong></div>)}</div>
         </article>)}
       </section>
@@ -239,7 +252,8 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
         <div><strong>{referral?.pending||0}</strong><span>ещё начинают</span></div>
         <div><strong>{referral?.points||0}</strong><span>EDITA Points</span></div>
       </div>
-      <div className="lesson-example"><b>За каждого активного друга</b><span>Тебе: +150 XP и +100 EDITA Points. Другу: +50 XP после первых трёх завершённых уроков.</span></div>
+      <div className="lesson-example"><b>За каждого активного друга</b><span>Тебе: +150 XP и +100 EDITA Points. Другу: +50 XP после подтверждённого email и первых трёх завершённых уроков.</span></div>
+      <button className="btn btn-dark" disabled={(referral?.points||0)<500} onClick={redeemReferral}>500 EDITA Points → 30 дней AI PRO</button>
       <p className="muted">Это внутренняя награда платформы, не денежная выплата. Поддельные или повторные аккаунты награду не дают.</p>
     </section>}
   </div>
