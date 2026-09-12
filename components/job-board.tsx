@@ -3,7 +3,7 @@
 import {FormEvent,useEffect,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 
-type Job={id:string;title:string;description:string;budget_min_cents:number|null;budget_max_cents:number|null;businesses?:{name?:string}|null};
+type Job={id:string;title:string;description:string;budget_min_cents:number|null;budget_max_cents:number|null;businesses?:{name?:string;verified?:boolean;verification_level?:string}|null};
 const demoJobs:Job[]=[
   {id:"d1",title:"Reels-монтажёр",description:"5–7 short-form роликов в неделю.",budget_min_cents:4500000,budget_max_cents:6000000,businesses:{name:"Demo Brand"}},
   {id:"d2",title:"YouTube Shorts",description:"Экспертный talking-head + B-roll.",budget_min_cents:250000,budget_max_cents:350000,businesses:{name:"Creator Studio"}},
@@ -13,6 +13,7 @@ const demoJobs:Job[]=[
 export default function JobBoard({mode,viewerName="Business"}:{mode:"editor"|"business";viewerName?:string}){
   const [jobs,setJobs]=useState<Job[]>([]);
   const [businessId,setBusinessId]=useState<string|null>(null);
+  const [businessVerified,setBusinessVerified]=useState(false);
   const [message,setMessage]=useState("");
   const [form,setForm]=useState({title:"",description:"",min:"",max:""});
 
@@ -25,16 +26,17 @@ export default function JobBoard({mode,viewerName="Business"}:{mode:"editor"|"bu
     if(!user){setJobs(demoJobs);return;}
 
     if(mode==="business"){
-      let {data:business}=await supabase.from("businesses").select("id").eq("owner_id",user.id).maybeSingle();
+      let {data:business}=await supabase.from("businesses").select("id,verified,verification_level").eq("owner_id",user.id).maybeSingle();
       if(!business){
         const {data:created}=await supabase.from("businesses")
           .upsert({owner_id:user.id,name:viewerName+" Studio"},{onConflict:"owner_id"})
-          .select("id")
+          .select("id,verified,verification_level")
           .single();
         business=created;
       }
       if(!business){setJobs([]);setMessage("Не удалось создать Business Workspace.");return;}
       setBusinessId(business.id);
+      setBusinessVerified(Boolean((business as any).verified));
       const {data,error}=await supabase.from("jobs").select("id,title,description,budget_min_cents,budget_max_cents").eq("business_id",business.id).order("created_at",{ascending:false});
       if(error){setMessage(error.message);return;}
       setJobs((data||[]) as Job[]);
@@ -43,9 +45,13 @@ export default function JobBoard({mode,viewerName="Business"}:{mode:"editor"|"bu
       if(error){setMessage(error.message);setJobs(demoJobs);return;}
       const rows=(data||[]) as any[];
       const businessIds=[...new Set(rows.map(j=>j.business_id).filter(Boolean))];
-      const {data:brands}=businessIds.length?await supabase.from("public_businesses").select("id,name").in("id",businessIds):{data:[] as any[]};
-      const names=Object.fromEntries((brands||[]).map((b:any)=>[b.id,b.name]));
-      setJobs(rows.map(j=>({...j,businesses:{name:names[j.business_id]||"Verified Business"}})) as Job[]);
+      const {data:brands}=businessIds.length?await supabase.from("public_businesses").select("id,name,verified,verification_level").in("id",businessIds):{data:[] as any[]};
+      const brandMap=Object.fromEntries((brands||[]).map((b:any)=>[b.id,b]));
+      setJobs(rows.map(j=>({...j,businesses:{
+        name:brandMap[j.business_id]?.name||"Business",
+        verified:Boolean(brandMap[j.business_id]?.verified),
+        verification_level:brandMap[j.business_id]?.verification_level||"basic"
+      }})) as Job[]);
     }
   }
 
@@ -62,6 +68,7 @@ export default function JobBoard({mode,viewerName="Business"}:{mode:"editor"|"bu
     e.preventDefault();
     const supabase=getSupabaseBrowserClient();
     if(!supabase||!businessId){setMessage("В demo вакансия не публикуется в базе.");return;}
+    if(!businessVerified){setMessage("Сначала пройди проверку компании. После этого можно публиковать реальные вакансии.");return;}
     const {error}=await supabase.from("jobs").insert({
       business_id:businessId,title:form.title,description:form.description,status:"open",
       budget_min_cents:form.min?Math.round(Number(form.min)*100):null,
@@ -73,15 +80,16 @@ export default function JobBoard({mode,viewerName="Business"}:{mode:"editor"|"bu
   }
 
   return <div className="job-board">
-    {mode==="business"&&<section className="card"><div className="eyebrow">NEW JOB</div><h3>Опубликовать вакансию</h3><form className="business-form" onSubmit={create}>
+    {mode==="business"&&<section className="card"><div className="eyebrow">NEW JOB</div><h3>Опубликовать вакансию</h3>{!businessVerified&&<div className="auth-msg">Сначала нужна проверка компании. Это защищает монтажёров от фейковых работодателей.</div>}<form className="business-form" onSubmit={create}>
       <input required placeholder="Название роли" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
       <textarea required placeholder="Задачи, объём, формат работы" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
       <div className="split-fields"><input type="number" min="0" placeholder="От, ₽" value={form.min} onChange={e=>setForm({...form,min:e.target.value})}/><input type="number" min="0" placeholder="До, ₽" value={form.max} onChange={e=>setForm({...form,max:e.target.value})}/></div>
-      <button className="btn btn-dark">Опубликовать</button>
+      <button className="btn btn-dark" disabled={!businessVerified}>{businessVerified?"Опубликовать":"Сначала пройти проверку"}</button>
     </form></section>}
 
     <section className="grid job-grid">{jobs.map(job=><article className="card job" key={job.id}>
-      <small>{mode==="editor"?(job.businesses?.name||"VERIFIED BUSINESS"):"YOUR JOB"}</small>
+      <small>{mode==="editor"?(job.businesses?.name||"Business"):"YOUR JOB"}</small>
+      {mode==="editor"&&job.businesses?.verified&&<span className="tag verification-mini">{badgeName(job.businesses.verification_level)}</span>}
       <h3>{job.title}</h3><p className="muted">{job.description}</p>
       <b>{budget(job)}</b>
       {mode==="editor"&&<button className="btn btn-dark" onClick={()=>apply(job.id)}>Податься</button>}
@@ -97,4 +105,11 @@ function budget(job:Job){
   if(min)return "от "+new Intl.NumberFormat("ru-RU").format(min)+" ₽";
   if(max)return "до "+new Intl.NumberFormat("ru-RU").format(max)+" ₽";
   return "Бюджет по договорённости";
+}
+
+
+function badgeName(level?:string){
+  if(level==="popular_brand")return "★ Известный бренд";
+  if(level==="partner")return "★ Партнёр EDITA";
+  return "✓ Проверенная компания";
 }
