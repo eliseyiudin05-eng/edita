@@ -10,7 +10,7 @@ async function auth(req:NextRequest){
   const service=getSupabaseServiceClient();
   return user&&service?{user,service}:null;
 }
-function isAdult(profile:any){return (profile?.onboarding?.ageGroup||"18+")==="18+"}
+function ageBand(profile:any){return profile?.onboarding?.ageGroup||"18+"}
 
 export async function GET(req:NextRequest){
   const a=await auth(req);
@@ -20,7 +20,7 @@ export async function GET(req:NextRequest){
   if(search){
     const {data}=await a.service.from("public_profiles")
       .select("id,username,display_name,level,xp,rating_points")
-      .ilike("username","%"+search+"%")
+      .ilike("username",search)
       .neq("id",a.user.id)
       .limit(8);
     return NextResponse.json({results:data||[]});
@@ -62,8 +62,8 @@ export async function POST(req:NextRequest){
       a.service.from("profiles").select("onboarding").eq("id",a.user.id).maybeSingle(),
       a.service.from("profiles").select("onboarding").eq("id",target.id).maybeSingle()
     ]);
-    if(isAdult(me)!==isAdult(them)){
-      return NextResponse.json({error:"Для безопасности аккаунты 18+ и до 18 лет нельзя добавлять друг друга в друзья."},{status:403});
+    if(ageBand(me)!==ageBand(them)){
+      return NextResponse.json({error:"Для безопасности дружба доступна только между аккаунтами одной возрастной группы."},{status:403});
     }
 
     const [low,high]=a.user.id<target.id?[a.user.id,target.id]:[target.id,a.user.id];
