@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createPayment, PRODUCTS, type EditaProduct } from "@/lib/yookassa";
-import { getUserFromAccessToken } from "@/lib/server-supabase";
+import { getSupabaseServiceClient, getUserFromAccessToken } from "@/lib/server-supabase";
 
 export async function POST(req: NextRequest) {
   try {
