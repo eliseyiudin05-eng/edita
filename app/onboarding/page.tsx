@@ -44,13 +44,17 @@ export default function OnboardingPage(){
     if(role==="business"){window.location.href="/platform";return;}
 
     setSaving(true);
-    const {error}=await supabase.rpc("update_learning_preferences",{
-      p_level:state.level,
-      p_software:state.software,
-      p_goal:state.goal
+    const {data:{session}}=await supabase.auth.getSession();
+    const r=await fetch("/api/profile/learning-preferences",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        ...(session?.access_token?{Authorization:"Bearer "+session.access_token}:{})
+      },
+      body:JSON.stringify(state)
     });
     setSaving(false);
-    if(!error){
+    if(r.ok){
       localStorage.setItem("edita_onboarding",JSON.stringify(state));
       window.location.href="/platform";
     }
