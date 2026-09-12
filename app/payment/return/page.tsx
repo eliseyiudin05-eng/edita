@@ -48,11 +48,11 @@ export default function PaymentReturnPage(){
         <div className="payment-check">✓</div>
         <h1>Оплата прошла</h1>
         <p><b>{status.productName}</b> успешно оплачен{status.test?" в тестовом магазине":""}.</p>
-        <div className="auth-msg">Следующий production-шаг — автоматически выдавать доступ в базе EDITA по webhook.</div>
+        <div className="auth-msg">ЮKassa подтвердила оплату. EDITA выдаёт доступ автоматически после серверного подтверждения. Если профиль был открыт давно, обнови страницу платформы.</div>
       </>}
       {status&&!status.error&&!succeeded&&<>
         <h1>Платёж обрабатывается</h1>
-        <p>Текущий статус: <b>{status.status||"pending"}</b>. Страница проверит его автоматически.</p>
+        <p>Оплата ещё не подтверждена. Страница проверяет статус автоматически. Не закрывай её сразу после оплаты.</p>
       </>}
       <div className="auth-form">
         <Link href="/platform" className="btn btn-dark">Перейти в EDITA</Link>
