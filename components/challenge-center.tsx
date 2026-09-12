@@ -15,6 +15,8 @@ type Challenge={
   ends_at:string|null;
   status:string;
   source_assets:string[];
+  brand_verified?:boolean;
+  verification_level?:string;
 };
 type Submission={
   id:string;
@@ -43,6 +45,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
   const [loadingBrief,setLoadingBrief]=useState(false);
   const [brandContext,setBrandContext]=useState<Record<string,string>>({});
   const [businessId,setBusinessId]=useState<string|null>(null);
+  const [businessVerified,setBusinessVerified]=useState(false);
   const [form,setForm]=useState({brand:"",title:"",brief:"",sourceUrl:"",prize:"10000",deadline:""});
 
   const selected=useMemo(()=>challenges.find(c=>c.id===selectedId)||challenges[0],[challenges,selectedId]);
@@ -57,17 +60,19 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
 
     let ownedBusinessId:string|null=null;
     if(role==="business"){
-      const {data:business}=await supabase.from("businesses").select("id,name,brand_context").eq("owner_id",user.id).maybeSingle();
+      const {data:business}=await supabase.from("businesses").select("id,name,brand_context,verified,verification_level").eq("owner_id",user.id).maybeSingle();
       if(business){
         ownedBusinessId=business.id;
         setBrandContext((business.brand_context||{}) as Record<string,string>);
+        setBusinessVerified(Boolean(business.verified));
       }else{
         const {data:created}=await supabase.from("businesses")
           .upsert({owner_id:user.id,name:viewerName+" Studio"},{onConflict:"owner_id"})
-          .select("id,brand_context")
+          .select("id,brand_context,verified,verification_level")
           .single();
         ownedBusinessId=created?.id||null;
         if(created?.brand_context)setBrandContext((created.brand_context||{}) as Record<string,string>);
+        setBusinessVerified(Boolean(created?.verified));
       }
       setBusinessId(ownedBusinessId);
     }
@@ -79,13 +84,15 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
     if(!error&&data?.length){
       const businessIds=[...new Set(data.map((row:any)=>row.business_id).filter(Boolean))];
       const {data:publicBusinesses}=businessIds.length
-        ? await supabase.from("public_businesses").select("id,name").in("id",businessIds)
+        ? await supabase.from("public_businesses").select("id,name,verified,verification_level").in("id",businessIds)
         : {data:[] as any[]};
-      const businessNames=Object.fromEntries((publicBusinesses||[]).map((b:any)=>[b.id,b.name]));
+      const businessMap=Object.fromEntries((publicBusinesses||[]).map((b:any)=>[b.id,b]));
       const mapped:Challenge[]=data.map((row:any)=>({
         id:row.id,
         business_id:row.business_id,
-        brand:businessNames[row.business_id]||"EDITA BUSINESS",
+        brand:businessMap[row.business_id]?.name||"EDITA BUSINESS",
+        brand_verified:Boolean(businessMap[row.business_id]?.verified),
+        verification_level:businessMap[row.business_id]?.verification_level||"basic",
         title:row.title,
         brief:row.brief,
         prize_cents:Number(row.prize_cents||0),
@@ -246,6 +253,10 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
 
   async function createChallenge(e:FormEvent){
     e.preventDefault();
+    if(!businessVerified){
+      setMessage("Сначала пройди проверку компании выше. Непроверенный бизнес не может публиковать реальные Challenge.");
+      return;
+    }
     setLoading(true);setMessage("");
     const sourceAssets=form.sourceUrl.trim()?[form.sourceUrl.trim()]:[];
     const supabase=getSupabaseBrowserClient();
@@ -301,13 +312,14 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
       <section className="card">
         <div className="eyebrow">NEW CHALLENGE</div>
         <h3>Создать реальное ТЗ</h3>
+        {!businessVerified&&<div className="auth-msg">Публикация закрыта до проверки компании. Заполни блок «Проверка бизнеса» выше.</div>}
         <form className="business-form" onSubmit={createChallenge}>
           <input required placeholder="Название компании" value={form.brand} onChange={e=>setForm({...form,brand:e.target.value})}/>
           <input required placeholder="Название конкурса" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
           <textarea required placeholder="ТЗ: длительность, формат, обязательные элементы, ограничения..." value={form.brief} onChange={e=>setForm({...form,brief:e.target.value})}/><button type="button" className="btn btn-ghost" onClick={improveBrief} disabled={loadingBrief}>{loadingBrief?"AI структурирует…":"✨ Улучшить ТЗ с AI"}</button>
           <input type="url" placeholder="Ссылка на исходники / референсы (Drive, Disk, Dropbox…)" value={form.sourceUrl} onChange={e=>setForm({...form,sourceUrl:e.target.value})}/>
           <div className="split-fields"><input required min="0" type="number" placeholder="Приз, ₽" value={form.prize} onChange={e=>setForm({...form,prize:e.target.value})}/><input type="datetime-local" value={form.deadline} onChange={e=>setForm({...form,deadline:e.target.value})}/></div>
-          <button className="btn btn-lime" disabled={loading}>{loading?"Публикуем...":"Опубликовать в Arena"}</button>
+          <button className="btn btn-lime" disabled={loading||!businessVerified}>{loading?"Публикуем...":businessVerified?"Опубликовать в Arena":"Сначала пройти проверку"}</button>
         </form>
         {message&&<div className="auth-msg">{message}</div>}
       </section>
@@ -333,7 +345,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
   return <div className="challenge-layout">
     <section className="challenge-list">
       {challenges.map(c=><button key={c.id} className={"challenge-row "+(selected?.id===c.id?"active":"")} onClick={()=>{setSelectedId(c.id);setMessage("")}}>
-        <div><span className="eyebrow">{c.brand}</span><h3>{c.title}</h3></div>
+        <div><span className="eyebrow">{c.brand}</span>{c.brand_verified&&<span className="tag verification-mini">{badgeName(c.verification_level)}</span>}<h3>{c.title}</h3></div>
         <div><b>{money(c.prize_cents)}</b><span className="muted">{deadline(c.ends_at)}</span></div>
       </button>)}
     </section>
@@ -341,7 +353,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
     {selected&&<section className="card challenge-detail">
       <div className="eyebrow">REAL BRIEF</div>
       <h2>{selected.title}</h2>
-      <div className="challenge-meta"><span>{selected.brand}</span><b>{money(selected.prize_cents)}</b><span>{deadline(selected.ends_at)}</span></div>
+      <div className="challenge-meta"><span>{selected.brand}</span>{selected.brand_verified&&<span className="tag verification-mini">{badgeName(selected.verification_level)}</span>}<b>{money(selected.prize_cents)}</b><span>{deadline(selected.ends_at)}</span></div>
       <p>{selected.brief}</p>
       {selected.source_assets.length>0&&<div className="source-assets"><b>Исходники:</b>{selected.source_assets.map((url,i)=><a key={i} href={url} target="_blank" rel="noreferrer">Открыть материалы ↗</a>)}</div>}
       {role==="editor"&&ageGroup&&ageGroup!=="18+"&&!guardianVerified&&<div className="minor-safety-note"><b>Безопасный режим</b><span>Отправка коммерческой работы заблокирована до подтверждения законного представителя.</span></div>}<div className="brief-checklist"><b>Перед отправкой проверь:</b><span>✓ формат 9:16</span><span>✓ понятный hook</span><span>✓ голос читается поверх музыки</span><span>✓ работа соответствует ТЗ</span></div>
@@ -356,3 +368,10 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
 
 function money(cents:number){return new Intl.NumberFormat("ru-RU").format(Math.round(cents/100))+" ₽"}
 function deadline(value:string|null){if(!value)return"Без дедлайна";const ms=new Date(value).getTime()-Date.now();const days=Math.max(0,Math.ceil(ms/86400000));return days===0?"Сегодня":days+" дн."}
+
+
+function badgeName(level?:string){
+  if(level==="popular_brand")return "★ Известный бренд";
+  if(level==="partner")return "★ Партнёр EDITA";
+  return "✓ Проверенная компания";
+}
