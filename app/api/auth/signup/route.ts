@@ -86,11 +86,16 @@ export async function POST(req:NextRequest){
       text:"Подтверди email EDITA: "+link
     });
   }catch(e){
-    if(createdUserId)await service.auth.admin.deleteUser(createdUserId).catch(()=>{});
+    if(createdUserId){
+      const {error:cleanupError}=await service.auth.admin.deleteUser(createdUserId);
+      if(cleanupError)console.error("Could not clean up user after confirmation email failure",{code:cleanupError.code||"supabase_cleanup_failed"});
+    }
     const code=e instanceof Error?e.message:"EMAIL_SEND_FAILED";
     return NextResponse.json({
       error:code==="RESEND_NOT_CONFIGURED"
         ?"Почтовый сервис EDITA ещё не подключён."
+        :code==="RESEND_INVALID_KEY_FORMAT"
+          ?"Ключ почтового сервиса настроен неверно."
         :"Не удалось отправить письмо подтверждения. Попробуй позже."
     },{status:503});
   }

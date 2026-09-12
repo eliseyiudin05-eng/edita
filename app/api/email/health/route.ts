@@ -1,4 +1,5 @@
 import {NextResponse} from "next/server";
+import {getResendServiceStatus} from "@/lib/resend-email";
 
 const domain="auth.getedita.app";
 const expected={
@@ -33,8 +34,8 @@ async function dns(name:string,type:"TXT"|"MX"|"CNAME"){
 }
 
 export async function GET(){
-  const configured=Boolean(process.env.RESEND_API_KEY);
-  const [dkim,spf,mx,cname]=await Promise.all([
+  const [resend,dkim,spf,mx,cname]=await Promise.all([
+    getResendServiceStatus(),
     dns(expected.dkim.name,"TXT"),
     dns(expected.spf.name,"TXT"),
     dns(expected.mx.name,"MX"),
@@ -47,14 +48,19 @@ export async function GET(){
     mx:mx.some((v:string)=>v.toLowerCase().includes(expected.mx.value.toLowerCase())),
     cname:cname.some((v:string)=>v.toLowerCase().replace(/\.$/,"")===expected.cname.value.toLowerCase())
   };
-  const verified=Object.values(checks).every(Boolean);
+  const dnsVerified=Object.values(checks).every(Boolean);
 
   return NextResponse.json({
-    configured,
-    connected:configured,
+    configured:resend.configured,
+    connected:resend.connected,
     domain,
-    verified,
-    domainStatus:verified?"verified":"pending_dns",
-    checks
+    verified:resend.verified&&dnsVerified,
+    domainStatus:resend.domainStatus,
+    apiStatus:resend.apiStatus,
+    errorCode:resend.errorCode,
+    keyFormatValid:resend.keyFormatValid,
+    senderAdjusted:resend.senderAdjusted,
+    requestedDomain:resend.requestedDomain,
+    checks,
   });
 }

@@ -25,7 +25,7 @@ export async function GET() {
       },
       email:{
         configured:Boolean(process.env.RESEND_API_KEY),
-        from:process.env.RESEND_FROM_EMAIL||"EDITA <no-reply@getedita.app>",
+        from:process.env.RESEND_FROM_EMAIL||"EDITA <no-reply@auth.getedita.app>",
       },
     },
   });

@@ -5,23 +5,85 @@ type SendEmailArgs={
   text?:string;
 };
 
+const RESEND_API_URL="https://api.resend.com";
+const EDITA_EMAIL_DOMAIN="auth.getedita.app";
+const DEFAULT_FROM="EDITA <no-reply@auth.getedita.app>";
+
+type ResendApiErrorBody={
+  message?:string;
+  name?:string;
+  code?:string;
+  error?:{message?:string;name?:string;code?:string};
+};
+
+function cleanEnv(value:string|undefined){
+  const trimmed=value?.trim()||"";
+  if(trimmed.length>=2){
+    const first=trimmed[0];
+    const last=trimmed[trimmed.length-1];
+    if((first==='"'&&last==='"')||(first==="'"&&last==="'"))return trimmed.slice(1,-1).trim();
+  }
+  return trimmed;
+}
+
+function senderEmail(value:string){
+  const bracket=value.match(/<([^<>]+)>\s*$/)?.[1];
+  const candidate=(bracket||value).trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)?candidate:null;
+}
+
+function senderDomain(value:string){
+  return senderEmail(value)?.split("@")[1]||null;
+}
+
+function safeErrorMessage(body:ResendApiErrorBody){
+  const message=body?.message||body?.error?.message||"RESEND_REQUEST_FAILED";
+  return String(message)
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,"[redacted-email]")
+    .slice(0,500);
+}
+
+function errorCode(body:ResendApiErrorBody){
+  return String(body?.code||body?.name||body?.error?.code||body?.error?.name||"resend_error").slice(0,100);
+}
+
+export function getResendConfig(){
+  const key=cleanEnv(process.env.RESEND_API_KEY).replace(/\s+/g,"");
+  const requestedFrom=cleanEnv(process.env.RESEND_FROM_EMAIL);
+  const requestedDomain=requestedFrom?senderDomain(requestedFrom):null;
+  const senderAdjusted=Boolean(requestedFrom&&requestedDomain!==EDITA_EMAIL_DOMAIN);
+
+  return {
+    key:key||null,
+    keyFormatValid:key.startsWith("re_"),
+    from:requestedFrom&&!senderAdjusted?requestedFrom:DEFAULT_FROM,
+    domain:EDITA_EMAIL_DOMAIN,
+    requestedDomain,
+    senderAdjusted,
+  };
+}
+
 export function resendConfigured(){
-  return Boolean(process.env.RESEND_API_KEY);
+  const config=getResendConfig();
+  return Boolean(config.key&&config.keyFormatValid);
 }
 
 export async function sendTransactionalEmail({to,subject,html,text}:SendEmailArgs){
-  const key=process.env.RESEND_API_KEY;
-  if(!key)throw new Error("RESEND_NOT_CONFIGURED");
-  const from=process.env.RESEND_FROM_EMAIL||"EDITA <no-reply@auth.getedita.app>";
+  const config=getResendConfig();
+  if(!config.key)throw new Error("RESEND_NOT_CONFIGURED");
+  if(!config.keyFormatValid){
+    console.error("Resend email configuration invalid",{code:"invalid_key_format"});
+    throw new Error("RESEND_INVALID_KEY_FORMAT");
+  }
 
-  const r=await fetch("https://api.resend.com/emails",{
+  const r=await fetch(RESEND_API_URL+"/emails",{
     method:"POST",
     headers:{
-      Authorization:"Bearer "+key,
+      Authorization:"Bearer "+config.key,
       "Content-Type":"application/json"
     },
     body:JSON.stringify({
-      from,
+      from:config.from,
       to:[to],
       subject,
       html,
@@ -29,9 +91,71 @@ export async function sendTransactionalEmail({to,subject,html,text}:SendEmailArg
     }),
     cache:"no-store"
   });
-  const body=await r.json().catch(()=>({}));
-  if(!r.ok)throw new Error(body?.message||body?.error?.message||"RESEND_SEND_FAILED");
+  const body:ResendApiErrorBody&Record<string,unknown>=await r.json().catch(()=>({}));
+  if(!r.ok){
+    const code=errorCode(body);
+    console.error("Resend email send failed",{
+      status:r.status,
+      code,
+      message:safeErrorMessage(body),
+      senderDomain:config.domain,
+      senderAdjusted:config.senderAdjusted,
+    });
+    throw new Error("RESEND_SEND_FAILED:"+r.status+":"+code);
+  }
   return body;
+}
+
+export async function getResendServiceStatus(){
+  const config=getResendConfig();
+  const base={
+    configured:Boolean(config.key),
+    connected:false,
+    verified:false,
+    domain:config.domain,
+    domainStatus:"unknown",
+    apiStatus:0,
+    errorCode:null as string|null,
+    keyFormatValid:config.keyFormatValid,
+    senderAdjusted:config.senderAdjusted,
+    requestedDomain:config.requestedDomain,
+  };
+
+  if(!config.key)return {...base,domainStatus:"not_configured"};
+  if(!config.keyFormatValid)return {...base,domainStatus:"invalid_key_format",errorCode:"invalid_key_format"};
+
+  try{
+    const r=await fetch(RESEND_API_URL+"/domains?limit=100",{
+      headers:{Authorization:"Bearer "+config.key},
+      cache:"no-store"
+    });
+    const body:ResendApiErrorBody&{data?:Array<{name?:string;status?:string;capabilities?:{sending?:string}}>}=await r.json().catch(()=>({}));
+    if(!r.ok){
+      return {
+        ...base,
+        apiStatus:r.status,
+        domainStatus:"api_error",
+        errorCode:errorCode(body),
+      };
+    }
+
+    const domain=Array.isArray(body.data)
+      ?body.data.find(item=>item?.name?.toLowerCase()===config.domain)
+      :undefined;
+    const status=domain?.status||"missing";
+    const sending=domain?.capabilities?.sending||"unknown";
+
+    return {
+      ...base,
+      connected:true,
+      verified:status==="verified"&&sending!=="disabled",
+      domainStatus:status,
+      apiStatus:r.status,
+      errorCode:null,
+    };
+  }catch{
+    return {...base,domainStatus:"network_error",errorCode:"network_error"};
+  }
 }
 
 export function authEmailHtml(title:string,body:string,button:string,url:string){
