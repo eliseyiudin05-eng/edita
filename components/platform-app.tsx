@@ -48,7 +48,7 @@ export default function PlatformApp(){
 
  const xp=useMemo(()=>done.reduce((sum,slug)=>sum+(curriculum.find(l=>l.slug===slug)?.xp||0),0),[done]);
  const tabs=useMemo(()=>{
-   if(viewer.role==="business") return allTabs.filter(([id])=>["home","coach","review","arena","community","profile","business"].includes(id));
+   if(viewer.role==="business") return allTabs.filter(([id])=>["home","coach","review","arena","profile","business"].includes(id));
    if(viewer.role==="editor") return allTabs.filter(([id])=>id!=="business");
    return allTabs;
  },[viewer.role]);
