@@ -41,7 +41,7 @@ export default function BusinessSignup(){
     const r=await fetch("/api/auth/signup",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({role:"business",displayName:contactName,businessName,email,password,onboarding})
+      body:JSON.stringify({role:"business",displayName:contactName,businessName,email,password,onboarding,referralCode:new URLSearchParams(window.location.search).get("ref")||""})
     });
     const data=await r.json();
     setLoading(false);
