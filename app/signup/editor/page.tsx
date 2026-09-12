@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {FormEvent,useEffect,useState} from "react";
-import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 import {authErrorRu} from "@/lib/auth-errors";
 
 type Age="under14"|"14-17"|"18+";
@@ -31,40 +30,28 @@ export default function EditorSignup(){
   async function submit(e:FormEvent){
     e.preventDefault();
     if(!acceptTerms||!acceptPersonalData){setMessage("Нужно принять условия и отдельно согласиться на обработку персональных данных.");return;}
-    const supabase=getSupabaseBrowserClient();
     setLoading(true);setMessage("");
     const onboarding={role:"editor",ageGroup,software,level,goal};
     localStorage.setItem("edita_onboarding",JSON.stringify(onboarding));
-    const {data,error}=await supabase.auth.signUp({
-      email:email.trim().toLowerCase(),
-      password,
-      options:{
-        emailRedirectTo:window.location.origin+"/platform",
-        data:{
-          role:"editor",
-          display_name:name.trim(),
-          onboarding,
-          accepted_terms:true,
-          accepted_personal_data:true,
-          terms_version:"2026-09-12",
-          privacy_version:"2026-09-12"
-        }
-      }
+    const r=await fetch("/api/auth/signup",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({role:"editor",displayName:name,email,password,onboarding})
     });
+    const data=await r.json();
     setLoading(false);
-    if(error){setMessage(authErrorRu(error.message));return;}
-    if(data.session){window.location.href="/platform";return;}
+    if(!r.ok){setMessage(authErrorRu(data?.error));return;}
     setCreatedEmail(email.trim().toLowerCase());setCooldown(60);
-    setMessage("Готово. Проверь почту и подтверди email. После входа EDITA сама покажет, куда нажимать.");
+    setMessage("Готово. Письмо отправлено через почтовый сервис EDITA. Проверь Входящие и Спам.");
   }
 
   async function resend(){
     if(!createdEmail||cooldown>0)return;
-    const supabase=getSupabaseBrowserClient();
     setLoading(true);
-    const {error}=await supabase.auth.resend({type:"signup",email:createdEmail,options:{emailRedirectTo:window.location.origin+"/platform"}});
+    const r=await fetch("/api/auth/resend-confirmation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:createdEmail})});
+    const data=await r.json();
     setLoading(false);
-    if(error){setMessage(authErrorRu(error.message));return;}
+    if(!r.ok){setMessage(authErrorRu(data?.error));return;}
     setCooldown(60);setMessage("Письмо отправлено ещё раз. Проверь Входящие и Спам.");
   }
 
