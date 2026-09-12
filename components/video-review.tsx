@@ -86,7 +86,7 @@ export default function VideoReview() {
   return (
     <div className="review-layout">
       <section className="card review-upload">
-        <div className="eyebrow">AI VIDEO REVIEW</div>
+        <div className="eyebrow">AI РАЗБОР ВИДЕО</div>
         <h2>Загрузи ролик — получи разбор по таймкодам</h2>
         <p className="muted">
           Видео обрабатывается в браузере: EDITA извлекает несколько кадров и
