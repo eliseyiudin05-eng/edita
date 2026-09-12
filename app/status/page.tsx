@@ -29,7 +29,7 @@ export default function StatusPage() {
   return <main className="legal-page">
     <div className="legal-shell">
       <Link href="/" className="brand">EDITA<span>.</span></Link>
-      <div className="eyebrow">SYSTEM STATUS</div>
+      <div className="eyebrow">СТАТУС СЕРВИСОВ</div>
       <h1>Готовность сервисов</h1>
       <p>Безопасная проверка конфигурации: секретные ключи здесь никогда не показываются.</p>
 
