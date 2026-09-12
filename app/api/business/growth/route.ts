@@ -9,9 +9,10 @@ async function league(service:any){
     .eq("verified",true);
 
   const rows=await Promise.all((businesses||[]).map(async(b:any)=>{
-    const [{data:challenges},{data:jobs}]=await Promise.all([
+    const [{data:challenges},{data:jobs},{data:reviews}]=await Promise.all([
       service.from("challenges").select("id,status").eq("business_id",b.id),
-      service.from("jobs").select("id,status").eq("business_id",b.id)
+      service.from("jobs").select("id,status").eq("business_id",b.id),
+      service.from("business_reviews").select("brief_clarity,communication,fairness").eq("business_id",b.id)
     ]);
     const challengeIds=(challenges||[]).map((c:any)=>c.id);
     const {data:subs}=challengeIds.length
@@ -22,8 +23,17 @@ async function league(service:any){
     const submissionCount=Math.min((subs||[]).length,20);
     const winnerCount=Math.min((subs||[]).filter((s:any)=>s.status==="winner").length,5);
     const verifyBonus=b.verification_level==="partner"?300:b.verification_level==="popular_brand"?220:150;
-    const points=verifyBonus+challengeCount*35+jobCount*20+submissionCount*4+winnerCount*100;
-    return {id:b.id,name:b.name,verification_level:b.verification_level,points,challenges:(challenges||[]).length,jobs:(jobs||[]).length,submissions:(subs||[]).length,winners:winnerCount};
+    const reviewCount=(reviews||[]).length;
+    const reviewAvg=reviewCount
+      ? (reviews||[]).reduce((sum:number,r:any)=>sum+(Number(r.brief_clarity)+Number(r.communication)+Number(r.fairness))/3,0)/reviewCount
+      : null;
+    const reviewBonus=reviewCount>=3?Math.round((reviewAvg||0)*20):0;
+    const points=verifyBonus+challengeCount*35+jobCount*20+submissionCount*4+winnerCount*100+reviewBonus;
+    return {
+      id:b.id,name:b.name,verification_level:b.verification_level,points,
+      challenges:(challenges||[]).length,jobs:(jobs||[]).length,submissions:(subs||[]).length,winners:winnerCount,
+      review_count:reviewCount,review_rating:reviewAvg==null?null:Math.round(reviewAvg*10)/10
+    };
   }));
   return rows.sort((a:any,b:any)=>b.points-a.points);
 }
