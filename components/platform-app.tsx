@@ -181,7 +181,7 @@ export default function PlatformApp(){
    } finally {setLoading(false)}
  }
 
- const roleLabel=viewer.role==="business"?"Business":viewer.role==="editor"?"Editor":"Demo mode";
+ const roleLabel=viewer.role==="business"?"Бизнес":viewer.role==="editor"?"Монтажёр":"Гость";
  const planLabel=viewer.plan==="pro"?"AI PRO":viewer.plan==="start"?"START":"FREE";
 
  return <main className="app">
@@ -226,7 +226,7 @@ export default function PlatformApp(){
      {tab==="practice"&&<Page title="Практика" sub="Симулятор реального клиента: цена, правки, сроки и переговоры."><ClientSimulator/></Page>}
 
      {tab==="coach"&&<Page title="AI Помощник" sub="Спроси про монтаж обычными словами. Если что-то непонятно — попроси объяснить ещё проще.">
-       <div className={"ai-status "+(aiConfigured?"online":"offline")}>{aiConfigured===null?"Проверяю AI…":aiConfigured?"● Live AI подключён":"● AI fallback mode"}</div>
+       <div className={"ai-status "+(aiConfigured?"online":"offline")}>{aiConfigured===null?"Проверяю AI…":aiConfigured?"● Live AI подключён":"● AI работает в упрощённом режиме"}</div>
        <div className="card chat"><div className="feed">{messages.map((m,i)=><div className={"bubble "+m.from} key={i}>{m.text}</div>)}{loading&&<div className="bubble">Разбираю…</div>}</div><form className="form" onSubmit={ask}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Почему мой Reel выглядит скучно?"/><button className="btn btn-lime">Спросить</button></form></div>
      </Page>}
 
@@ -249,7 +249,7 @@ export default function PlatformApp(){
 
      {tab==="profile"&&<Page title="Профиль" sub="Skill Graph, персональный маршрут и публичная карьерная карточка.">
        <div className="profile-grid">
-         <Card title="Career Passport"><p><b>{viewer.name}</b></p><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"freelance"} · {planLabel}</p>{viewer.username&&<Link className="btn btn-dark" href={"/u/"+viewer.username}>Публичный профиль ↗</Link>}</Card>
+         <Card title="Карточка монтажёра"><p><b>{viewer.name}</b></p><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"freelance"} · {planLabel}</p>{viewer.username&&<Link className="btn btn-dark" href={"/u/"+viewer.username}>Публичный профиль ↗</Link>}</Card>
          <Card title="Навыки"><Skill label="Основа монтажа" value={Math.min(100,done.filter(s=>["what-is-editing","hook-basics","story-basics","retention-basics","editor-words","clean-cut"].includes(s)).length*16)}/><Skill label="Удержание зрителя" value={Math.min(100,done.filter(s=>["hook-basics","retention-basics","hook-2-seconds","subtitles","b-roll","sound"].includes(s)).length*16)}/><Skill label="Работа с клиентом" value={Math.min(100,done.filter(s=>["client-brief","pricing","portfolio"].includes(s)).length*33)}/></Card>
          <Card title="Настройки обучения"><p className="muted">Уровень: {viewer.onboarding?.level||"не указан"}<br/>Программа: {viewer.onboarding?.software||"не указана"}<br/>Цель: {viewer.onboarding?.goal||"не указана"}</p><Link className="btn btn-ghost" href="/onboarding">Изменить настройки</Link></Card>{viewer.onboarding?.ageGroup&&viewer.onboarding.ageGroup!=="18+"&&<GuardianVerification/>}
        </div>
@@ -257,7 +257,7 @@ export default function PlatformApp(){
 
      {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><JobBoard mode="editor" ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified}/></Page>}
      {tab==="community"&&<Page title="Рейтинг" sub="Здесь видны только безопасные данные: имя, уровень и подтверждённые навыки."><CommunityLeaderboard/></Page>}
-     {tab==="business"&&<Page title="Кабинет бизнеса" sub="Сначала подтвердите компанию. После проверки можно публиковать реальные задания и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных Challenge"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n="BETA" t="режим workspace"/></div><div className="business-stack"><BusinessVerification/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/></div></Page>}
+     {tab==="business"&&<Page title="Кабинет бизнеса" sub="Сначала подтвердите компанию. После проверки можно публиковать реальные задания и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных Challenge"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n="ЗАКРЫТО" t="предзапуск"/></div><div className="business-stack"><BusinessVerification/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/></div></Page>}
    </section>
 
    <SiteTour role={viewer.role} onGo={(value)=>setTab(value as Tab)}/>
