@@ -26,6 +26,12 @@ function cleanEnv(value:string|undefined){
   return trimmed;
 }
 
+function cleanResendKey(value:string|undefined){
+  const normalized=cleanEnv(value).replace(/\s+/g,"");
+  const embeddedKey=normalized.match(/re_[A-Za-z0-9_-]{8,}/)?.[0];
+  return embeddedKey||normalized;
+}
+
 function senderEmail(value:string){
   const bracket=value.match(/<([^<>]+)>\s*$/)?.[1];
   const candidate=(bracket||value).trim().toLowerCase();
@@ -48,7 +54,7 @@ function errorCode(body:ResendApiErrorBody){
 }
 
 export function getResendConfig(){
-  const key=cleanEnv(process.env.RESEND_API_KEY).replace(/\s+/g,"");
+  const key=cleanResendKey(process.env.RESEND_API_KEY);
   const requestedFrom=cleanEnv(process.env.RESEND_FROM_EMAIL);
   const requestedDomain=requestedFrom?senderDomain(requestedFrom):null;
   const senderAdjusted=Boolean(requestedFrom&&requestedDomain!==EDITA_EMAIL_DOMAIN);
