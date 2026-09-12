@@ -28,8 +28,8 @@ type Viewer={
 };
 
 const allTabs:[Tab,string][]=[
-  ["home","Главная"],["academy","Академия"],["practice","Практика"],["coach","AI Coach"],["review","AI Review"],
-  ["arena","Arena"],["portfolio","Портфолио"],["jobs","Jobs"],["community","Community"],["wallet","Wallet"],["profile","Профиль"],["business","Для бизнеса"]
+  ["home","Главная"],["academy","Академия"],["practice","Практика"],["coach","AI Помощник"],["review","Разбор видео"],
+  ["arena","Arena"],["portfolio","Портфолио"],["jobs","Работа"],["community","Рейтинг"],["wallet","Оплата и доход"],["profile","Профиль"],["business","Для бизнеса"]
 ];
 
 export default function PlatformApp(){
@@ -224,12 +224,12 @@ export default function PlatformApp(){
 
      {tab==="practice"&&<Page title="Практика" sub="Симулятор реального клиента: цена, правки, сроки и переговоры."><ClientSimulator/></Page>}
 
-     {tab==="coach"&&<Page title="AI Coach" sub="Наставник учитывает твою программу, цель и пройденные уроки.">
+     {tab==="coach"&&<Page title="AI Помощник" sub="Спроси про монтаж обычными словами. Если что-то непонятно — попроси объяснить ещё проще.">
        <div className={"ai-status "+(aiConfigured?"online":"offline")}>{aiConfigured===null?"Проверяю AI…":aiConfigured?"● Live AI подключён":"● AI fallback mode"}</div>
        <div className="card chat"><div className="feed">{messages.map((m,i)=><div className={"bubble "+m.from} key={i}>{m.text}</div>)}{loading&&<div className="bubble">Разбираю…</div>}</div><form className="form" onSubmit={ask}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Почему мой Reel выглядит скучно?"/><button className="btn btn-lime">Спросить</button></form></div>
      </Page>}
 
-     {tab==="review"&&<Page title="AI Video Review" sub="Загрузи ролик и получи структурированный разбор по кадрам и таймкодам.">{viewer.role==="editor"&&viewer.plan!=="pro"?<UpgradePro/>:<VideoReview/>}</Page>}
+     {tab==="review"&&<Page title="Разбор видео" sub="Загрузи ролик. EDITA посмотрит отдельные кадры и простыми словами подскажет, что улучшить.">{viewer.role==="editor"&&viewer.plan!=="pro"?<UpgradePro/>:<VideoReview/>}</Page>}
      {tab==="arena"&&<Page title="Arena" sub="Реальные ТЗ, одинаковые исходники, реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="arena"/></Page>}
 
      {tab==="portfolio"&&<Page title={viewer.role==="editor"?viewer.name:"Публичное портфолио"} sub="Verified Editor · Skill Graph · реальные работы">
@@ -237,7 +237,7 @@ export default function PlatformApp(){
        <div style={{marginTop:14}}>{viewer.username?<Link className="btn btn-dark" href={"/u/"+viewer.username}>Открыть публичный URL</Link>:<Link className="btn btn-dark" href="/u/demo">Посмотреть demo-портфолио</Link>}</div>
      </Page>}
 
-     {tab==="wallet"&&<Page title="Wallet" sub="Доход внутри EDITA, покупки и доступы.">
+     {tab==="wallet"&&<Page title="Оплата и доход" sub="Здесь видно твой тариф, срок доступа и будущие выплаты.">
        <div className="grid">
          <Card title="Заработано"><div className="wallet-number">{money(viewer.earningsCents||0)}</div><p className="muted">Доход от проектов и Challenge после подключения production-выплат.</p></Card>
          <Card title="Текущий доступ"><div className="wallet-number">{planLabel}</div><p className="muted">{viewer.planExpiresAt?"До "+new Date(viewer.planExpiresAt).toLocaleDateString("ru-RU"):"Без активного срока AI PRO"}</p><Link className="btn btn-dark" href="/pricing">Управлять доступом</Link></Card>
@@ -254,8 +254,8 @@ export default function PlatformApp(){
      </Page>}
 
      {tab==="jobs"&&<Page title="Работа" sub="Вакансии подбираются по навыкам и подтверждённым работам."><JobBoard mode="editor"/></Page>}
-     {tab==="community"&&<Page title="Community" sub="Публичный рейтинг строится только на безопасных карьерных данных."><CommunityLeaderboard/></Page>}
-     {tab==="business"&&<Page title="Business Workspace" sub="Сначала подтвердите компанию. После проверки можно публиковать реальные Challenge и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных Challenge"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n="BETA" t="режим workspace"/></div><div className="business-stack"><BusinessVerification/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/></div></Page>}
+     {tab==="community"&&<Page title="Рейтинг" sub="Здесь видны только безопасные данные: имя, уровень и подтверждённые навыки."><CommunityLeaderboard/></Page>}
+     {tab==="business"&&<Page title="Кабинет бизнеса" sub="Сначала подтвердите компанию. После проверки можно публиковать реальные задания и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных Challenge"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n="BETA" t="режим workspace"/></div><div className="business-stack"><BusinessVerification/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/></div></Page>}
    </section>
 
    <SiteTour role={viewer.role} onGo={(value)=>setTab(value as Tab)}/>
@@ -268,6 +268,6 @@ function Card({title,children}:{title:string;children:React.ReactNode}){return <
 function Stat({n,t}:{n:string;t:string}){return <div className="stat"><strong>{n}</strong><span className="muted">{t}</span></div>}
 function Job({title,pay}:{title:string;pay:string}){return <div className="card job"><small>REMOTE</small><h3>{title}</h3><p className="muted">Проверенный бизнес · подбор по portfolio score</p><b>{pay}</b><button className="btn btn-dark">Податься</button></div>}
 
-function UpgradePro(){return <div className="upgrade-card"><div className="eyebrow">AI PRO</div><h2>AI Video Review входит в PRO</h2><p>Персональный разбор по кадрам, таймкодам, hook, pacing, субтитрам и соответствию ТЗ.</p><Link className="btn btn-lime" href="/pricing">Подключить AI PRO · 499 ₽ / 30 дней</Link></div>}
+function UpgradePro(){return <div className="upgrade-card"><div className="eyebrow">AI PRO</div><h2>Разбор видео входит в AI PRO</h2><p>Персональный разбор по кадрам, таймкодам, hook, pacing, субтитрам и соответствию ТЗ.</p><Link className="btn btn-lime" href="/pricing">Подключить AI PRO · 499 ₽ / 30 дней</Link></div>}
 function Skill({label,value}:{label:string;value:number}){return <div className="skill-row"><div><span>{label}</span><b>{value}</b></div><div className="score-track"><span style={{width:value+"%"}}/></div></div>}
 function money(cents:number){return new Intl.NumberFormat("ru-RU",{style:"currency",currency:"RUB",maximumFractionDigits:0}).format(cents/100)}
