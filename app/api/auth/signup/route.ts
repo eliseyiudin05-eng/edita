@@ -15,6 +15,7 @@ export async function POST(req:NextRequest){
   const displayName=String(body?.displayName||"").trim().slice(0,120);
   const businessName=String(body?.businessName||"").trim().slice(0,160);
   const onboarding=body?.onboarding&&typeof body.onboarding==="object"?body.onboarding:{};
+  const referralCode=String(body?.referralCode||"").trim().toUpperCase().slice(0,24);
   const referralCode=String(body?.referralCode||"").trim().toUpperCase().slice(0,16);
 
   if(!validEmail(email))return NextResponse.json({error:"Проверь email."},{status:400});
@@ -61,6 +62,22 @@ export async function POST(req:NextRequest){
       await service.from("referrals").upsert({
         referrer_id:referrer.id,
         referred_id:createdId,
+        referral_code:referralCode,
+        status:"pending"
+      },{onConflict:"referred_id"});
+    }
+  }
+
+  const createdUserId=(data as any)?.user?.id;
+  if(role==="editor"&&referralCode&&createdUserId){
+    const {data:referrer}=await service.from("profiles")
+      .select("id,referral_code")
+      .eq("referral_code",referralCode)
+      .maybeSingle();
+    if(referrer?.id&&referrer.id!==createdUserId){
+      await service.from("referrals").upsert({
+        referrer_id:referrer.id,
+        referred_id:createdUserId,
         referral_code:referralCode,
         status:"pending"
       },{onConflict:"referred_id"});
