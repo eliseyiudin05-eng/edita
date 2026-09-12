@@ -1,2 +1,46 @@
 import Link from "next/link";
-export default function TermsPage(){return <main className="legal-page"><div className="legal-shell"><Link href="/" className="brand">EDITA<span>.</span></Link><div className="eyebrow">TERMS</div><h1>Условия использования</h1><section className="legal-card"><h2>Платформа</h2><p>EDITA предоставляет цифровые инструменты обучения видеомонтажу, AI-помощника, портфолио, задания и механики взаимодействия с бизнесом.</p><h2>AI</h2><p>AI-оценка является вспомогательной рекомендацией и не заменяет решение заказчика или преподавателя. EDITA не гарантирует конкретный доход или трудоустройство.</p><h2>Контент</h2><p>Пользователь должен иметь право загружать используемые им материалы. Коммерческие права на конкурсную работу передаются только по явно указанным правилам конкретного Challenge.</p></section><div className="legal-actions"><Link className="btn btn-ghost" href="/privacy">Privacy</Link><Link className="btn btn-ghost" href="/arena-rules">Arena</Link></div></div></main>}
+
+export default function TermsPage(){
+  return <main className="legal-page"><div className="legal-shell">
+    <Link href="/" className="brand">EDITA<span>.</span></Link>
+    <div className="eyebrow">ПРАВИЛА СЕРВИСА</div>
+    <h1>Условия использования EDITA</h1>
+    <p>Коротко: учись, загружай только то, на что у тебя есть права, не обманывай других пользователей и не считай AI окончательным решением.</p>
+
+    <section className="legal-card">
+      <h2>Аккаунт</h2>
+      <p>Пользователь отвечает за правильность данных аккаунта и безопасность своего пароля. Нельзя выдавать себя за другого человека или компанию.</p>
+    </section>
+
+    <section className="legal-card">
+      <h2>Обучение и AI</h2>
+      <p>Материалы и подсказки помогают учиться, но не гарантируют доход, трудоустройство, победу в Challenge или конкретный результат. AI может ошибаться, поэтому важные решения нужно проверять самому.</p>
+    </section>
+
+    <section className="legal-card">
+      <h2>Загруженные материалы</h2>
+      <p>Можно загружать только те видео, музыку, изображения и другие файлы, которые пользователь вправе использовать. Авторские права на неоплаченные конкурсные работы не переходят бизнесу автоматически.</p>
+    </section>
+
+    <section className="legal-card">
+      <h2>Challenge и вакансии</h2>
+      <p>Публиковать реальные Challenge и вакансии может только проверенный бизнес. AI может помочь с первичным разбором, но победителя и кандидата выбирает человек.</p>
+    </section>
+
+    <section className="legal-card">
+      <h2>Пользователи младше 18 лет</h2>
+      <p>Обучение доступно без коммерческого участия. Оплата, отклики на вакансии и коммерческие Challenge требуют подтверждения родителя или другого законного представителя.</p>
+    </section>
+
+    <section className="legal-card">
+      <h2>Блокировка</h2>
+      <p>EDITA может ограничить доступ при мошенничестве, попытке обойти проверку, нарушении прав других людей, загрузке запрещённых материалов или угрозе безопасности сервиса.</p>
+    </section>
+
+    <div className="legal-actions">
+      <Link className="btn btn-dark" href="/offer">Оплата и возвраты</Link>
+      <Link className="btn btn-ghost" href="/privacy">Персональные данные</Link>
+      <Link className="btn btn-ghost" href="/arena-rules">Правила Arena</Link>
+    </div>
+  </div></main>
+}
