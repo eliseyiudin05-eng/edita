@@ -3,6 +3,7 @@ import Link from "next/link";
 import {FormEvent,useState} from "react";
 import {useRouter} from "next/navigation";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
+import {authErrorRu} from "@/lib/auth-errors";
 
 export default function LoginPage(){
   const router=useRouter();
@@ -18,15 +19,15 @@ export default function LoginPage(){
     setLoading(true);
     const {error}=await supabase.auth.signInWithPassword({email,password});
     setLoading(false);
-    if(error){setMessage(error.message);return;}
+    if(error){setMessage(authErrorRu(error.message));return;}
     router.push("/platform");
   }
 
   return <main className="auth-wrap">
     <section className="auth-card">
-      <div className="eyebrow">WELCOME BACK</div>
+      <div className="eyebrow">ВХОД</div>
       <h1>Войти в EDITA</h1>
-      <p>Вернись к обучению, конкурсам, работе и своему AI-наставнику.</p>
+      <p>Вернись к обучению, заданиям, работе и своему AI Помощнику.</p>
       <form className="auth-form" onSubmit={submit}>
         <input required type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
         <input required type="password" placeholder="Пароль" value={password} onChange={e=>setPassword(e.target.value)} />
