@@ -1,3 +1,5 @@
+import {Resend,type ErrorResponse} from "resend";
+
 type SendEmailArgs={
   to:string;
   subject:string;
@@ -8,6 +10,7 @@ type SendEmailArgs={
 const RESEND_API_URL="https://api.resend.com";
 const EDITA_EMAIL_DOMAIN="auth.getedita.app";
 const DEFAULT_FROM="EDITA <no-reply@auth.getedita.app>";
+const RESEND_TEST_FROM="onboarding@resend.dev";
 
 type ResendApiErrorBody={
   message?:string;
@@ -53,6 +56,11 @@ function errorCode(body:ResendApiErrorBody){
   return String(body?.code||body?.name||body?.error?.code||body?.error?.name||"resend_error").slice(0,100);
 }
 
+function shouldRetryWithTestSender(error:ErrorResponse){
+  return error.name==="validation_error"
+    &&/domain.+not verified/i.test(error.message);
+}
+
 export function getResendConfig(){
   const key=cleanResendKey(process.env.RESEND_API_KEY);
   const requestedFrom=cleanEnv(process.env.RESEND_FROM_EMAIL);
@@ -82,34 +90,39 @@ export async function sendTransactionalEmail({to,subject,html,text}:SendEmailArg
     throw new Error("RESEND_INVALID_KEY_FORMAT");
   }
 
-  const r=await fetch(RESEND_API_URL+"/emails",{
-    method:"POST",
-    headers:{
-      Authorization:"Bearer "+config.key,
-      "Content-Type":"application/json"
-    },
-    body:JSON.stringify({
-      from:config.from,
-      to:[to],
-      subject,
-      html,
-      text:text||undefined
-    }),
-    cache:"no-store"
-  });
-  const body:ResendApiErrorBody&Record<string,unknown>=await r.json().catch(()=>({}));
-  if(!r.ok){
+  const resend=new Resend(config.key);
+  const email={to:[to],subject,html,text:text||undefined};
+  let result=await resend.emails.send({...email,from:config.from});
+  let usedTestSender=false;
+
+  if(result.error&&shouldRetryWithTestSender(result.error)){
+    usedTestSender=true;
+    result=await resend.emails.send({...email,from:RESEND_TEST_FROM});
+    if(!result.error){
+      console.warn("Resend used the restricted test sender because the custom domain is not verified",{
+        senderDomain:config.domain,
+        testSender:true,
+      });
+    }
+  }
+
+  if(result.error){
+    const body:ResendApiErrorBody={
+      message:result.error.message,
+      name:result.error.name,
+    };
     const code=errorCode(body);
     console.error("Resend email send failed",{
-      status:r.status,
+      status:result.error.statusCode||0,
       code,
       message:safeErrorMessage(body),
       senderDomain:config.domain,
       senderAdjusted:config.senderAdjusted,
+      usedTestSender,
     });
-    throw new Error("RESEND_SEND_FAILED:"+r.status+":"+code);
+    throw new Error("RESEND_SEND_FAILED:"+(result.error.statusCode||0)+":"+code);
   }
-  return body;
+  return result.data;
 }
 
 export async function getResendServiceStatus(){
@@ -156,7 +169,7 @@ export async function getResendServiceStatus(){
     return {
       ...base,
       connected:true,
-      verified:sendingEnabled,
+      verified:status==="verified",
       sendingEnabled,
       domainStatus:status,
       apiStatus:r.status,

@@ -16,8 +16,8 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          roots={"app","components","lib"}
-          fileset={"package.json","tsconfig.json","next.config.ts","next-env.d.ts","proxy.ts"}
+          roots={"app","components","lib","scripts"}
+          fileset={"package.json","package-lock.json","tsconfig.json","next.config.ts","next-env.d.ts","proxy.ts"}
           files=[]
           for p in sorted(Path(".").rglob("*")):
               if not p.is_file(): continue
