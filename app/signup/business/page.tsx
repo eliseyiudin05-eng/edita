@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {FormEvent,useEffect,useState} from "react";
-import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 import {authErrorRu} from "@/lib/auth-errors";
 
 export default function BusinessSignup(){
@@ -35,44 +34,29 @@ export default function BusinessSignup(){
     if(!inn.trim()&&!registrationNumber.trim()){setMessage("Укажи ИНН или ОГРН / ОГРНИП. Это нужно для будущей проверки бизнеса.");return;}
     if(!acceptTerms||!acceptPersonalData){setMessage("Нужно принять условия и отдельно согласиться на обработку персональных данных.");return;}
 
-    const supabase=getSupabaseBrowserClient();
     setLoading(true);setMessage("");
     const onboarding={role:"business",ageGroup:"18+",goal:"hire",level:"business",software:""};
     localStorage.setItem("edita_onboarding",JSON.stringify(onboarding));
     localStorage.setItem("edita_business_verification_prefill",JSON.stringify({legalName,inn,registrationNumber,websiteUrl:website,socialUrl:social}));
-
-    const {data,error}=await supabase.auth.signUp({
-      email:email.trim().toLowerCase(),
-      password,
-      options:{
-        emailRedirectTo:window.location.origin+"/platform",
-        data:{
-          role:"business",
-          display_name:contactName.trim(),
-          business_name:businessName.trim(),
-          onboarding,
-          accepted_terms:true,
-          accepted_personal_data:true,
-          terms_version:"2026-09-12",
-          privacy_version:"2026-09-12"
-        }
-      }
+    const r=await fetch("/api/auth/signup",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({role:"business",displayName:contactName,businessName,email,password,onboarding})
     });
-
+    const data=await r.json();
     setLoading(false);
-    if(error){setMessage(authErrorRu(error.message));return;}
-    if(data.session){window.location.href="/platform";return;}
+    if(!r.ok){setMessage(authErrorRu(data?.error));return;}
     setCreatedEmail(email.trim().toLowerCase());setCooldown(60);
-    setMessage("Аккаунт создан. Подтверди email. После входа откроется шаг проверки компании — без него нельзя публиковать реальные вакансии и задания.");
+    setMessage("Аккаунт создан. Подтверди email. После входа откроется проверка компании — без неё нельзя публиковать реальные вакансии и задания.");
   }
 
   async function resend(){
     if(!createdEmail||cooldown>0)return;
-    const supabase=getSupabaseBrowserClient();
     setLoading(true);
-    const {error}=await supabase.auth.resend({type:"signup",email:createdEmail,options:{emailRedirectTo:window.location.origin+"/platform"}});
+    const r=await fetch("/api/auth/resend-confirmation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:createdEmail})});
+    const data=await r.json();
     setLoading(false);
-    if(error){setMessage(authErrorRu(error.message));return;}
+    if(!r.ok){setMessage(authErrorRu(data?.error));return;}
     setCooldown(60);setMessage("Письмо отправлено ещё раз.");
   }
 
