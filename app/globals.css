@@ -434,4 +434,9 @@ h1,h2,h3{text-wrap:balance}.landing p,.legal-page p{text-wrap:pretty}
   .ai-form{grid-template-columns:1fr}.ai-attach{text-align:center}.ai-file-mode{align-items:flex-start;flex-direction:column}.ai-file-mode span{text-align:left}.ai-selected-file{align-items:flex-start;flex-direction:column}
   .lesson-complete-box .btn{width:100%}.lesson-gate-card{margin:50px auto}.portfolio-person{align-items:flex-start;flex-direction:column}.portfolio-person .profile-avatar{width:76px;height:76px}.official-challenge-link,.edita-entry-status,.edita-signin-box{align-items:stretch;flex-direction:column}.official-challenge-link .btn{width:100%}.edita-work-submit .business-form{grid-template-columns:1fr}.edita-prize-grid{grid-template-columns:1fr}.edita-challenge-hero{padding:22px}.edita-challenge-hero h2{letter-spacing:-2px}.edita-challenge-actions{display:grid}.edita-challenge-actions .btn{width:100%}
 }
-\n\n/* EDITA logo */\n.brand{display:inline-flex;align-items:center;gap:9px}\n.brand:before{content:"";width:29px;height:29px;flex:0 0 auto;background:url("/images/edita-logo-mark.png") center/contain no-repeat}\n.side .brand:before{background-image:url("/images/edita-logo-mark-light.png")}\n
+
+
+/* EDITA logo */
+.brand{display:inline-flex;align-items:center;gap:9px}
+.brand:before{content:"";width:29px;height:29px;flex:0 0 auto;background:url("/images/edita-logo-mark.png") center/contain no-repeat}
+.side .brand:before{background-image:url("/images/edita-logo-mark-light.png")}
