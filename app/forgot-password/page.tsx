@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import {FormEvent,useEffect,useState} from "react";
-import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 import {authErrorRu} from "@/lib/auth-errors";
 
 export default function ForgotPassword(){
@@ -19,15 +18,13 @@ export default function ForgotPassword(){
   async function submit(e:FormEvent){
     e.preventDefault();
     if(cooldown>0)return;
-    const supabase=getSupabaseBrowserClient();
     setLoading(true);setMessage("");
-    const {error}=await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(),{
-      redirectTo:window.location.origin+"/reset-password"
-    });
+    const r=await fetch("/api/auth/recovery",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
+    const data=await r.json();
     setLoading(false);
-    if(error){setMessage(authErrorRu(error.message));return;}
+    if(!r.ok){setMessage(authErrorRu(data?.error));return;}
     setCooldown(60);
-    setMessage("Если аккаунт с таким email существует, письмо для смены пароля отправлено. Проверь Входящие и Спам.");
+    setMessage("Если аккаунт с таким email существует, письмо для смены пароля отправлено через EDITA. Проверь Входящие и Спам.");
   }
 
   return <main className="auth-wrap"><section className="auth-card">
