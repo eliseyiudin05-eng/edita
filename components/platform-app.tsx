@@ -13,6 +13,7 @@ import CommunityLeaderboard from "@/components/community-leaderboard";
 import SiteTour from "@/components/site-tour";
 import BusinessVerification from "@/components/business-verification";
 import GuardianVerification from "@/components/guardian-verification";
+import EditorVerification from "@/components/editor-verification";
 
 type Tab="home"|"academy"|"practice"|"coach"|"review"|"arena"|"portfolio"|"jobs"|"community"|"wallet"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string;ageGroup?:string};
@@ -251,7 +252,7 @@ export default function PlatformApp(){
        <div className="profile-grid">
          <Card title="Карточка монтажёра"><p><b>{viewer.name}</b></p><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"freelance"} · {planLabel}</p>{viewer.username&&<Link className="btn btn-dark" href={"/u/"+viewer.username}>Публичный профиль ↗</Link>}</Card>
          <Card title="Навыки"><Skill label="Основа монтажа" value={Math.min(100,done.filter(s=>["what-is-editing","hook-basics","story-basics","retention-basics","editor-words","clean-cut"].includes(s)).length*16)}/><Skill label="Удержание зрителя" value={Math.min(100,done.filter(s=>["hook-basics","retention-basics","hook-2-seconds","subtitles","b-roll","sound"].includes(s)).length*16)}/><Skill label="Работа с клиентом" value={Math.min(100,done.filter(s=>["client-brief","pricing","portfolio"].includes(s)).length*33)}/></Card>
-         <Card title="Настройки обучения"><p className="muted">Уровень: {viewer.onboarding?.level||"не указан"}<br/>Программа: {viewer.onboarding?.software||"не указана"}<br/>Цель: {viewer.onboarding?.goal||"не указана"}</p><Link className="btn btn-ghost" href="/onboarding">Изменить настройки</Link></Card>{viewer.onboarding?.ageGroup&&viewer.onboarding.ageGroup!=="18+"&&<GuardianVerification/>}
+         <Card title="Настройки обучения"><p className="muted">Уровень: {viewer.onboarding?.level||"не указан"}<br/>Программа: {viewer.onboarding?.software||"не указана"}<br/>Цель: {viewer.onboarding?.goal||"не указана"}</p><Link className="btn btn-ghost" href="/onboarding">Изменить настройки</Link></Card><EditorVerification/>{viewer.onboarding?.ageGroup&&viewer.onboarding.ageGroup!=="18+"&&<GuardianVerification/>}
        </div>
      </Page>}
 
