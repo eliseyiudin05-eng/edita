@@ -30,7 +30,7 @@ export default function ChallengeRulesPage(){
         <li>Создать оригинальный вертикальный ролик длительностью 20–60 секунд о своём опыте с EDITA.</li>
         <li>Показать проблему новичка, один понятный момент внутри платформы и честный вывод без обещаний гарантированного дохода.</li>
         <li>Опубликовать ролик в открытом аккаунте социальной сети и отметить EDITA обозначением <b>@EDITA</b>.</li>
-        <li>До окончания приёма отправить прямую HTTPS-ссылку на публикацию в разделе «Сообщество → Соревнования».</li>
+        <li>До окончания приёма отправить прямую HTTPS-ссылку на публикацию в разделе «Челленджи от EDITA».</li>
       </ol>
       <p>Один человек может отправить одну работу в сезон. Автор отвечает за музыку, видео, изображения, лица людей и другие материалы, использованные в ролике.</p>
     </section>
@@ -66,7 +66,7 @@ export default function ChallengeRulesPage(){
     </section>
 
     <div className="legal-actions">
-      <Link className="btn btn-dark" href="/platform#community">Открыть соревнование</Link>
+      <Link className="btn btn-dark" href="/platform#edita-challenges">Открыть челлендж</Link>
       <Link className="btn btn-ghost" href="/terms">Условия EDITA</Link>
       <Link className="btn btn-ghost" href="/">На главную</Link>
     </div>

@@ -20,8 +20,9 @@ import EditorVerification from "@/components/editor-verification";
 import ProfileEditor from "@/components/profile-editor";
 import ProfileAvatar from "@/components/profile-avatar";
 import BetaUpgradeButton from "@/components/beta-upgrade-button";
+import EditaChallenges from "@/components/edita-challenges";
 
-type Tab="home"|"academy"|"practice"|"coach"|"review"|"arena"|"portfolio"|"jobs"|"community"|"wallet"|"profile"|"business";
+type Tab="home"|"academy"|"practice"|"coach"|"review"|"edita-challenges"|"arena"|"portfolio"|"jobs"|"community"|"wallet"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string;ageGroup?:string};
 type Viewer={
   name:string;
@@ -39,7 +40,7 @@ type Viewer={
 
 const allTabs:[Tab,string][]=[
   ["home","Главная"],["academy","Академия"],["practice","Практика"],["coach","AI Помощник"],["review","Разбор видео"],
-  ["arena","Arena"],["portfolio","Портфолио"],["jobs","Работа"],["community","Сообщество"],["wallet","Доступ и доход"],["profile","Профиль"],["business","Для бизнеса"]
+  ["edita-challenges","Челленджи от EDITA"],["arena","Arena"],["portfolio","Портфолио"],["jobs","Работа"],["community","Сообщество"],["wallet","Доступ и доход"],["profile","Профиль"],["business","Для бизнеса"]
 ];
 
 export default function PlatformApp(){
@@ -57,8 +58,12 @@ export default function PlatformApp(){
  },[viewer.role]);
 
  useEffect(()=>{
-   const hash=window.location.hash.replace("#","") as Tab;
-   if(allTabs.some(([id])=>id===hash))setTab(hash);
+   const syncTabFromHash=()=>{
+     const hash=window.location.hash.replace("#","") as Tab;
+     if(allTabs.some(([id])=>id===hash))setTab(hash);
+   };
+   syncTabFromHash();
+   window.addEventListener("hashchange",syncTabFromHash);
    try{
      const raw=localStorage.getItem("edita_lesson_done");
      if(raw)setDone(JSON.parse(raw));
@@ -123,7 +128,7 @@ export default function PlatformApp(){
    const {data:listener}=supabase.auth.onAuthStateChange((_event,session)=>{
      if(!session)setViewer({name:"Гость",role:null,onboarding:{}});
    });
-   return()=>{active=false;listener.subscription.unsubscribe()};
+   return()=>{active=false;window.removeEventListener("hashchange",syncTabFromHash);listener.subscription.unsubscribe()};
  },[]);
 
  function goTab(next:Tab){
@@ -169,14 +174,14 @@ export default function PlatformApp(){
        <section className="mission"><small>ТВОЙ МАРШРУТ</small><h2>{done.length?"Продолжи следующий урок":"Первый Reel — с самой первой кнопки"}</h2><p>{curriculum.length} коротких уроков ведут от установки CapCut и первой склейки до цвета, звука, портфолио и работы с клиентом.</p><button className="btn btn-lime" onClick={()=>goTab("academy")}>Продолжить в Академии →</button></section>
        <div className="grid">
          <Card title="Твой рост"><div className="stats"><Stat n={viewer.aiScore!=null?String(viewer.aiScore):"—"} t="AI Score"/><Stat n={String(done.length)} t="уроков"/><Stat n={String(wins)} t="побед"/></div></Card>
-         <Card title="Конкурс EDITA"><p className="muted">Сезон на 10 000 ₽, правила и рейтинг просмотров находятся в Сообществе.</p><button className="btn btn-dark" onClick={()=>goTab("community")}>Открыть соревнование</button></Card>
+         <Card title="Челлендж EDITA"><p className="muted">Сезон на 10 000 ₽: опубликуй Reel, отметь EDITA и участвуй в рейтинге подтверждённых просмотров.</p><button className="btn btn-dark" onClick={()=>goTab("edita-challenges")}>Открыть челлендж</button></Card>
          <Card title="Маршрут"><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"freelance"}</p><Link className="btn btn-ghost" href="/onboarding">Изменить цель</Link></Card>
        </div>
      </Page>}
 
-     {tab==="academy"&&<Page title="Академия" sub="От первого запуска программы до сильного портфолио. Каждый урок — объяснение, карта кнопок, практика, проверка и AI рядом.">
+     {tab==="academy"&&<Page title="Академия" sub="Сначала понятная теория без сложной практики. Затем установка программы, наглядные карты экрана, маленькие задания и AI рядом.">
        <div className="academy-overview">
-         <Stat n={String(curriculumStats.lessons)} t="уроков"/><Stat n={Math.round(curriculumStats.minutes/60)+" ч"} t="практики"/><Stat n={String(curriculumStats.assignments)} t="заданий"/><Stat n={String(done.length)} t="пройдено"/>
+         <Stat n={String(curriculumStats.lessons)} t="уроков"/><Stat n={String(curriculumStats.theory)} t="уроков теории"/><Stat n={String(curriculumStats.assignments)} t="заданий"/><Stat n={String(done.length)} t="пройдено"/>
        </div>
        <div className="academy-route-note"><b>Не знаешь, с чего начать?</b><span>Открой первый модуль и иди сверху вниз. Сложность растёт постепенно; продвинутые эффекты не появятся раньше первой готовой работы.</span></div>
        <div className="academy-modules">{curriculumModules.map((group,moduleIndex)=><section className="academy-module" key={group.module}>
@@ -185,10 +190,10 @@ export default function PlatformApp(){
            const lessonIndex=curriculum.findIndex(item=>item.slug===lesson.slug);
            const unlocked=lessonIndex===0||curriculum.slice(0,lessonIndex).every(item=>done.includes(item.slug));
            return <article className={"academy-lesson-card "+(done.includes(lesson.slug)?"done ":"")+(unlocked?"":"locked")} key={lesson.slug}>
-             <div className="academy-lesson-top"><span className="num">{done.includes(lesson.slug)?"✓":unlocked?lessonIndex+1:"—"}</span><div><small>{lesson.level} · {lesson.minutes} мин</small><b>{unlocked?lesson.software:"Откроется после задания"}</b></div></div>
+             <div className="academy-lesson-top"><span className="num">{done.includes(lesson.slug)?"✓":unlocked?lessonIndex+1:"—"}</span><div><small>{lesson.level} · {lesson.minutes} мин</small><b>{unlocked?lesson.software:"Откроется после предыдущего урока"}</b></div></div>
              <h3>{lesson.title}</h3><p>{lesson.summary}</p>
-             <div className="academy-tags"><span>{lesson.track}</span>{lesson.clicks?.length?<span>Карта кнопок</span>:null}<span>AI в уроке</span></div>
-             <div className="lesson-actions">{unlocked?<Link className="btn btn-dark" href={"/academy/"+lesson.slug}>Открыть урок</Link>:<button className="btn btn-ghost" disabled>Сначала выполни предыдущее задание</button>}<span className="lesson-xp">+{lesson.xp} XP</span></div>
+             <div className="academy-tags"><span>{lesson.track}</span><span>{lesson.theoryOnly?"Только теория":"Наглядная схема"}</span>{lesson.clicks?.length?<span>Карта кнопок</span>:null}<span>AI в уроке</span></div>
+             <div className="lesson-actions">{unlocked?<Link className="btn btn-dark" href={"/academy/"+lesson.slug}>Открыть урок</Link>:<button className="btn btn-ghost" disabled>Сначала заверши предыдущий урок</button>}<span className="lesson-xp">+{lesson.xp} XP</span></div>
            </article>
          })}</div>
        </section>)}</div>
@@ -214,6 +219,7 @@ export default function PlatformApp(){
      </Page>}
 
      {tab==="review"&&<Page title="Разбор видео" sub="Загрузи ролик. EDITA посмотрит отдельные кадры и простыми словами подскажет, что улучшить.">{viewer.role==="editor"&&!proActive?<UpgradePro/>:<VideoReview/>}</Page>}
+     {tab==="edita-challenges"&&<Page title="Челленджи от EDITA" sub="Только официальные конкурсы платформы: понятное задание, открытые правила, лимит участников и прозрачный рейтинг."><EditaChallenges/></Page>}
      {tab==="arena"&&<Page title="Arena" sub="Реальные ТЗ, одинаковые исходники, реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="arena"/></Page>}
 
      {tab==="portfolio"&&<Page title={viewer.role==="editor"?viewer.name:"Публичное портфолио"} sub="Подтверждённые навыки · реальные работы · понятный профиль">

@@ -18,7 +18,7 @@ export async function POST(req:NextRequest){
   const taskConfirmed=body?.taskConfirmed===true;
   const submissionNote=String(body?.submissionNote||"").trim().slice(0,1000);
   if(!lesson)return NextResponse.json({error:"Урок не найден."},{status:404});
-  if(completed&&!taskConfirmed)return NextResponse.json({error:"Сначала выполни практическое задание урока."},{status:400});
+  if(completed&&!taskConfirmed)return NextResponse.json({error:lesson.theoryOnly?"Подтверди, что главная мысль урока понятна.":"Сначала выполни практическое задание урока."},{status:400});
 
   const lessonIndex=curriculum.findIndex(item=>item.slug===lesson.slug);
   if(completed&&lessonIndex>0){
@@ -29,7 +29,7 @@ export async function POST(req:NextRequest){
       .eq("status","completed");
     const completedSlugs=new Set((completedRows||[]).map((row:any)=>row.lessons?.slug).filter(Boolean));
     const missing=required.find(slug=>!completedSlugs.has(slug));
-    if(missing)return NextResponse.json({error:"Сначала выполни задание предыдущего урока."},{status:409});
+    if(missing)return NextResponse.json({error:"Сначала заверши предыдущий урок."},{status:409});
   }
 
   const {data:lessonRow,error:lessonError}=await service.from("lessons").upsert({

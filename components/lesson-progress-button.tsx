@@ -4,7 +4,7 @@ import Link from "next/link";
 import {useEffect,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 
-export default function LessonProgressButton({slug,xp,nextSlug}:{slug:string;xp:number;nextSlug?:string|null}){
+export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}:{slug:string;xp:number;nextSlug?:string|null;theoryOnly?:boolean}){
   const [done,setDone]=useState(false);
   const [confirmed,setConfirmed]=useState(false);
   const [note,setNote]=useState("");
@@ -54,7 +54,7 @@ export default function LessonProgressButton({slug,xp,nextSlug}:{slug:string;xp:
       const values=Array.isArray(saved)?saved.filter((item):item is string=>typeof item==="string"):[];
       localStorage.setItem("edita_lesson_done",JSON.stringify(Array.from(new Set([...values,slug]))));
       setDone(true);
-      setNotice("Задание принято. Следующий урок открыт.");
+      setNotice(theoryOnly?"Урок завершён. Следующий урок открыт.":"Задание принято. Следующий урок открыт.");
       window.dispatchEvent(new CustomEvent("edita:lesson-completed",{detail:{slug}}));
     }catch(error){
       setNotice(error instanceof Error?error.message:"Не удалось сохранить задание.");
@@ -63,10 +63,10 @@ export default function LessonProgressButton({slug,xp,nextSlug}:{slug:string;xp:
 
   return <div className="lesson-progress-action">
     {!done?<>
-      <label className="task-confirm-row"><input type="checkbox" checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}/><span>Я выполнил задание и проверил результат по чек-листу.</span></label>
-      <textarea value={note} onChange={event=>setNote(event.target.value)} maxLength={1000} rows={2} placeholder="Необязательно: что получилось или где было сложно"/>
-      <button className="btn btn-lime" type="button" onClick={complete} disabled={saving||!confirmed}>{saving?"Сохраняю…":"Сдать задание · +"+xp+" XP"}</button>
-    </>:<div className="lesson-complete-box"><b>Задание выполнено</b><span>Прогресс сохранён, следующий урок открыт.</span>{nextSlug?<Link className="btn btn-dark" href={"/academy/"+nextSlug}>Перейти к следующему уроку →</Link>:<Link className="btn btn-dark" href="/platform#academy">Вернуться в Академию</Link>}</div>}
+      <label className="task-confirm-row"><input type="checkbox" checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}/><span>{theoryOnly?"Я прочитал урок и могу объяснить его главную мысль своими словами.":"Я выполнил задание и проверил результат по чек-листу."}</span></label>
+      {!theoryOnly?<textarea value={note} onChange={event=>setNote(event.target.value)} maxLength={1000} rows={2} placeholder="Необязательно: что получилось или где было сложно"/>:null}
+      <button className="btn btn-lime" type="button" onClick={complete} disabled={saving||!confirmed}>{saving?"Сохраняю…":theoryOnly?"Всё понятно · +"+xp+" XP":"Сдать задание · +"+xp+" XP"}</button>
+    </>:<div className="lesson-complete-box"><b>{theoryOnly?"Теория пройдена":"Задание выполнено"}</b><span>Прогресс сохранён, следующий урок открыт.</span>{nextSlug?<Link className="btn btn-dark" href={"/academy/"+nextSlug}>Перейти к следующему уроку →</Link>:<Link className="btn btn-dark" href="/platform#academy">Вернуться в Академию</Link>}</div>}
     {notice?<small>{notice}</small>:null}
   </div>;
 }

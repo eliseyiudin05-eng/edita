@@ -1,9 +1,10 @@
 import Link from "next/link";
 import BetaUpgradeButton from "@/components/beta-upgrade-button";
 import SiteFooter from "@/components/site-footer";
+import {curriculumStats} from "@/lib/curriculum";
 
 const comparison=[
-  ["Пошаговая Академия","49 уроков","49 уроков"],
+  ["Пошаговая Академия",`${curriculumStats.lessons} уроков`,`${curriculumStats.lessons} уроков`],
   ["AI-вопросы по монтажу","Короткий понятный ответ","Подробный персональный план"],
   ["Файл своего Reel","Простой словесный разбор","Глубокий разбор по кадрам и таймкодам"],
   ["Проверка формата","Основные замечания","Scorecard, 7 кадров и приоритет правок"],

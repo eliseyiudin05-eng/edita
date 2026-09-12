@@ -66,6 +66,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
   useEffect(()=>{void load()},[]);
 
   const friends=useMemo(()=>relations.filter(r=>r.status==="accepted"),[relations]);
+  const learningCompetitions=useMemo(()=>competitions.filter(item=>item.competition_kind!=="prize"),[competitions]);
   const incoming=useMemo(()=>relations.filter(r=>r.status==="pending"&&r.direction==="incoming"),[relations]);
   const outgoing=useMemo(()=>relations.filter(r=>r.status==="pending"&&r.direction==="outgoing"),[relations]);
   const friendRanking=useMemo(()=>{
@@ -149,7 +150,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
       <button className={view==="schools"?"active":""} onClick={()=>setView("schools")}>Школы</button>
       <button className={view==="friends"?"active":""} onClick={()=>setView("friends")}>Друзья{incoming.length?" · "+incoming.length:""}</button>
       <button className={view==="groups"?"active":""} onClick={()=>setView("groups")}>Группы</button>
-      <button className={view==="competitions"?"active":""} onClick={()=>setView("competitions")}>Соревнования</button>
+      <button className={view==="competitions"?"active":""} onClick={()=>setView("competitions")}>Учебные турниры</button>
       <button className={view==="companies"?"active":""} onClick={()=>setView("companies")}>Компании</button>
       <button className={view==="referrals"?"active":""} onClick={()=>setView("referrals")}>Пригласить друга</button>
     </div>
@@ -234,7 +235,8 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     </div>}
 
     {view==="competitions"&&<div className="competition-grid">
-      {competitions.map(c=><article className={"card competition-card "+(c.competition_kind==="prize"?"featured-competition":"")} key={c.id}>
+      <div className="card featured-competition official-challenge-link"><div><div className="eyebrow">ОФИЦИАЛЬНЫЕ КОНКУРСЫ</div><h3>Челленджи от EDITA теперь в отдельном разделе</h3><p className="muted">Там находятся призовой фонд 10 000 ₽, правила, отправка Reel и рейтинг подтверждённых просмотров.</p></div><a className="btn btn-dark" href="/platform#edita-challenges">Открыть челленджи EDITA</a></div>
+      {learningCompetitions.map(c=><article className="card competition-card" key={c.id}>
         <div className="verification-head"><div><div className="eyebrow">{c.competition_kind==="prize"?"ПРИЗОВОЙ КОНКУРС EDITA":c.audience==="youth"?"ДО 18 ЛЕТ":"УЧЕБНОЕ СОРЕВНОВАНИЕ"}</div><h3>{c.title}</h3></div><span className="verification-badge ok">{c.competition_kind==="prize"?money(c.prize_pool_cents||0):"+"+c.points_reward+" XP"}</span></div>
         <p>{c.description}</p>
         <div className="lesson-example"><b>Задание</b><span>{c.task}</span></div>
@@ -249,7 +251,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
         </div>}
         {c.competition_kind==="prize"&&c.leaders?.length?<div className="competition-live-leaders"><b>Текущий рейтинг просмотров</b>{c.leaders.slice(0,5).map((leader,index)=><div key={leader.user_id}><span>{leader.place||index+1}</span><ProfileAvatar src={leader.profile?.avatar_url} name={leader.profile?.display_name} size="sm"/><p><strong>{leader.profile?.display_name||"Монтажёр"}</strong><small>@{leader.profile?.username||"editor"}</small></p><em>{Number(leader.verified_views||0).toLocaleString("ru-RU")}</em></div>)}</div>:null}
       </article>)}
-      {competitions.length===0&&<div className="card"><p className="muted">Сейчас нет открытых соревнований.</p></div>}
+      {learningCompetitions.length===0&&<div className="card"><p className="muted">Сейчас нет открытых учебных турниров. Официальный призовой челлендж находится в отдельном пункте меню.</p></div>}
     </div>}
 
     {view==="companies"&&<div className="competition-grid">
