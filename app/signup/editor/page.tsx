@@ -58,7 +58,7 @@ export default function EditorSignup(){
   return <main className="auth-wrap"><section className="auth-card auth-card-wide">
     <div className="eyebrow">РЕГИСТРАЦИЯ МОНТАЖЁРА</div>
     <h1>Создай профиль монтажёра</h1>
-    <p>Никаких данных компании. Только то, что помогает настроить обучение и безопасный доступ.</p>
+    <p>Никаких данных компании. Только то, что помогает настроить обучение и безопасный доступ.</p>{typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("ref")&&<div className="auth-msg"><b>Тебя пригласил друг.</b> После подтверждения email и первых 3 уроков вы оба получите бонусы внутри EDITA.</div>}
 
     <form className="auth-form" onSubmit={submit}>
       <input required placeholder="Как тебя зовут" value={name} onChange={e=>setName(e.target.value)}/>
