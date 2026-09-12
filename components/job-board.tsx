@@ -10,7 +10,7 @@ const demoJobs:Job[]=[
   {id:"d3",title:"UGC ads editor",description:"Коммерческие performance-креативы.",budget_min_cents:6000000,budget_max_cents:8000000,businesses:{name:"Growth Team"}},
 ];
 
-export default function JobBoard({mode,viewerName="Business"}:{mode:"editor"|"business";viewerName?:string}){
+export default function JobBoard({mode,viewerName="Business",ageGroup,guardianVerified}:{mode:"editor"|"business";viewerName?:string;ageGroup?:string;guardianVerified?:boolean}){
   const [jobs,setJobs]=useState<Job[]>([]);
   const [businessId,setBusinessId]=useState<string|null>(null);
   const [businessVerified,setBusinessVerified]=useState(false);
@@ -56,6 +56,7 @@ export default function JobBoard({mode,viewerName="Business"}:{mode:"editor"|"bu
   }
 
   async function apply(jobId:string){
+    if(mode==="editor"&&ageGroup&&ageGroup!=="18+"&&!guardianVerified){setMessage("Сначала нужно подтверждение родителя или законного представителя. Учиться можно без него.");return;}
     const supabase=getSupabaseBrowserClient();
     if(!supabase){setMessage("Demo: заявка принята локально.");return;}
     const {data:{user}}=await supabase.auth.getUser();
