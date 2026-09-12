@@ -2,6 +2,7 @@
 import {FormEvent,useState} from "react";
 import Link from "next/link";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
+import {authErrorRu} from "@/lib/auth-errors";
 
 export default function ResetPassword(){
   const [password,setPassword]=useState("");
@@ -15,11 +16,11 @@ export default function ResetPassword(){
     setLoading(true);
     const {error}=await supabase.auth.updateUser({password});
     setLoading(false);
-    setMessage(error?error.message:"Пароль обновлён. Теперь можно войти.");
+    setMessage(error?authErrorRu(error.message):"Пароль обновлён. Теперь можно войти.");
   }
 
   return <main className="auth-wrap"><section className="auth-card">
-    <div className="eyebrow">NEW PASSWORD</div><h1>Новый пароль</h1>
+    <div className="eyebrow">НОВЫЙ ПАРОЛЬ</div><h1>Новый пароль</h1>
     <form className="auth-form" onSubmit={submit}>
       <input required minLength={8} type="password" placeholder="Минимум 8 символов" value={password} onChange={e=>setPassword(e.target.value)}/>
       <button className="btn btn-dark" disabled={loading}>{loading?"Сохраняем…":"Сохранить пароль"}</button>
