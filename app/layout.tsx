@@ -10,16 +10,16 @@ export const metadata: Metadata = {
     default:"EDITA — от первого монтажа до первой работы",
     template:"%s · EDITA",
   },
-  description:"Понятная платформа для видеомонтажёров: обучение с нуля, AI-помощник, практика, портфолио, задания и работа.",
+  description:"Бесплатная и понятная платформа для видеомонтажёров: обучение с нуля, помощник, практика, свои работы, задания и работа.",
   openGraph:{
     title:"EDITA — учись монтажу и собирай карьеру",
-    description:"Простое обучение, практика, AI-помощник и реальные задания в одной системе.",
+    description:"Простое бесплатное обучение, помощник, практика и настоящие задания в одной системе.",
     url:siteUrl,
     siteName:"EDITA",
     locale:"ru_RU",
     type:"website",
   },
-  robots:{index:false,follow:false},
+  robots:{index:true,follow:true},
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

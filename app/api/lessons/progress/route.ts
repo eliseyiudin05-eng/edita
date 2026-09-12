@@ -17,7 +17,7 @@ export async function POST(req:NextRequest){
   const completed=body?.completed!==false;
   const taskConfirmed=body?.taskConfirmed===true;
   const submissionNote=String(body?.submissionNote||"").trim().slice(0,1000);
-  if(!lesson)return NextResponse.json({error:"Урок не найден."},{status:404});
+  if(!lesson)return NextResponse.json({error:"Урок отсутствует."},{status:404});
   if(completed&&!taskConfirmed)return NextResponse.json({error:lesson.theoryOnly?"Подтверди, что главная мысль урока понятна.":"Сначала выполни практическое задание урока."},{status:400});
 
   const lessonIndex=curriculum.findIndex(item=>item.slug===lesson.slug);
@@ -39,7 +39,7 @@ export async function POST(req:NextRequest){
     content:{module:lesson.module,track:lesson.track,software:lesson.software,level:lesson.level,minutes:lesson.minutes},
     published:true
   },{onConflict:"slug"}).select("id").single();
-  if(lessonError||!lessonRow)return NextResponse.json({error:"Не удалось синхронизировать урок."},{status:503});
+  if(lessonError||!lessonRow)return NextResponse.json({error:"Ошибка синхронизации урока."},{status:503});
 
   if(completed){
     const {error}=await service.from("lesson_progress").upsert({
@@ -49,10 +49,10 @@ export async function POST(req:NextRequest){
       completed_at:new Date().toISOString(),
       submission_note:submissionNote||null
     },{onConflict:"user_id,lesson_id"});
-    if(error)return NextResponse.json({error:"Не удалось сохранить прогресс."},{status:503});
+    if(error)return NextResponse.json({error:"Ошибка сохранения прогресса."},{status:503});
   }else{
     const {error}=await service.from("lesson_progress").delete().eq("user_id",user.id).eq("lesson_id",lessonRow.id);
-    if(error)return NextResponse.json({error:"Не удалось снять отметку."},{status:503});
+    if(error)return NextResponse.json({error:"Ошибка снятия отметки."},{status:503});
   }
 
   const {data:progress}=await service.from("lesson_progress")

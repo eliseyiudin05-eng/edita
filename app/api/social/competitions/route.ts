@@ -21,7 +21,7 @@ async function ensureNextEditaSeason(service:any){
     endsAt.setUTCMonth(endsAt.getUTCMonth()+months);
     const {data:next}=await service.from("learning_competitions").upsert({
       slug:`edita-reels-season-${season}`,
-      title:`Сними Reel про EDITA · Сезон ${season}`,
+      title:`Сними ролик про EDITA · Сезон ${season}`,
       description:latest.description,
       task:latest.task,
       audience:latest.audience,

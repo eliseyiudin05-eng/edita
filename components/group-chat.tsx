@@ -33,11 +33,11 @@ export default function GroupChat({groupId,groupName}:{groupId:string;groupName:
       if(!access){setNotice("Войди в аккаунт, чтобы открыть групповой чат.");return}
       const response=await fetch(`/api/social/groups/${groupId}/messages`,{headers:{Authorization:"Bearer "+access},cache:"no-store"});
       const data=await response.json();
-      if(!response.ok)throw new Error(data?.error||"Не удалось загрузить чат.");
+      if(!response.ok)throw new Error(data?.error||"Ошибка загрузки чата.");
       setMessages(data.messages||[]);
       if(!silent)setNotice("");
     }catch(reason){
-      if(!silent)setNotice(reason instanceof Error?reason.message:"Не удалось загрузить чат.");
+      if(!silent)setNotice(reason instanceof Error?reason.message:"Ошибка загрузки чата.");
     }finally{if(!silent)setLoading(false)}
   },[accessToken,groupId]);
 
@@ -65,21 +65,21 @@ export default function GroupChat({groupId,groupName}:{groupId:string;groupName:
         body:JSON.stringify({content})
       });
       const data=await response.json();
-      if(!response.ok)throw new Error(data?.error||"Сообщение не отправлено.");
+      if(!response.ok)throw new Error(data?.error||"Ошибка отправки сообщения.");
       setMessages(data.messages||[]);
       setInput("");
       if(inputRef.current)inputRef.current.style.height="auto";
     }catch(reason){
-      setNotice(reason instanceof Error?reason.message:"Сообщение не отправлено.");
+      setNotice(reason instanceof Error?reason.message:"Ошибка отправки сообщения.");
     }finally{setSending(false)}
   }
 
   return <section className="group-chat card" aria-label={`Чат группы ${groupName}`}>
     <header className="group-chat-head">
       <div><div className="eyebrow">БЕЗОПАСНЫЙ УЧЕБНЫЙ ЧАТ</div><h3>{groupName}</h3></div>
-      <span>AI-модерация</span>
+      <span>Защита сообщений</span>
     </header>
-    <p className="muted">Обсуждайте монтаж и общий проект. Мат, травля, личные контакты и явный оффтоп не публикуются. Напиши <b>@edita</b>, <b>/ai</b> или поставь «?», чтобы позвать помощника.</p>
+    <p className="muted">Обсуждайте монтаж и общий проект вежливо. В чате остаются сообщения по теме и без личных контактов. Напиши <b>@edita</b>, <b>/ai</b> или поставь «?», чтобы позвать помощника.</p>
     <div className="group-chat-feed" ref={feedRef} aria-live="polite">
       {loading?<div className="ai-thinking">Загружаю сообщения…</div>:null}
       {!loading&&!messages.length?<div className="group-chat-empty"><b>Начните с простого вопроса</b><span>Например: «@edita, как всей группе снять один ролик?»</span></div>:null}

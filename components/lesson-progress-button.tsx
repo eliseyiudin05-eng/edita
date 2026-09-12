@@ -46,7 +46,7 @@ export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}
           body:JSON.stringify({slug,completed:true,taskConfirmed:true,submissionNote:note})
         });
         const data=await response.json();
-        if(!response.ok)throw new Error(data?.error||"Не удалось сохранить прогресс.");
+        if(!response.ok)throw new Error(data?.error||"Ошибка сохранения прогресса.");
         void fetch("/api/referral/qualify",{method:"POST",headers:{Authorization:"Bearer "+session.access_token}}).catch(()=>{});
       }
 
@@ -57,15 +57,15 @@ export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}
       setNotice(theoryOnly?"Урок завершён. Следующий урок открыт.":"Задание принято. Следующий урок открыт.");
       window.dispatchEvent(new CustomEvent("edita:lesson-completed",{detail:{slug}}));
     }catch(error){
-      setNotice(error instanceof Error?error.message:"Не удалось сохранить задание.");
+      setNotice(error instanceof Error?error.message:"Ошибка сохранения задания.");
     }finally{setSaving(false)}
   }
 
   return <div className="lesson-progress-action">
     {!done?<>
       <label className="task-confirm-row"><input type="checkbox" checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}/><span>{theoryOnly?"Я прочитал урок и могу объяснить его главную мысль своими словами.":"Я выполнил задание и проверил результат по чек-листу."}</span></label>
-      {!theoryOnly?<textarea value={note} onChange={event=>setNote(event.target.value)} maxLength={1000} rows={2} placeholder="Необязательно: что получилось или где было сложно"/>:null}
-      <button className="btn btn-lime" type="button" onClick={complete} disabled={saving||!confirmed}>{saving?"Сохраняю…":theoryOnly?"Всё понятно · +"+xp+" XP":"Сдать задание · +"+xp+" XP"}</button>
+      {!theoryOnly?<textarea value={note} onChange={event=>setNote(event.target.value)} maxLength={1000} rows={2} placeholder="Можно написать, что получилось или где было сложно"/>:null}
+      <button className="btn btn-lime" type="button" onClick={complete} disabled={saving||!confirmed}>{saving?"Сохраняю…":theoryOnly?"Всё понятно · +"+xp+" опыта":"Сдать задание · +"+xp+" опыта"}</button>
     </>:<div className="lesson-complete-box"><b>{theoryOnly?"Теория пройдена":"Задание выполнено"}</b><span>Прогресс сохранён, следующий урок открыт.</span>{nextSlug?<Link className="btn btn-dark" href={"/academy/"+nextSlug}>Перейти к следующему уроку →</Link>:<Link className="btn btn-dark" href="/platform#academy">Вернуться в Академию</Link>}</div>}
     {notice?<small>{notice}</small>:null}
   </div>;

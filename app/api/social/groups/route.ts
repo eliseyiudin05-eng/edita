@@ -89,7 +89,7 @@ export async function POST(req:NextRequest){
       .eq("join_code",code)
       .maybeSingle();
 
-    if(!group)return NextResponse.json({error:"Группа с таким кодом не найдена."},{status:404});
+    if(!group)return NextResponse.json({error:"Группа с таким кодом отсутствует."},{status:404});
     if(group.age_scope!==myScope){
       return NextResponse.json({error:"Эта группа относится к другой возрастной категории."},{status:403});
     }

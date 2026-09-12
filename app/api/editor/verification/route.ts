@@ -45,7 +45,7 @@ export async function POST(req:NextRequest){
   const note=String(body?.note||"").trim().slice(0,1200);
 
   if(!portfolioUrl&&!sampleUrl){
-    return NextResponse.json({error:"Добавь ссылку на портфолио или одну работу для проверки."},{status:400});
+    return NextResponse.json({error:"Добавь ссылку на свои работы для проверки."},{status:400});
   }
 
   const {data:pending}=await service.from("editor_verification_requests")

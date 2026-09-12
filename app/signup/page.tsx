@@ -9,7 +9,7 @@ export default function SignupChooser(){
     <div className="signup-paths">
       <Link className="signup-path" href="/signup/editor">
         <span className="signup-icon">✂</span>
-        <div><b>Я монтажёр</b><p>Хочу учиться, делать работы, собирать портфолио и находить заказы.</p><span>Регистрация монтажёра →</span></div>
+        <div><b>Я монтажёр</b><p>Хочу учиться, делать ролики, показывать свои работы и находить заказы.</p><span>Регистрация монтажёра →</span></div>
       </Link>
       <Link className="signup-path" href="/signup/business">
         <span className="signup-icon">B</span>
@@ -17,7 +17,7 @@ export default function SignupChooser(){
       </Link>
     </div>
 
-    <div className="auth-msg"><b>Важно:</b> бизнес проходит отдельную проверку. Реальные вакансии и задания нельзя публиковать, пока компания не подтверждена.</div>
+    <div className="auth-msg"><b>Важно:</b> бизнес проходит отдельную проверку. Публикация настоящих вакансий и заданий открывается после подтверждения компании.</div>
     <div className="auth-footer">Уже есть аккаунт? <Link href="/login"><b>Войти</b></Link></div>
   </section></main>
 }

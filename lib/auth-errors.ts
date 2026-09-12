@@ -11,7 +11,7 @@ export function authErrorRu(message?:string|null){
     return "Неверный email или пароль.";
   }
   if(value.includes("email not confirmed")){
-    return "Email ещё не подтверждён. Открой письмо от EDITA или отправь подтверждение ещё раз.";
+    return "Email ждёт подтверждения. Открой письмо от EDITA или отправь подтверждение ещё раз.";
   }
   if(value.includes("password should be at least")){
     return "Пароль слишком короткий. Используй минимум 8 символов.";
@@ -19,5 +19,5 @@ export function authErrorRu(message?:string|null){
   if(value.includes("unable to validate email")||value.includes("invalid email")){
     return "Проверь email: похоже, в адресе есть ошибка.";
   }
-  return message||"Что-то пошло не так. Попробуй ещё раз.";
+  return message||"Возникла ошибка. Попробуй ещё раз.";
 }

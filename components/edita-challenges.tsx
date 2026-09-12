@@ -15,7 +15,7 @@ type Competition={
 };
 
 const fallback:Competition={
-  id:"",slug:"edita-reels-season-1",title:"Сними Reel про EDITA · Сезон 1",
+  id:"",slug:"edita-reels-season-1",title:"Сними ролик про EDITA · Сезон 1",
   description:"Покажи, как EDITA помогает новичку разобраться в монтаже, и расскажи о платформе своим языком.",
   task:"Создай оригинальный вертикальный ролик на 20–60 секунд, опубликуй его в открытой социальной сети и отметь @EDITA.",
   ends_at:"2026-11-12T20:59:59.000Z",competition_kind:"prize",prize_pool_cents:1000000,
@@ -41,8 +41,8 @@ export default function EditaChallenges(){
       if(response.ok){
         const official=(data.competitions||[]).find((item:Competition)=>item.competition_kind==="prize"||item.slug?.startsWith("edita-reels-"));
         if(official){setCompetition(official);setWorkUrl(official.entry?.work_url||"");}
-      }else setMessage(data?.error||"Не удалось загрузить данные конкурса.");
-    }catch{setMessage("Не удалось загрузить данные конкурса. Проверь соединение и попробуй ещё раз.");}
+      }else setMessage(data?.error||"Ошибка загрузки конкурса.");
+    }catch{setMessage("Ошибка загрузки конкурса. Проверь соединение и попробуй ещё раз.");}
     finally{setLoading(false)}
   }
 
@@ -59,7 +59,7 @@ export default function EditaChallenges(){
       body:JSON.stringify({competitionId:competition.id,workUrl})
     });
     const data=await response.json().catch(()=>({}));
-    setMessage(response.ok?"Работа отправлена. После проверки просмотры появятся в рейтинге.":data?.error||"Не удалось отправить работу.");
+    setMessage(response.ok?"Работа отправлена. После проверки просмотры появятся в рейтинге.":data?.error||"Ошибка отправки работы.");
     if(response.ok)await load();
     setSending(false);
   }
@@ -75,10 +75,10 @@ export default function EditaChallenges(){
         <div className="eyebrow">ОФИЦИАЛЬНЫЙ КОНКУРС ПЛАТФОРМЫ</div>
         <h2>{competition.title}</h2>
         <p>{competition.description}</p>
-        <div className="edita-challenge-actions"><a className="btn btn-lime" href="#send-edita-work">Отправить Reel</a><Link className="btn btn-light" href="/challenge-rules">Полные правила</Link></div>
+        <div className="edita-challenge-actions"><a className="btn btn-lime" href="#send-edita-work">Отправить ролик</a><Link className="btn btn-light" href="/challenge-rules">Полные правила</Link></div>
       </div>
       <div className="edita-prize-picture" aria-label="Призовой фонд 10 000 рублей">
-        <span>ПРИЗОВОЙ ФОНД</span><strong>{money(competition.prize_pool_cents||1000000)}</strong><small>три победителя · не лотерея</small>
+        <span>ПРИЗОВОЙ ФОНД</span><strong>{money(competition.prize_pool_cents||1000000)}</strong><small>три победителя · честный конкурс</small>
       </div>
     </section>
 
@@ -91,11 +91,11 @@ export default function EditaChallenges(){
 
     <div className="edita-challenge-layout">
       <section className="card edita-challenge-brief">
-        <div className="eyebrow">ЧТО НУЖНО СДЕЛАТЬ</div><h3>Один Reel — четыре понятных шага</h3>
+        <div className="eyebrow">ЧТО НУЖНО СДЕЛАТЬ</div><h3>Один ролик — четыре понятных шага</h3>
         <ol>
           <li><b>Придумай историю.</b><span>Покажи проблему новичка, один полезный момент EDITA и честный результат.</span></li>
           <li><b>Собери ролик.</b><span>Вертикальное видео 20–60 секунд. Используй только свои или разрешённые материалы.</span></li>
-          <li><b>Опубликуй открыто.</b><span>Размести Reel в открытой социальной сети и отметь {competition.social_tag||"@EDITA"}.</span></li>
+          <li><b>Опубликуй открыто.</b><span>Размести ролик в открытой социальной сети и отметь {competition.social_tag||"@EDITA"}.</span></li>
           <li><b>Отправь ссылку.</b><span>Вставь прямую HTTPS-ссылку ниже до окончания приёма.</span></li>
         </ol>
         <div className="lesson-example"><b>Задание сезона</b><span>{competition.task}</span></div>
@@ -110,13 +110,13 @@ export default function EditaChallenges(){
           <div><dt>Приём до</dt><dd>{date(competition.ends_at)}</dd></div>
           <div><dt>Новый сезон</dt><dd>каждые {competition.recurs_every_months||2} месяца</dd></div>
         </dl>
-        <p className="minor-safety-note"><b>Важно</b><span>10 000 ₽ — фонд конкурса, а не обещание дохода за обучение. Покупка участия не требуется.</span></p>
+        <p className="minor-safety-note"><b>Важно</b><span>10 000 ₽ — фонд конкурса. Обучение остаётся бесплатным, а участие открыто без покупки.</span></p>
       </section>
     </div>
 
     <section className="card edita-work-submit" id="send-edita-work">
-      <div><div className="eyebrow">ТВОЯ РАБОТА</div><h3>{competition.entry?"Работа уже участвует":"Отправь опубликованный Reel"}</h3></div>
-      {loading?<div className="auth-msg">Загружаем конкурс…</div>:competition.entry?<div className="edita-entry-status"><b>{competition.entry.place?competition.entry.place+" место":"Ссылка принята"}</b><span>{Number(competition.entry.verified_views||0).toLocaleString("ru-RU")} подтверждённых просмотров</span><a href={competition.entry.work_url} target="_blank" rel="noreferrer">Открыть публикацию ↗</a></div>:!signedIn?<div className="edita-signin-box"><p>Для отправки ссылки нужен аккаунт EDITA. Сам конкурс можно посмотреть без входа.</p><Link className="btn btn-dark" href="/login?from=/platform%23edita-challenges">Войти и участвовать</Link></div>:<div className="business-form"><label className="field-label" htmlFor="edita-work-url">Прямая ссылка на открытую публикацию</label><input id="edita-work-url" type="url" inputMode="url" placeholder="https://…" value={workUrl} onChange={event=>setWorkUrl(event.target.value)}/><button className="btn btn-dark" onClick={submit} disabled={!competition.id||blocked||sending||!workUrl.trim()}>{sending?"Отправляем…":count>=limit?"Лимит участников достигнут":competition.age_eligible===false?"Доступно с 14 лет":competition.guardian_required?"Нужно подтверждение взрослого":"Отправить работу"}</button></div>}
+      <div><div className="eyebrow">ТВОЯ РАБОТА</div><h3>{competition.entry?"Работа уже участвует":"Отправь опубликованный ролик"}</h3></div>
+      {loading?<div className="auth-msg">Загружаем конкурс…</div>:competition.entry?<div className="edita-entry-status"><b>{competition.entry.place?competition.entry.place+" место":"Ссылка принята"}</b><span>{Number(competition.entry.verified_views||0).toLocaleString("ru-RU")} подтверждённых просмотров</span><a href={competition.entry.work_url} target="_blank" rel="noreferrer">Открыть публикацию ↗</a>{competition.entry.place&&<a href="#messages" onClick={()=>rememberChat("edita_contest",competition.id)}>Открыть закрытый чат ↗</a>}</div>:!signedIn?<div className="edita-signin-box"><p>Для отправки ссылки нужен аккаунт EDITA. Сам конкурс можно посмотреть без входа.</p><Link className="btn btn-dark" href="/login?from=/platform%23edita-challenges">Войти и участвовать</Link></div>:<div className="business-form"><label className="field-label" htmlFor="edita-work-url">Прямая ссылка на открытую публикацию</label><input id="edita-work-url" type="url" inputMode="url" placeholder="https://…" value={workUrl} onChange={event=>setWorkUrl(event.target.value)}/><button className="btn btn-dark" onClick={submit} disabled={!competition.id||blocked||sending||!workUrl.trim()}>{sending?"Отправляем…":count>=limit?"Лимит участников достигнут":competition.age_eligible===false?"Доступно с 14 лет":competition.guardian_required?"Нужно подтверждение взрослого":"Отправить работу"}</button></div>}
       {message?<div className="auth-msg">{message}</div>:null}
     </section>
 
@@ -129,3 +129,7 @@ export default function EditaChallenges(){
 
 function money(cents:number){return new Intl.NumberFormat("ru-RU",{style:"currency",currency:"RUB",maximumFractionDigits:0}).format(cents/100)}
 function date(value?:string|null){return value?new Date(value).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"}):"указано в правилах"}
+
+function rememberChat(kind:string,id:string){
+  try{sessionStorage.setItem("edita_open_chat_source",kind+":"+id)}catch{}
+}

@@ -19,7 +19,7 @@ export async function GET(req:NextRequest){
     .eq("owner_id",user.id).maybeSingle();
 
   if(!business){
-    const name=(user.user_metadata?.display_name||user.email?.split("@")[0]||"Business")+" Studio";
+    const name=(user.user_metadata?.display_name||user.email?.split("@")[0]||"Компания")+" — команда";
     const {data:created,error}=await service.from("businesses")
       .upsert({owner_id:user.id,name},{onConflict:"owner_id"})
       .select("id,name,verified,verification_status,verification_level,verification_note,verified_at")
@@ -69,7 +69,7 @@ export async function POST(req:NextRequest){
 
   let {data:business}=await service.from("businesses").select("id").eq("owner_id",user.id).maybeSingle();
   if(!business){
-    const name=(user.user_metadata?.display_name||legalName||"Business")+" Studio";
+    const name=(user.user_metadata?.display_name||legalName||"Компания")+" — команда";
     const created=await service.from("businesses").upsert({owner_id:user.id,name},{onConflict:"owner_id"}).select("id").single();
     if(created.error)return NextResponse.json({error:created.error.message},{status:500});
     business=created.data;

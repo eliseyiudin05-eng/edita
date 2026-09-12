@@ -199,7 +199,7 @@ export function authEmailHtml(title:string,body:string,button:string,url:string)
       <h1 style="font-size:28px;line-height:1.1;margin:0 0 16px">${title}</h1>
       <p style="font-size:16px;line-height:1.6;color:#565851">${body}</p>
       <a href="${safeUrl}" style="display:inline-block;margin-top:12px;background:#151613;color:white;text-decoration:none;padding:13px 18px;border-radius:12px;font-weight:700">${button}</a>
-      <p style="font-size:12px;line-height:1.5;color:#7a7c75;margin-top:24px">Если ты не запрашивал это письмо, просто проигнорируй его. Никому не пересылай ссылку из письма.</p>
+      <p style="font-size:12px;line-height:1.5;color:#7a7c75;margin-top:24px">Письмо пришло по чужой ошибке? Просто закрой его. Сохраняй ссылку из письма в тайне.</p>
     </div>
     <p style="font-size:12px;color:#7a7c75;margin-top:16px">EDITA · getedita.app</p>
   </div></body></html>`;

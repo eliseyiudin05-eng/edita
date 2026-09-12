@@ -20,7 +20,7 @@ const schema={
 export async function POST(req:NextRequest){
   try{
     const {brief,brandContext}=await req.json();
-    if(!brief||typeof brief!=="string")return NextResponse.json({error:"brief required"},{status:400});
+    if(!brief||typeof brief!=="string")return NextResponse.json({error:"Добавьте черновик задания."},{status:400});
 
     const bearer=req.headers.get("authorization");
     const token=bearer?.startsWith("Bearer ")?bearer.slice(7):null;
@@ -34,8 +34,8 @@ export async function POST(req:NextRequest){
       headers:{"Content-Type":"application/json",Authorization:"Bearer "+process.env.OPENAI_API_KEY},
       body:JSON.stringify({
         model:process.env.OPENAI_MODEL||"gpt-5.6-luna",
-        instructions:"Ты помощник EDITA для бизнеса. Преврати сырой запрос в очень понятное ТЗ для монтажёра. Пиши простыми русскими словами. Если нужно слово вроде CTA или B-roll, сразу объясни его. Ничего важного не выдумывай. Критерии должны быть такими, чтобы человек мог ответить «да, выполнено» или «нет».",
-        input:"Brand context: "+JSON.stringify(brandContext||{})+"\n\nСырой бриф:\n"+brief,
+        instructions:"Ты помощник EDITA для компании. Преврати черновик в очень понятное задание для монтажёра. Пиши простыми русскими словами. Каждый английский термин сразу объясняй. Используй только данные компании. Критерии формулируй так, чтобы человек мог легко проверить выполнение. Пиши спокойными утвердительными фразами.",
+        input:"Данные компании: "+JSON.stringify(brandContext||{})+"\n\nЧерновик задания:\n"+brief,
         max_output_tokens:1200,
         text:{format:{type:"json_schema",name:"edita_brief",strict:true,schema}}
       })
@@ -52,13 +52,13 @@ export async function POST(req:NextRequest){
 
 function demo(brief:string){
   return {
-    title:"Коммерческий short-form ролик",
-    goal:"Передать ключевую ценность продукта и удержать внимание до CTA.",
+    title:"Короткий рекламный ролик",
+    goal:"Понятно показать пользу продукта и удержать внимание до последнего кадра.",
     duration:"20–30 секунд",
-    format:"9:16, short-form",
-    must_haves:["Сильный hook в первые 2 секунды","Продукт/герой показан понятно","CTA в финале"],
+    format:"Вертикальное видео 9:16",
+    must_haves:["Яркое начало в первые 2 секунды","Продукт или герой показан понятно","В конце зрителю ясно, что сделать дальше"],
     avoid:["Перегруженные переходы","Музыка громче речи"],
-    checklist:["9:16","20–30 секунд","Hook ≤2 сек","Читаемые субтитры","CTA","Соответствие исходному брифу"],
+    checklist:["Вертикальное видео 9:16","20–30 секунд","Яркое начало до 2 секунд","Читаемые субтитры","Понятный следующий шаг","Соответствие исходному заданию"],
     judging_criteria:["Понятность идеи","Удержание","Чистота монтажа","Соответствие бренду"]
   };
 }

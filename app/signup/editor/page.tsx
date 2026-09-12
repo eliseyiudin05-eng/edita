@@ -46,7 +46,7 @@ export default function EditorSignup(){
       const supabase=getSupabaseBrowserClient();
       const {error}=await supabase.auth.signInWithPassword({email:email.trim().toLowerCase(),password});
       setLoading(false);
-      if(error){setMessage("Аккаунт создан. Войди с этим email и паролем на странице входа.");return;}
+      if(error){setMessage("Аккаунт создан. Войди с этой электронной почтой и паролем на странице входа.");return;}
       window.location.href="/platform";
       return;
     }
@@ -68,11 +68,11 @@ export default function EditorSignup(){
   return <main className="auth-wrap"><section className="auth-card auth-card-wide">
     <div className="eyebrow">РЕГИСТРАЦИЯ МОНТАЖЁРА</div>
     <h1>Создай профиль монтажёра</h1>
-    <p>Никаких данных компании. Только то, что помогает настроить обучение и безопасный доступ.</p>{typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("ref")&&<div className="auth-msg"><b>Тебя пригласил друг.</b> После подтверждения email и первых 3 уроков вы оба получите бонусы внутри EDITA.</div>}
+    <p>Никаких данных компании. Только то, что помогает настроить обучение и безопасный доступ.</p>{typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("ref")&&<div className="auth-msg"><b>Тебя пригласил друг.</b> После подтверждения электронной почты и первых 3 уроков вы оба получите бонусы внутри EDITA.</div>}
 
     <form className="auth-form" onSubmit={submit}>
       <input required placeholder="Как тебя зовут" value={name} onChange={e=>setName(e.target.value)}/>
-      <input required type="email" autoComplete="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)}/>
+      <input required type="email" autoComplete="email" placeholder="Электронная почта" value={email} onChange={e=>setEmail(e.target.value)}/>
       <input required minLength={8} type="password" autoComplete="new-password" placeholder="Пароль — минимум 8 символов" value={password} onChange={e=>setPassword(e.target.value)}/>
 
       <label className="field-label">Сколько тебе лет?</label>
@@ -86,7 +86,7 @@ export default function EditorSignup(){
 
       <label className="field-label">Школа, колледж или вуз — необязательно</label>
       <input maxLength={160} placeholder="Например: школа № 1253 или РУДН" value={schoolName} onChange={e=>setSchoolName(e.target.value)}/>
-      <small className="field-hint">Сохраним только в твоём аккаунте. Включить школу в командный рейтинг можно потом в профиле. Класс, адрес и другие личные данные писать не нужно.</small>
+      <small className="field-hint">Сохраним только в твоём аккаунте. Включить школу в командный рейтинг можно потом в профиле. Класс, адрес и другие личные данные оставь за пределами формы.</small>
 
       <label className="field-label">В какой программе монтируешь?</label>
       <select value={software} onChange={e=>setSoftware(e.target.value)}>
@@ -100,7 +100,7 @@ export default function EditorSignup(){
 
       <label className="field-label">Главная цель</label>
       <select value={goal} onChange={e=>setGoal(e.target.value)}>
-        <option value="freelance">Найти первые заказы</option><option value="reels">Научиться Reels / TikTok / Shorts</option><option value="youtube">Монтировать YouTube</option><option value="career">Развиваться как профессионал</option>
+        <option value="freelance">Найти первые заказы</option><option value="reels">Делать короткие вертикальные ролики</option><option value="youtube">Монтировать видео для YouTube</option><option value="career">Развиваться как монтажёр</option>
       </select>
 
       <label className="consent-row"><input type="checkbox" checked={acceptTerms} onChange={e=>setAcceptTerms(e.target.checked)}/><span>Я принимаю <Link href="/terms" target="_blank"><u>условия использования</u></Link>.</span></label>
@@ -110,7 +110,7 @@ export default function EditorSignup(){
     </form>
 
     {message&&<div className="auth-msg">{message}</div>}
-    {createdEmail&&<div className="auth-resend"><span>Не пришло письмо?</span><button className="btn btn-ghost" onClick={resend} disabled={loading||cooldown>0}>{cooldown>0?"Ещё раз через "+cooldown+" сек":"Отправить ещё раз"}</button></div>}
+    {createdEmail&&<div className="auth-resend"><span>Письмо задержалось?</span><button className="btn btn-ghost" onClick={resend} disabled={loading||cooldown>0}>{cooldown>0?"Ещё раз через "+cooldown+" сек":"Отправить ещё раз"}</button></div>}
     <div className="auth-footer"><Link href="/signup">← Выбрать другой тип аккаунта</Link></div>
   </section></main>
 }

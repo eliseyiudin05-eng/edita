@@ -19,11 +19,6 @@ export async function GET() {
         configured:Boolean(supabase.url&&supabase.key),
         serverWrites:Boolean(process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY),
       },
-      yookassa:{
-        configured:Boolean(process.env.YOOKASSA_SHOP_ID&&process.env.YOOKASSA_SECRET_KEY),
-        acceptingPayments:process.env.BETA_FREE_MODE==="false",
-        mode:process.env.BETA_FREE_MODE==="false"?(process.env.YOOKASSA_MODE||"test"):"disabled_for_beta",
-      },
       email:{
         configured:Boolean(process.env.RESEND_API_KEY),
         from:process.env.RESEND_FROM_EMAIL||"EDITA <no-reply@auth.getedita.app>",

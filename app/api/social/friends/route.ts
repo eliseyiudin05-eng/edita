@@ -56,7 +56,7 @@ export async function POST(req:NextRequest){
   if(action==="send"){
     const username=String(body?.username||"").trim().replace(/^@/,"").toLowerCase();
     const {data:target}=await a.service.from("public_profiles").select("id,username").ilike("username",username).maybeSingle();
-    if(!target||target.id===a.user.id)return NextResponse.json({error:"Пользователь не найден."},{status:404});
+    if(!target||target.id===a.user.id)return NextResponse.json({error:"Пользователь отсутствует."},{status:404});
 
     const [{data:me},{data:them}]=await Promise.all([
       a.service.from("profiles").select("onboarding").eq("id",a.user.id).maybeSingle(),
@@ -84,7 +84,7 @@ export async function POST(req:NextRequest){
 
   const id=String(body?.id||"");
   const {data:rel}=await a.service.from("friendships").select("*").eq("id",id).maybeSingle();
-  if(!rel)return NextResponse.json({error:"Запрос не найден."},{status:404});
+  if(!rel)return NextResponse.json({error:"Запрос отсутствует."},{status:404});
 
   if(action==="accept"||action==="decline"){
     if(rel.addressee_id!==a.user.id||rel.status!=="pending")return NextResponse.json({error:"Нет доступа."},{status:403});

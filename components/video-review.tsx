@@ -43,11 +43,11 @@ export default function VideoReview() {
       setStatus("Извлекаю ключевые кадры из видео…");
       const extracted = await extractVideoFrames(file, 7);
 
-      setStatus("AI анализирует hook, pacing, субтитры и соответствие брифу…");
+      setStatus("Помощник изучает начало, темп, субтитры и само задание…");
       const supabase=getSupabaseBrowserClient();
       const {data:{session}}=await supabase.auth.getSession();
       const token=session?.access_token;
-      if(!token)throw new Error("Войди в аккаунт с AI PRO, чтобы запустить разбор.");
+      if(!token)throw new Error("Войди в аккаунт, чтобы запустить полный бесплатный разбор.");
 
       const response = await fetch("/api/ai/video-review", {
         method: "POST",
@@ -66,7 +66,7 @@ export default function VideoReview() {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data?.error || "Не удалось выполнить AI-разбор.");
+        throw new Error(data?.error || "Ошибка разбора видео.");
       }
 
       setReview(data.review);
@@ -76,7 +76,7 @@ export default function VideoReview() {
       setStatus(
         error instanceof Error
           ? error.message
-          : "Не удалось разобрать видео. Попробуй другой файл."
+          : "Ошибка разбора видео. Попробуй другой файл."
       );
     } finally {
       setLoading(false);
@@ -86,12 +86,12 @@ export default function VideoReview() {
   return (
     <div className="review-layout">
       <section className="card review-upload">
-        <div className="eyebrow">AI РАЗБОР ВИДЕО</div>
-        <h2>Загрузи ролик — получи разбор по таймкодам</h2>
+        <div className="eyebrow">РАЗБОР ВИДЕО · БЕСПЛАТНО</div>
+        <h2>Загрузи ролик и получи понятные советы</h2>
         <p className="muted">
-          Видео обрабатывается в браузере: EDITA извлекает несколько кадров и
-          отправляет AI только эти кадры, таймкоды и бриф. Полный видеофайл в AI
-          endpoint не отправляется.
+          EDITA выбирает несколько кадров прямо в браузере. Помощник получает
+          только эти кадры, время и текст задания. Полный видеофайл остаётся на
+          твоём устройстве.
         </p>
 
         <form className="review-form" onSubmit={submit}>
@@ -111,11 +111,11 @@ export default function VideoReview() {
           <textarea
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
-            placeholder="Необязательно: вставь ТЗ клиента. Например: Reel 25 секунд, премиальный стиль, показать продукт в первые 3 секунды, CTA в конце."
+            placeholder="Можно добавить задание клиента. Например: ролик 25 секунд, спокойный стиль, продукт в первые 3 секунды, понятный призыв в конце."
           />
 
           <button className="btn btn-dark" disabled={!file || loading}>
-            {loading ? "Анализируем…" : "Запустить AI Review"}
+            {loading ? "Разбираем…" : "Разобрать видео"}
           </button>
         </form>
 
@@ -125,20 +125,17 @@ export default function VideoReview() {
       <section className="review-result">
         {!review ? (
           <div className="review-empty">
-            <div className="review-empty-score">AI</div>
-            <h3>Здесь появится scorecard</h3>
+            <div className="review-empty-score">✦</div>
+            <h3>Здесь появится оценка</h3>
             <p className="muted">
-              Overall, Hook, Pacing, Subtitles, Visual Variety, Brief Match и
-              конкретные правки по таймкодам.
+              Общий балл, начало ролика, темп, субтитры, разнообразие кадров,
+              совпадение с заданием и конкретные правки по времени.
             </p>
           </div>
         ) : (
           <>
             {isDemo && (
-              <div className="demo-banner">
-                Demo-анализ: Vercel пока не передал OPENAI_API_KEY в этот
-                deployment.
-              </div>
+              <div className="demo-banner">Сейчас показан пример разбора. Полный помощник включится после настройки сервера.</div>
             )}
 
             <div className="score-hero">
@@ -147,23 +144,23 @@ export default function VideoReview() {
                 <span>/100</span>
               </div>
               <div>
-                <div className="eyebrow">EDITA SCORE</div>
+                <div className="eyebrow">ОЦЕНКА EDITA</div>
                 <h2>{scoreLabel(review.overall_score)}</h2>
                 <p>{review.summary}</p>
               </div>
             </div>
 
             <div className="score-grid">
-              <Score label="Hook" value={review.hook_score} />
-              <Score label="Pacing" value={review.pacing_score} />
-              <Score label="Subtitles" value={review.subtitles_score} />
-              <Score label="Visual variety" value={review.visual_variety_score} />
-              <Score label="Brief match" value={review.brief_match_score} />
-              <Score label="Format" value={review.format_score} />
+              <Score label="Начало" value={review.hook_score} />
+              <Score label="Темп" value={review.pacing_score} />
+              <Score label="Субтитры" value={review.subtitles_score} />
+              <Score label="Разные кадры" value={review.visual_variety_score} />
+              <Score label="Совпадение с заданием" value={review.brief_match_score} />
+              <Score label="Формат" value={review.format_score} />
             </div>
 
             <div className="card review-section">
-              <div className="eyebrow">TECHNICAL</div>
+              <div className="eyebrow">ФАЙЛ</div>
               <h3>Проверка файла</h3>
               <div className="technical-list">
                 {(review.technical_checks||[]).map((item,i)=><div className={"technical-row "+item.status} key={i}><b>{item.status==="ok"?"✓":"!"} {item.label}</b><span>{item.detail}</span></div>)}
@@ -171,7 +168,7 @@ export default function VideoReview() {
             </div>
 
             <div className="card review-section">
-              <div className="eyebrow">STRENGTHS</div>
+              <div className="eyebrow">СИЛЬНЫЕ СТОРОНЫ</div>
               <h3>Что уже работает</h3>
               <div className="review-list">
                 {review.strengths.map((item, i) => (
@@ -184,7 +181,7 @@ export default function VideoReview() {
             </div>
 
             <div className="card review-section">
-              <div className="eyebrow">TIMELINE</div>
+              <div className="eyebrow">ПО ВРЕМЕНИ</div>
               <h3>Что поправить в монтаже</h3>
               <div className="timeline-list">
                 {review.timeline.map((item, i) => (
@@ -200,7 +197,7 @@ export default function VideoReview() {
             </div>
 
             <div className="card review-section">
-              <div className="eyebrow">NEXT MOVE</div>
+              <div className="eyebrow">СЛЕДУЮЩИЙ ШАГ</div>
               <h3>Следующие действия</h3>
               <ol className="next-list">
                 {review.next_steps.map((item, i) => (
@@ -230,7 +227,7 @@ function Score({ label, value }: { label: string; value: number }) {
 }
 
 function scoreLabel(value: number) {
-  if (value >= 90) return "Почти production-ready";
+  if (value >= 90) return "Почти готово к публикации";
   if (value >= 80) return "Сильная работа";
   if (value >= 70) return "Хорошая база";
   if (value >= 60) return "Нужна доработка";

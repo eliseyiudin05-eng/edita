@@ -50,34 +50,34 @@ export default function CreatorsAdmin(){
 
   return <main className="legal-page"><div className="legal-shell">
     <Link href="/platform" className="brand">EDITA<span>.</span></Link>
-    <div className="eyebrow">ADMIN · EDITA CREATORS</div>
-    <h1>Creator Squad</h1>
-    <p>Здесь заявки постоянных креаторов и отклики на официальные брифы EDITA.</p>
+    <div className="eyebrow">АДМИН · МОНТАЖЁРЫ EDITA</div>
+    <h1>Команда монтажёров</h1>
+    <p>Здесь заявки в постоянную команду и отклики на официальные задания EDITA.</p>
     {message&&<div className="auth-msg">{message}</div>}
 
     <h2>Заявки в постоянную команду</h2>
     <div className="business-stack">
       {applications.length===0&&<div className="auth-msg">Заявок пока нет.</div>}
       {applications.map(a=><section className="legal-card" key={a.id}>
-        <div className="verification-head"><div><div className="eyebrow">CREATOR SQUAD</div><h2>{a.display_name}</h2></div><span className="verification-badge">{a.status}</span></div>
-        <p><b>Email:</b> {a.email}</p>
+        <div className="verification-head"><div><div className="eyebrow">КОМАНДА МОНТАЖЁРОВ</div><h2>{a.display_name}</h2></div><span className="verification-badge">{a.status}</span></div>
+        <p><b>Электронная почта:</b> {a.email}</p>
         {a.social_url&&<p><a href={a.social_url} target="_blank" rel="noreferrer"><u>Соцсеть ↗</u></a></p>}
-        {a.portfolio_url&&<p><a href={a.portfolio_url} target="_blank" rel="noreferrer"><u>Портфолио ↗</u></a></p>}
+        {a.portfolio_url&&<p><a href={a.portfolio_url} target="_blank" rel="noreferrer"><u>Работы автора ↗</u></a></p>}
         <p><b>Что снимает:</b> {a.preferred_format||"—"}<br/><b>Ожидание по оплате:</b> {a.desired_rate||"—"}</p>
         {a.note&&<p>{a.note}</p>}
-        <div className="lesson-actions"><button className="btn btn-dark" onClick={()=>setStatus("application",a.id,"approved")}>Принять в Squad</button><button className="btn btn-ghost" onClick={()=>setStatus("application",a.id,"paused")}>Пауза</button><button className="btn btn-ghost" onClick={()=>setStatus("application",a.id,"rejected")}>Отклонить</button></div>
+        <div className="lesson-actions"><button className="btn btn-dark" onClick={()=>setStatus("application",a.id,"approved")}>Принять в команду</button><button className="btn btn-ghost" onClick={()=>setStatus("application",a.id,"paused")}>Отложить</button><button className="btn btn-ghost" onClick={()=>setStatus("application",a.id,"rejected")}>Пропустить</button></div>
       </section>)}
     </div>
 
-    <h2 style={{marginTop:36}}>Отклики на брифы</h2>
+    <h2 style={{marginTop:36}}>Отклики на задания</h2>
     <div className="business-stack">
       {interest.length===0&&<div className="auth-msg">Откликов пока нет.</div>}
       {interest.map(i=><section className="legal-card" key={i.id}>
-        <div className="verification-head"><div><div className="eyebrow">ОТКЛИК НА ТЗ</div><h2>{i.creator_briefs?.title||"Бриф EDITA"}</h2></div><span className="verification-badge">{i.status}</span></div>
-        <p><b>Email:</b> {i.email}</p>
+        <div className="verification-head"><div><div className="eyebrow">ОТКЛИК НА ЗАДАНИЕ</div><h2>{i.creator_briefs?.title||"Задание EDITA"}</h2></div><span className="verification-badge">{i.status}</span></div>
+        <p><b>Электронная почта:</b> {i.email}</p>
         {i.social_url&&<p><a href={i.social_url} target="_blank" rel="noreferrer"><u>Профиль ↗</u></a></p>}
         {i.message&&<p>{i.message}</p>}
-        <div className="lesson-actions"><button className="btn btn-dark" onClick={()=>setStatus("interest",i.id,"contacted")}>Связались</button><button className="btn btn-lime" onClick={()=>setStatus("interest",i.id,"accepted")}>Согласовали работу</button><button className="btn btn-ghost" onClick={()=>setStatus("interest",i.id,"declined")}>Не подходит</button></div>
+        <div className="lesson-actions"><button className="btn btn-dark" onClick={()=>setStatus("interest",i.id,"contacted")}>Связь начата</button><button className="btn btn-lime" onClick={()=>setStatus("interest",i.id,"accepted")}>Согласовали работу</button><button className="btn btn-ghost" onClick={()=>setStatus("interest",i.id,"declined")}>Пропустить</button></div>
       </section>)}
     </div>
   </div></main>

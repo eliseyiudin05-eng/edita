@@ -45,7 +45,7 @@ export async function POST(req:NextRequest){
 
   const {data:request}=await auth.service.from("guardian_verification_requests")
     .select("id,user_id,status").eq("id",requestId).maybeSingle();
-  if(!request)return NextResponse.json({error:"Заявка не найдена."},{status:404});
+  if(!request)return NextResponse.json({error:"Заявка отсутствует."},{status:404});
 
   if(action==="approve"){
     const now=new Date().toISOString();

@@ -36,6 +36,6 @@ export default function LessonRouteGate({requiredSlugs,previousSlug,children}:{r
   },[requiredSlugs]);
 
   if(checking)return <div className="lesson-gate-card"><b>Проверяем прогресс…</b></div>;
-  if(!unlocked)return <div className="lesson-gate-card locked"><div className="eyebrow">УРОК ПОКА ЗАКРЫТ</div><h2>Сначала заверши предыдущий урок</h2><p>Уроки открываются по порядку, чтобы сложные инструменты не появились раньше основы.</p><div>{previousSlug?<Link className="btn btn-dark" href={"/academy/"+previousSlug}>Вернуться к предыдущему уроку</Link>:null}<Link className="btn btn-ghost" href="/platform#academy">Открыть маршрут</Link></div></div>;
+  if(!unlocked)return <div className="lesson-gate-card locked"><div className="eyebrow">УРОК ПОКА ЗАКРЫТ</div><h2>Сначала заверши предыдущий урок</h2><p>Уроки открываются по порядку: основа всегда идёт раньше сложных инструментов.</p><div>{previousSlug?<Link className="btn btn-dark" href={"/academy/"+previousSlug}>Вернуться к предыдущему уроку</Link>:null}<Link className="btn btn-ghost" href="/platform#academy">Открыть маршрут</Link></div></div>;
   return <>{children}</>;
 }

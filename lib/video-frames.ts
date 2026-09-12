@@ -15,7 +15,7 @@ export async function extractVideoFrames(file: File, count = 7) {
   try {
     await waitForEvent(video, "loadedmetadata");
     const duration = Number.isFinite(video.duration) ? video.duration : 0;
-    if (!duration) throw new Error("Не удалось прочитать длительность видео.");
+    if (!duration) throw new Error("Ошибка чтения длительности видео.");
 
     const fractions =
       count <= 1
@@ -43,7 +43,7 @@ export async function extractVideoFrames(file: File, count = 7) {
       canvas.height = Math.max(1, Math.round(sourceHeight * scale));
 
       const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Не удалось подготовить кадр для анализа.");
+      if (!ctx) throw new Error("Ошибка подготовки кадра для разбора.");
 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
@@ -79,7 +79,7 @@ function waitForEvent(
 
     const onError = () => {
       cleanup();
-      reject(new Error("Браузер не смог прочитать этот видеофайл."));
+      reject(new Error("Браузер остановил чтение этого видеофайла."));
     };
 
     const cleanup = () => {

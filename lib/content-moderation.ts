@@ -8,8 +8,8 @@ const obviousOffTopicPattern=/(казино|ставк[аи]|букмекер|п
 
 export async function moderateGroupMessage(raw:string):Promise<ModerationResult>{
   const text=raw.trim();
-  if(abusivePattern.test(text))return {allowed:false,reason:"abuse",message:"Сообщение не отправлено: в учебном чате нельзя использовать оскорбления или мат."};
-  if(emailPattern.test(text)||phonePattern.test(text))return {allowed:false,reason:"personal_info",message:"Не публикуй в группе email или номер телефона. Общайтесь внутри EDITA."};
+  if(abusivePattern.test(text))return {allowed:false,reason:"abuse",message:"Система остановила сообщение с оскорблением или грубой бранью."};
+  if(emailPattern.test(text)||phonePattern.test(text))return {allowed:false,reason:"personal_info",message:"Телефон и email оставьте за пределами группы. Общайтесь внутри EDITA."};
   if(obviousOffTopicPattern.test(text)&&!editingTopicPattern.test(text))return {allowed:false,reason:"off_topic",message:"Это учебный чат про видео и совместные проекты. Переформулируй сообщение по теме монтажа."};
   if(!process.env.OPENAI_API_KEY)return {allowed:true};
 
@@ -28,8 +28,8 @@ export async function moderateGroupMessage(raw:string):Promise<ModerationResult>
     if(!response.ok)return {allowed:true};
     const data=await response.json();
     const label=String(data.output_text||"").trim().toUpperCase();
-    if(label.includes("ABUSE"))return {allowed:false,reason:"abuse",message:"Сообщение не отправлено: общайтесь без оскорблений и травли."};
-    if(label.includes("PERSONAL_INFO"))return {allowed:false,reason:"personal_info",message:"Сообщение не отправлено: не передавайте личные контакты внутри учебной группы."};
+    if(label.includes("ABUSE"))return {allowed:false,reason:"abuse",message:"Система остановила сообщение. Общайтесь спокойно и уважительно."};
+    if(label.includes("PERSONAL_INFO"))return {allowed:false,reason:"personal_info",message:"Система остановила личные контакты. Продолжайте разговор внутри учебной группы."};
     if(label.includes("OFF_TOPIC"))return {allowed:false,reason:"off_topic",message:"Это учебный чат про видео и совместные проекты. Переформулируй сообщение по теме монтажа."};
     return {allowed:true};
   }catch{
@@ -45,16 +45,16 @@ export async function createGroupAiReply(question:string,recent:string[]){
       headers:{"Content-Type":"application/json",Authorization:`Bearer ${process.env.OPENAI_API_KEY}`},
       body:JSON.stringify({
         model:process.env.OPENAI_MODEL||"gpt-5.6-luna",
-        instructions:"Ты EDITA AI в безопасной учебной группе по видеомонтажу для людей 14+. Отвечай только по монтажу, съёмке, контенту, портфолио и совместной работе. Не поддерживай переход в личные контакты. Дай прямой ответ, 2–5 коротких шагов и один способ проверить результат. Не стыди новичка, не обещай доход или просмотры. Не повторяй и не раскрывай личные данные.",
-        input:"Недавний контекст группы:\n"+recent.slice(-8).join("\n")+"\n\nВопрос к EDITA AI:\n"+question.slice(0,1400),
+        instructions:"Ты помощник EDITA в безопасной учебной группе по видеомонтажу для людей 14+. Отвечай по монтажу, съёмке, роликам, своим работам и совместным проектам. Сохраняй общение внутри платформы. Дай прямой ответ, 2–5 коротких шагов и один способ проверить результат. Поддерживай новичка. Говори о доходе и просмотрах только как о возможных результатах. Сохраняй личные данные в тайне. Используй спокойные утвердительные фразы.",
+        input:"Недавний контекст группы:\n"+recent.slice(-8).join("\n")+"\n\nВопрос к помощнику EDITA:\n"+question.slice(0,1400),
         max_output_tokens:700
       }),
       signal:AbortSignal.timeout(20000)
     });
     if(!response.ok)throw new Error("upstream");
     const data=await response.json();
-    return String(data.output_text||"").trim()||"Не получилось подготовить ответ. Попробуйте спросить ещё раз чуть позже.";
+    return String(data.output_text||"").trim()||"Ответ пока пуст. Попробуйте спросить ещё раз чуть позже.";
   }catch{
-    return "Сейчас не могу подготовить подробный ответ. Напишите программу, устройство и точный шаг — вернёмся к вопросу чуть позже.";
+    return "Подробный ответ сейчас задерживается. Напишите программу, устройство и точный шаг — вернёмся к вопросу чуть позже.";
   }
 }

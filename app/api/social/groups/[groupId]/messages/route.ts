@@ -38,7 +38,7 @@ async function messages(service:any,groupId:string){
     senderKind:row.sender_kind,
     content:row.content,
     createdAt:row.created_at,
-    author:row.sender_kind==="ai"?"EDITA AI":profileMap[row.author_id]?.display_name||"Участник",
+    author:row.sender_kind==="ai"?"Помощник EDITA":profileMap[row.author_id]?.display_name||"Участник",
     username:profileMap[row.author_id]?.username||null
   }));
 }
@@ -50,7 +50,7 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{groupId:stri
   try{
     return NextResponse.json({messages:await messages(granted.service,groupId)});
   }catch{
-    return NextResponse.json({error:"Не удалось загрузить чат."},{status:503});
+    return NextResponse.json({error:"Ошибка загрузки чата."},{status:503});
   }
 }
 
@@ -85,7 +85,7 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{groupId:str
       status:"removed",
       moderation_reason:moderation.reason||"policy"
     });
-    return NextResponse.json({error:moderation.message||"Сообщение не прошло модерацию."},{status:422});
+    return NextResponse.json({error:moderation.message||"Система остановила сообщение."},{status:422});
   }
 
   const {error:insertError}=await granted.service.from("group_messages").insert({
@@ -95,7 +95,7 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{groupId:str
     content,
     status:"published"
   });
-  if(insertError)return NextResponse.json({error:"Не удалось отправить сообщение."},{status:503});
+  if(insertError)return NextResponse.json({error:"Ошибка отправки сообщения."},{status:503});
 
   const asksAi=/^\s*\/ai\b/i.test(content)||/@edita\b/i.test(content)||content.includes("?");
   if(asksAi){
@@ -105,7 +105,7 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{groupId:str
       .eq("status","published")
       .order("created_at",{ascending:false})
       .limit(8);
-    const context=(recent||[]).reverse().map((item:any)=>(item.sender_kind==="ai"?"EDITA AI: ":"Участник: ")+item.content);
+    const context=(recent||[]).reverse().map((item:any)=>(item.sender_kind==="ai"?"Помощник EDITA: ":"Участник: ")+item.content);
     const cleanQuestion=content.replace(/^\s*\/ai\s*/i,"").replace(/@edita\b/ig,"").trim();
     const reply=await createGroupAiReply(cleanQuestion||content,context);
     await granted.service.from("group_messages").insert({

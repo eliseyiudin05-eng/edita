@@ -42,8 +42,8 @@ export default function EditorVerification(){
     });
     const data=await r.json();
     setLoading(false);
-    if(!r.ok){setMessage(data?.error||"Не удалось отправить.");return;}
-    setMessage("Работа отправлена на проверку. Мы смотрим именно навык монтажа — паспорт для этого не нужен.");
+    if(!r.ok){setMessage(data?.error||"Ошибка отправки работы.");return;}
+    setMessage("Работа отправлена на проверку. Здесь оценивается только навык монтажа, поэтому паспорт остаётся за пределами этой формы.");
     await load();
   }
 
@@ -52,17 +52,17 @@ export default function EditorVerification(){
 
   return <section className="card">
     <div className="eyebrow">ПРОВЕРКА МОНТАЖЁРА</div>
-    <h3>Не такая, как у бизнеса</h3>
-    <p className="muted">Компания подтверждает документы. Монтажёр подтверждает email, возрастной доступ и свой навык работой или портфолио.</p>
+    <h3>Проверка по твоей работе</h3>
+    <p className="muted">Компания подтверждает документы. Монтажёр подтверждает электронную почту, возрастной доступ и свой навык готовой работой.</p>
 
     <div className="verification-checks">
-      <div className={state.emailVerified?"check-ok":"check-wait"}><b>{state.emailVerified?"✓":"○"} Email</b><span>{state.emailVerified?"Подтверждён":"Нужно подтвердить письмо"}</span></div>
+      <div className={state.emailVerified?"check-ok":"check-wait"}><b>{state.emailVerified?"✓":"○"} Электронная почта</b><span>{state.emailVerified?"Подтверждена":"Нужно подтвердить письмо"}</span></div>
       <div className={!minor||state.guardianVerified?"check-ok":"check-wait"}><b>{!minor||state.guardianVerified?"✓":"○"} Возрастной доступ</b><span>{!minor?"18+ указано при регистрации":state.guardianVerified?"Родитель подтверждён":"Ждём подтверждение родителя"}</span></div>
-      <div className={state.level==="skills_verified"?"check-ok":"check-wait"}><b>{state.level==="skills_verified"?"✓":"○"} Навык монтажа</b><span>{state.level==="skills_verified"?"Работа проверена EDITA":state.request?.status==="pending"?"Работа на проверке":"Можно отправить портфолио или одну работу"}</span></div>
+      <div className={state.level==="skills_verified"?"check-ok":"check-wait"}><b>{state.level==="skills_verified"?"✓":"○"} Навык монтажа</b><span>{state.level==="skills_verified"?"Работа проверена EDITA":state.request?.status==="pending"?"Работа на проверке":"Можно отправить ссылку на свои работы"}</span></div>
     </div>
 
     {state.level!=="skills_verified"&&state.request?.status!=="pending"&&<form className="business-form" onSubmit={submit}>
-      <input type="url" placeholder="Ссылка на портфолио" value={form.portfolioUrl} onChange={e=>setForm({...form,portfolioUrl:e.target.value})}/>
+      <input type="url" placeholder="Ссылка на свои работы" value={form.portfolioUrl} onChange={e=>setForm({...form,portfolioUrl:e.target.value})}/>
       <input type="url" placeholder="Или ссылка на одну работу" value={form.sampleUrl} onChange={e=>setForm({...form,sampleUrl:e.target.value})}/>
       <textarea placeholder="Что ты делал в этой работе? Например: нарезка, субтитры, звук." value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/>
       <button className="btn btn-dark" disabled={loading}>{loading?"Отправляем…":"Отправить навык на проверку"}</button>

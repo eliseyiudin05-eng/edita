@@ -66,8 +66,8 @@ export default function BusinessVerification(){
     e.preventDefault();
     setMessage("");
     if(files.length===0){setMessage("Добавь документ: PDF, JPG или PNG.");return;}
-    if(files.length>3){setMessage("Можно добавить не больше 3 файлов.");return;}
-    if(files.some(f=>f.size>15*1024*1024)){setMessage("Один файл не должен быть больше 15 МБ.");return;}
+    if(files.length>3){setMessage("Можно добавить до 3 файлов.");return;}
+    if(files.some(f=>f.size>15*1024*1024)){setMessage("Размер каждого файла — до 15 МБ.");return;}
 
     setLoading(true);
     try{
@@ -82,7 +82,7 @@ export default function BusinessVerification(){
         const path=user.id+"/"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+"-"+safe;
         const up=await supabase.storage.from("business-verification")
           .upload(path,file,{upsert:false,contentType:file.type||"application/octet-stream"});
-        if(up.error)throw new Error("Не удалось загрузить документ: "+up.error.message);
+        if(up.error)throw new Error("Ошибка загрузки документа: "+up.error.message);
         paths.push(path);
       }
 
@@ -96,14 +96,14 @@ export default function BusinessVerification(){
         })
       });
       const json=await r.json();
-      if(!r.ok)throw new Error(json?.error||"Не удалось отправить заявку.");
+      if(!r.ok)throw new Error(json?.error||"Ошибка отправки заявки.");
 
       setFiles([]);
       localStorage.removeItem("edita_business_verification_prefill");
       setMessage("Заявка отправлена. Проверка проходит вручную: документы и публичные ссылки сверяются человеком.");
       await load();
     }catch(e){
-      setMessage(e instanceof Error?e.message:"Не удалось отправить заявку.");
+      setMessage(e instanceof Error?e.message:"Ошибка отправки заявки.");
     }finally{setLoading(false)}
   }
 
@@ -113,7 +113,7 @@ export default function BusinessVerification(){
     ? badgeName(business.verification_level)
     : request?.status==="pending"||business?.verification_status==="pending"
       ?"На проверке"
-      :"Не проверен";
+      :"Ждёт проверки";
 
   return <section className="card verification-card">
     <div className="verification-head">
@@ -124,13 +124,13 @@ export default function BusinessVerification(){
       <span className={"verification-badge "+(business?.verified?"ok":request?.status==="pending"?"pending":"")}>{status}</span>
     </div>
 
-    <p className="muted">Проверенный бизнес вызывает больше доверия. Для платных Challenge и вакансий EDITA требует проверку компании.</p>
+    <p className="muted">Проверенная компания вызывает больше доверия. Для коммерческих конкурсов и вакансий EDITA сначала проверяет компанию.</p>
 
     {business?.verified?<div className="verification-success">
       <b>Готово: {badgeName(business.verification_level)}</b>
       <span>Монтажёры будут видеть отметку рядом с названием компании.</span>
     </div>:request?.status==="pending"?<div className="auth-msg">
-      Заявка уже отправлена и ждёт ручной проверки. Мы не выдаём отметку только по числу подписчиков: публичные страницы и документы сверяются отдельно.
+      Заявка уже отправлена и ждёт ручной проверки. Отметка выдаётся после отдельной сверки публичных страниц и документов.
     </div>:<form className="business-form" onSubmit={submit}>
       <label className="field-label">Какую отметку хочешь получить?</label>
       <select value={form.requestedLevel} onChange={e=>setForm({...form,requestedLevel:e.target.value})}>
@@ -159,7 +159,7 @@ export default function BusinessVerification(){
 
     {request?.status==="rejected"&&<div className="auth-msg">Нужно исправить заявку: {request.review_note||"проверь документы и ссылки и отправь новую заявку."}</div>}
     {message&&<div className="auth-msg">{message}</div>}
-    <p className="muted">Отметка «Известный бренд» не выдаётся автоматически по введённому числу подписчиков. EDITA проверяет открытые страницы и документы вручную.</p>
+    <p className="muted">Отметка «Известный бренд» выдаётся после ручной проверки открытых страниц и документов.</p>
   </section>
 }
 

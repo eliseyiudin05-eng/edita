@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { canUseArenaReview, hasActivePro } from "@/lib/server-supabase";
+import { canUseArenaReview, hasFullAccess } from "@/lib/server-supabase";
 
 const REVIEW_SCHEMA = {
   type: "object",
@@ -51,23 +51,24 @@ const REVIEW_SCHEMA = {
 };
 
 const SYSTEM = `
-Ты — EDITA Video Reviewer, опытный видеомонтажёр и очень понятный наставник.
-Ты анализируешь набор кадров, автоматически извлечённых из одного видео, с известными таймкодами.
+Ты — опытный видеомонтажёр и очень понятный помощник EDITA.
+Ты анализируешь кадры, автоматически выбранные из одного видео, с указанным временем.
 
 Оцени:
-- hook в первые секунды;
-- pacing и смену визуальных акцентов;
-- читаемость/расположение субтитров, если они видны;
-- visual variety и композицию;
-- соответствие пользовательскому брифу;
+- начало ролика в первые секунды;
+- темп и смену главных кадров;
+- читаемость и расположение субтитров;
+- разнообразие кадров и расположение объектов;
+- соответствие заданию пользователя;
 - общий уровень монтажа.
 
-Ограничения:
-- Ты видишь отдельные кадры, а не непрерывное видео, поэтому не утверждай, что точно слышал звук или видел переход между кадрами.
-- Если критерий нельзя надёжно оценить по кадрам, снижай уверенность формулировки, а не выдумывай.
-- Timeline-примечания привязывай только к реально переданным таймкодам.
-- Пиши по-русски, конкретно, без воды.
-- Каждый fix должен быть выполнимым действием монтажёра.
+Правила:
+- Ты видишь отдельные кадры вместо непрерывного видео. Оставляй звук и переходы между кадрами за рамками точной оценки.
+- При малом числе данных прямо указывай, что вывод приблизительный.
+- Советы по времени привязывай только к переданным кадрам.
+- Пиши по-русски, коротко и конкретно.
+- Каждое исправление формулируй как понятное действие монтажёра.
+- Используй спокойные утвердительные фразы и обходись без отдельной отрицательной частицы из букв «н» и «е».
 `;
 
 export async function POST(req: NextRequest) {
@@ -85,17 +86,17 @@ export async function POST(req: NextRequest) {
 
     const allowed = purpose==="arena"
       ? await canUseArenaReview(accessToken,challengeId)
-      : await hasActivePro(accessToken);
+      : await hasFullAccess(accessToken);
 
     if(!allowed){
       return NextResponse.json(
-        {error:purpose==="arena"?"Нужна авторизованная отправка в Arena.":"AI Video Review доступен на активном AI PRO."},
+        {error:purpose==="arena"?"Сначала отправьте работу на конкурс из своего аккаунта.":"Войдите в аккаунт, чтобы открыть полный бесплатный разбор."},
         {status:403}
       );
     }
 
     if (!frames.length) {
-      return NextResponse.json({ error: "frames required" }, { status: 400 });
+      return NextResponse.json({ error: "Добавьте кадры из видео." }, { status: 400 });
     }
 
     if (!process.env.OPENAI_API_KEY) {
@@ -111,8 +112,8 @@ export async function POST(req: NextRequest) {
         text:
           "Длительность видео: " + Math.round(duration) + " сек.\n" +
           "Разрешение: " + width + "x" + height + ". Соотношение: " + (height ? (width/height).toFixed(3) : "unknown") + ".\n" +
-          "Бриф: " +
-          (brief || "Бриф не указан.") +
+          "Задание: " +
+          (brief || "Задание пока пустое.") +
           "\nНиже идут кадры в хронологическом порядке. Оцени только то, что действительно можно вывести из них.",
       },
     ];
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
       if (!frame?.image || !frame?.timecode) continue;
       content.push({
         type: "input_text",
-        text: "Кадр на таймкоде " + String(frame.timecode),
+        text: "Кадр на отметке времени " + String(frame.timecode),
       });
       content.push({
         type: "input_image",
@@ -175,7 +176,7 @@ export async function POST(req: NextRequest) {
         .find((item: any) => item.type === "output_text")?.text;
 
     if (!raw) {
-      return NextResponse.json({ error: "empty AI review" }, { status: 502 });
+      return NextResponse.json({ error: "Помощник вернул пустой разбор." }, { status: 502 });
     }
 
     const review=JSON.parse(raw);
@@ -209,27 +210,27 @@ function demoReview(frames: any[]) {
       { label: "Формат", status: "ok", detail: "Техническая проверка появится после чтения метаданных файла." }
     ],
     summary:
-      "Это demo-разбор по извлечённым кадрам. После подключения OpenAI оценки и рекомендации будут генерироваться персонально для каждого ролика.",
+      "Это пример разбора по выбранным кадрам. Помощник EDITA создаёт личные советы для каждого ролика.",
     strengths: [
-      "Вертикальный формат подходит под short-form.",
+      "Вертикальный формат подходит для коротких роликов.",
       "В кадрах есть визуальные изменения по ходу ролика.",
     ],
     timeline: [
       {
         timecode: first,
-        issue: "Первый кадр можно сделать сильнее как визуальный hook.",
+        issue: "Первый кадр можно сделать заметнее.",
         fix: "Покажи результат, лицо крупнее или самый эмоциональный момент в первые 1–2 секунды.",
       },
       {
         timecode: mid,
-        issue: "В середине ролика стоит проверить, не становится ли визуал слишком однообразным.",
-        fix: "Добавь смысловой B-roll, punch-in или смену композиции, если этот участок длится больше 2–4 секунд.",
+        issue: "В середине ролика кадры выглядят похоже друг на друга.",
+        fix: "Добавь дополнительный кадр, плавное приближение или другой ракурс, если этот участок длится дольше 2–4 секунд.",
       },
     ],
     next_steps: [
       "Проверь первые 2 секунды отдельно.",
-      "Сравни субтитры с safe-zone интерфейсов Reels/TikTok.",
-      "После подключения OPENAI_API_KEY повтори анализ для реальной персональной оценки.",
+      "Проверь, чтобы кнопки площадки оставляли субтитры открытыми.",
+      "Повтори разбор после следующей версии ролика и сравни оценки.",
     ],
   };
 }
@@ -246,7 +247,7 @@ function technicalReview(width:number,height:number,duration:number){
       checks.push({label:"Соотношение сторон",status:"ok",detail:width+"×"+height+" · близко к 9:16"});
     }else{
       formatScore-=30;
-      checks.push({label:"Соотношение сторон",status:"warn",detail:width+"×"+height+" · для short-form обычно нужен 9:16"});
+      checks.push({label:"Соотношение сторон",status:"warn",detail:width+"×"+height+" · для коротких вертикальных роликов обычно нужен 9:16"});
     }
 
     if(width>=1080&&height>=1920){
@@ -256,18 +257,18 @@ function technicalReview(width:number,height:number,duration:number){
       checks.push({label:"Разрешение",status:"ok",detail:"Рабочее, но 1080×1920 предпочтительнее"});
     }else{
       formatScore-=20;
-      checks.push({label:"Разрешение",status:"warn",detail:"Низкое разрешение для коммерческого short-form"});
+      checks.push({label:"Разрешение",status:"warn",detail:"Маленькое разрешение для коммерческого ролика"});
     }
   }else{
     formatScore-=15;
-    checks.push({label:"Метаданные",status:"warn",detail:"Не удалось определить разрешение"});
+    checks.push({label:"Данные файла",status:"warn",detail:"Размер кадра пока определить сложно"});
   }
 
   if(duration>0&&duration<=60){
     checks.push({label:"Длительность",status:"ok",detail:Math.round(duration)+" сек."});
   }else if(duration>60){
     formatScore-=10;
-    checks.push({label:"Длительность",status:"warn",detail:Math.round(duration)+" сек. — проверь ограничение площадки/ТЗ"});
+    checks.push({label:"Длительность",status:"warn",detail:Math.round(duration)+" сек. — сравни с правилами площадки и заданием"});
   }
 
   return {format_score:Math.max(0,formatScore),checks};

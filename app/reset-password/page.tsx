@@ -12,7 +12,7 @@ export default function ResetPassword(){
   async function submit(e:FormEvent){
     e.preventDefault();
     const supabase=getSupabaseBrowserClient();
-    if(!supabase){setMessage("Production Auth ещё не подключён.");return;}
+    if(!supabase){setMessage("Сервис входа ждёт настройки.");return;}
     setLoading(true);
     const {error}=await supabase.auth.updateUser({password});
     setLoading(false);

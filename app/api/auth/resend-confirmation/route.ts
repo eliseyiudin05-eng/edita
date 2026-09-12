@@ -7,7 +7,7 @@ export async function POST(req:NextRequest){
   if(!service)return NextResponse.json({error:"Сервис временно недоступен."},{status:503});
   const body=await req.json().catch(()=>({}));
   const email=String(body?.email||"").trim().toLowerCase();
-  if(!email.includes("@"))return NextResponse.json({error:"Проверь email."},{status:400});
+  if(!email.includes("@"))return NextResponse.json({error:"Проверь электронную почту."},{status:400});
 
   const site=process.env.NEXT_PUBLIC_SITE_URL||"https://getedita.app";
   const {data,error}=await service.auth.admin.generateLink({
@@ -25,17 +25,17 @@ export async function POST(req:NextRequest){
   try{
     await sendTransactionalEmail({
       to:email,
-      subject:"Подтверди email в EDITA",
+      subject:"Подтверди электронную почту в EDITA",
       html:authEmailHtml(
-        "Подтверди email",
+        "Подтверди электронную почту",
         "Нажми кнопку ниже. После подтверждения откроется твой аккаунт EDITA.",
         "Подтвердить и войти",
         link
       ),
-      text:"Подтверди email EDITA: "+link
+      text:"Подтверди электронную почту EDITA: "+link
     });
   }catch{
-    return NextResponse.json({error:"Не удалось отправить письмо. Попробуй позже."},{status:503});
+    return NextResponse.json({error:"Ошибка отправки письма. Попробуй позже."},{status:503});
   }
   return NextResponse.json({ok:true});
 }

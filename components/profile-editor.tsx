@@ -37,8 +37,8 @@ export default function ProfileEditor({onSaved}:{onSaved?:(profile:ProfileForm)=
     const displayName=form.displayName.trim().replace(/\s+/g," ");
     const username=form.username.trim().replace(/^@/,"").toLowerCase();
     const schoolName=form.schoolName.trim().replace(/\s+/g," ");
-    if(displayName.length<2){setMessage("Имя должно быть не короче 2 символов.");return;}
-    if(!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)){setMessage("Username: 3–30 символов, латинские буквы, цифры, точка, дефис или подчёркивание.");return;}
+    if(displayName.length<2){setMessage("Имя должно содержать 2 символа или больше.");return;}
+    if(!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)){setMessage("Адрес страницы: 3–30 символов. Подойдут латинские буквы, цифры, точка, дефис и подчёркивание.");return;}
     if(schoolName&&schoolName.length<2){setMessage("Проверь название школы.");return;}
 
     setSaving(true);setMessage("");
@@ -54,7 +54,7 @@ export default function ProfileEditor({onSaved}:{onSaved?:(profile:ProfileForm)=
       const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
       const path=user.id+"/avatar."+ext;
       const {error:uploadError}=await supabase.storage.from("avatars").upload(path,file,{upsert:true,contentType:file.type,cacheControl:"3600"});
-      if(uploadError){setSaving(false);setMessage("Не удалось загрузить изображение: "+uploadError.message);return;}
+      if(uploadError){setSaving(false);setMessage("Ошибка загрузки изображения: "+uploadError.message);return;}
       avatarUrl=supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl+"?v="+Date.now();
     }
 
@@ -67,7 +67,7 @@ export default function ProfileEditor({onSaved}:{onSaved?:(profile:ProfileForm)=
     }).eq("id",user.id);
     setSaving(false);
     if(error){
-      setMessage(error.code==="23505"?"Этот username уже занят. Попробуй другой.":"Не удалось сохранить профиль: "+error.message);
+      setMessage(error.code==="23505"?"Этот адрес страницы уже занят. Попробуй другой.":"Ошибка сохранения профиля: "+error.message);
       return;
     }
     const next={displayName,username,schoolName,avatarUrl,showSchoolPublicly:Boolean(schoolName&&form.showSchoolPublicly)};
@@ -84,12 +84,12 @@ export default function ProfileEditor({onSaved}:{onSaved?:(profile:ProfileForm)=
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp"/>
       <label className="field-label">Имя</label>
       <input required maxLength={120} value={form.displayName} onChange={event=>setForm({...form,displayName:event.target.value})}/>
-      <label className="field-label">Username</label>
+      <label className="field-label">Короткий адрес твоей страницы</label>
       <input required maxLength={30} value={form.username} onChange={event=>setForm({...form,username:event.target.value})} placeholder="editor-name"/>
       <label className="field-label">Школа, колледж или вуз</label>
       <input maxLength={160} value={form.schoolName} onChange={event=>setForm({...form,schoolName:event.target.value})} placeholder="Необязательно"/>
       <label className="consent-row"><input type="checkbox" checked={form.showSchoolPublicly} disabled={!form.schoolName.trim()} onChange={event=>setForm({...form,showSchoolPublicly:event.target.checked})}/><span>Показывать название учебного заведения в профиле и учитывать его в рейтинге школ.</span></label>
-      <small className="field-hint">По умолчанию школа скрыта. Не указывай класс, адрес, смену или телефон.</small>
+      <small className="field-hint">По умолчанию школа скрыта. Класс, адрес, смену и телефон оставь за пределами профиля.</small>
       <button className="btn btn-dark" disabled={saving}>{saving?"Сохраняю…":"Сохранить профиль"}</button>
     </form>
     {message?<div className="auth-msg">{message}</div>:null}

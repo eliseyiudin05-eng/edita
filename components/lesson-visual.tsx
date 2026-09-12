@@ -14,25 +14,25 @@ type InterfaceShot={
 };
 
 const interfaceShots={
-  capcutHome:{src:"/images/academy/capcut-mobile-home.webp",width:333,height:592,alt:"Экран мобильного приложения CapCut с панелью инструментов и таймлайном",sourceLabel:"официальная карточка CapCut в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas",mobile:true},
+  capcutHome:{src:"/images/academy/capcut-mobile-home.webp",width:333,height:592,alt:"Экран мобильного приложения CapCut с панелью инструментов и лентой монтажа",sourceLabel:"официальная карточка CapCut в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas",mobile:true},
   capcutCaptions:{src:"/images/academy/capcut-mobile-captions.webp",width:333,height:592,alt:"Экран CapCut с инструментами автоматических субтитров",sourceLabel:"официальная карточка CapCut в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas",mobile:true},
   capcutText:{src:"/images/academy/capcut-mobile-text.webp",width:333,height:592,alt:"Экран CapCut с шаблонами текста",sourceLabel:"официальная карточка CapCut в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas",mobile:true},
   capcutEffects:{src:"/images/academy/capcut-mobile-effects.webp",width:333,height:592,alt:"Экран CapCut с панелью видеоэффектов",sourceLabel:"официальная карточка CapCut в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas",mobile:true},
-  capcutDesktop:{src:"/images/academy/capcut-desktop.webp",width:1052,height:592,alt:"Интерфейс CapCut на компьютере с медиатекой, окном просмотра и таймлайном",sourceLabel:"официальная карточка CapCut",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas"},
-  vn:{src:"/images/academy/vn-mobile.webp",width:333,height:592,alt:"Экран мобильного редактора VN с клипами на таймлайне",sourceLabel:"официальная карточка VN в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.frontrow.vlog",mobile:true},
-  inshot:{src:"/images/academy/inshot-mobile.webp",width:272,height:592,alt:"Экран мобильного редактора InShot с окном просмотра и нижним таймлайном",sourceLabel:"официальная карточка InShot в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.camerasideas.instashot",mobile:true},
-  premiere:{src:"/images/academy/premiere-pro.webp",width:1000,height:563,alt:"Рабочее пространство Adobe Premiere Pro с панелью Project, окнами просмотра и многодорожечным таймлайном",sourceLabel:"снимок интерфейса Premiere Pro",sourceUrl:"https://www.capcut.com/pt-br/resource/adobe-premiere-pro-tutorial"},
-  davinci:{src:"/images/academy/davinci-resolve.webp",width:1600,height:886,alt:"Страница Edit в DaVinci Resolve с Media Pool, окнами просмотра, Inspector и таймлайном",sourceLabel:"пресс-материалы Blackmagic Design",sourceUrl:"https://www.businesswire.com/news/home/20210819005831/en/Blackmagic-Design-Announces-DaVinci-Resolve-17.3"},
-  finalCut:{src:"/images/academy/final-cut-pro.webp",width:1304,height:1022,alt:"Интерфейс Final Cut Pro с Browser, Viewer и Magnetic Timeline",sourceLabel:"руководство Apple Support",sourceUrl:"https://support.apple.com/guide/final-cut-pro/final-cut-pro-interface-ver92bd100a/mac"},
+  capcutDesktop:{src:"/images/academy/capcut-desktop.webp",width:1052,height:592,alt:"Экран CapCut на компьютере со списком файлов, просмотром и лентой монтажа",sourceLabel:"официальная карточка CapCut",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas"},
+  vn:{src:"/images/academy/vn-mobile.webp",width:333,height:592,alt:"Экран мобильного редактора VN с клипами на ленте монтажа",sourceLabel:"официальная карточка VN в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.frontrow.vlog",mobile:true},
+  inshot:{src:"/images/academy/inshot-mobile.webp",width:272,height:592,alt:"Экран мобильного редактора InShot с просмотром и нижней лентой монтажа",sourceLabel:"официальная карточка InShot в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.camerasideas.instashot",mobile:true},
+  premiere:{src:"/images/academy/premiere-pro.webp",width:1000,height:563,alt:"Рабочий экран Adobe Premiere Pro с файлами, просмотром и несколькими дорожками монтажа",sourceLabel:"снимок экрана Premiere Pro",sourceUrl:"https://www.capcut.com/pt-br/resource/adobe-premiere-pro-tutorial"},
+  davinci:{src:"/images/academy/davinci-resolve.webp",width:1600,height:886,alt:"Экран монтажа DaVinci Resolve со списком файлов, просмотром, настройками и лентой монтажа",sourceLabel:"пресс-материалы Blackmagic Design",sourceUrl:"https://www.businesswire.com/news/home/20210819005831/en/Blackmagic-Design-Announces-DaVinci-Resolve-17.3"},
+  finalCut:{src:"/images/academy/final-cut-pro.webp",width:1304,height:1022,alt:"Экран Final Cut Pro со списком файлов, просмотром и лентой монтажа",sourceLabel:"руководство Apple Support",sourceUrl:"https://support.apple.com/guide/final-cut-pro/final-cut-pro-interface-ver92bd100a/mac"},
   canva:{src:"/images/academy/canva-video.webp",width:1492,height:986,alt:"Видеоредактор Canva с библиотекой материалов, окном просмотра и сценами",sourceLabel:"официальная страница Canva Video",sourceUrl:"https://www.canva.com/video-editor/"},
-  afterEffects:{src:"/images/academy/after-effects.webp",width:1600,height:947,alt:"Рабочее пространство Adobe After Effects с панелями Project, Composition, Layers и Timeline",sourceLabel:"снимок интерфейса After Effects",sourceUrl:"https://dev.to/kocreative/after-effects-the-basics-915"}
+  afterEffects:{src:"/images/academy/after-effects.webp",width:1600,height:947,alt:"Окно Adobe After Effects с файлами, сценой, слоями и лентой времени",sourceLabel:"снимок экрана After Effects",sourceUrl:"https://dev.to/kocreative/after-effects-the-basics-915"}
 } satisfies Record<string,InterfaceShot>;
 
 const theoryStages:Record<string,string[]>={
   "start-without-fear":["Понять основу","Собрать 3 работы","Найти первый заказ","Цель: 10 000 ₽"],
   "what-is-editing":["Сырые кусочки","Убираем лишнее","Ставим по порядку","Получаем историю"],
   "first-10k-path":["Основа","3 учебные работы","Первый заказ","Цель: 10 000 ₽"],
-  "editor-words":["Медиа","Окно просмотра","Таймлайн","Инструменты","Экспорт"],
+  "editor-words":["Файлы","Окно просмотра","Лента монтажа","Инструменты","Сохранение"],
   "first-reel-plan":["Выбрать устройство","Выбрать редактор","Открыть официальный сайт","Установить безопасно"]
 };
 
@@ -69,13 +69,13 @@ function labels(software:string){
   if(value.includes("capcut desktop"))return {media:"Media",preview:"Player",tools:"Details",timeline:"Timeline",export:"Export"};
   if(value.includes("vn"))return {media:"New Project",preview:"Просмотр",tools:"Split · Text · FX",timeline:"Лента клипов",export:"Export"};
   if(value.includes("inshot"))return {media:"Видео → Новый",preview:"Холст 9:16",tools:"Обрезка · Текст",timeline:"Лента клипов",export:"Сохранить"};
-  return {media:"Новый проект",preview:"Окно просмотра",tools:"Изменить · Текст",timeline:"Таймлайн",export:"Экспорт"};
+  return {media:"Новый проект",preview:"Окно просмотра",tools:"Изменить · Текст",timeline:"Лента монтажа",export:"Сохранить видео"};
 }
 
 function focusLabel(focus:Focus,ui:ReturnType<typeof labels>){
   if(focus==="home")return "Стартовый экран и безопасная установка";
   if(focus==="text")return "Текст и подписи в панели инструментов";
-  if(focus==="audio")return "Аудиодорожка под видео на таймлайне";
+  if(focus==="audio")return "Звуковая дорожка под видео на ленте монтажа";
   return ui[focus as keyof typeof ui]||"Главный инструмент урока";
 }
 
@@ -120,12 +120,12 @@ export default function LessonVisual({lesson}:{lesson:Lesson}){
       <Image src={shot.src} width={shot.width} height={shot.height} sizes={shot.mobile?"(max-width: 720px) 78vw, 330px":"(max-width: 900px) 92vw, 760px"} alt={shot.alt}/>
       <span className="lesson-interface-focus"><small>СЕЙЧАС ИЩЕМ</small><b>{focusLabel(focus,ui)}</b></span>
     </div>
-    <figcaption><b>Не учи весь экран:</b> найди только отмеченную зону. В новой версии кнопка может немного сдвинуться. <a href={shot.sourceUrl} target="_blank" rel="noreferrer">Источник: {shot.sourceLabel} ↗</a></figcaption>
+    <figcaption><b>Смотри на отмеченную зону:</b> весь остальной экран можно изучить позже. В новой версии кнопка может немного сдвинуться. <a href={shot.sourceUrl} target="_blank" rel="noreferrer">Источник: {shot.sourceLabel} ↗</a></figcaption>
   </figure>;
 
   if(kind==="audio")return <figure className="lesson-visual lesson-audio-visual" role="img" aria-label={"Схема звука: "+lesson.title}>
     <div className="lesson-visual-head"><span>{lesson.software}</span><b>{lesson.title}</b></div>
-    <div className="audio-mixer-picture"><div className="audio-track voice"><b>Голос</b><span/><span/><span/><span/><span/></div><div className="audio-track music"><b>Музыка</b><span/><span/><span/><span/><span/></div><div className="audio-track sfx"><b>SFX</b><span/><span/><span/></div><i className="audio-safe-line"/></div>
+    <div className="audio-mixer-picture"><div className="audio-track voice"><b>Голос</b><span/><span/><span/><span/><span/></div><div className="audio-track music"><b>Музыка</b><span/><span/><span/><span/><span/></div><div className="audio-track sfx"><b>Эффекты</b><span/><span/><span/></div><i className="audio-safe-line"/></div>
     <figcaption><b>Смотри сюда:</b> {focusLabel(focus,ui)}. Голос должен оставаться понятнее музыки.</figcaption>
   </figure>;
 
@@ -136,13 +136,13 @@ export default function LessonVisual({lesson}:{lesson:Lesson}){
   </figure>;
 
   if(kind==="social")return <figure className="lesson-visual lesson-social-visual" role="img" aria-label={"Схема вертикального ролика: "+lesson.title}>
-    <div className="lesson-visual-head"><span>REELS · SHORTS · ВЕРТИКАЛЬНОЕ ВИДЕО</span><b>{lesson.title}</b></div>
+    <div className="lesson-visual-head"><span>КОРОТКОЕ ВЕРТИКАЛЬНОЕ ВИДЕО</span><b>{lesson.title}</b></div>
     <div className="social-phone-picture"><div className="social-safe-zone"><span>безопасная зона</span><strong>ПОНЯТНЫЙ<br/>ТЕКСТ</strong><small>лицо или главный объект</small></div><div className="social-controls">♡<br/>◯<br/>↗</div><div className="social-timeline"><i/><b>0:00</b><b>0:03</b><b>0:10</b></div></div>
     <figcaption><b>Что замечаем:</b> {lesson.summary}</figcaption>
   </figure>;
 
   const isMobile=kind==="mobile";
-  return <figure className={"lesson-visual lesson-ui-visual "+(isMobile?"mobile-ui":"desktop-ui")+" focus-"+focus} role="img" aria-label={"Упрощённая карта интерфейса "+lesson.software}>
+  return <figure className={"lesson-visual lesson-ui-visual "+(isMobile?"mobile-ui":"desktop-ui")+" focus-"+focus} role="img" aria-label={"Простая карта экрана "+lesson.software}>
     <div className="lesson-visual-head"><span>{lesson.software}</span><b>{lesson.title}</b></div>
     <div className="lesson-ui-window">
       <div className="lesson-ui-top"><i/><i/><i/><span>{focus==="home"?"Официальная установка":"Проект EDITA"}</span><b className="ui-export">{ui.export}</b></div>
@@ -153,6 +153,6 @@ export default function LessonVisual({lesson}:{lesson:Lesson}){
       </div>
       <div className="ui-timeline"><em>4</em><b>{ui.timeline}</b><div/><div/><i/></div>
     </div>
-    <figcaption><b>Сейчас ищем:</b> {focusLabel(focus,ui)}. Цифры показывают четыре главные зоны; остальные кнопки пока можно не трогать.</figcaption>
+    <figcaption><b>Сейчас ищем:</b> {focusLabel(focus,ui)}. Цифры показывают четыре главные зоны; остальные кнопки можно изучить позже.</figcaption>
   </figure>;
 }

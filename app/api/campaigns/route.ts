@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
+import {ensurePrivateConversation} from "@/lib/private-chat-server";
 
 function token(req:NextRequest){const v=req.headers.get("authorization");return v?.startsWith("Bearer ")?v.slice(7):null}
 
@@ -110,7 +111,7 @@ export async function POST(req:NextRequest){
       .select("id,status,business_id").eq("id",campaignId).maybeSingle();
     if(!campaign||campaign.status!=="open")return NextResponse.json({error:"Кампания уже закрыта."},{status:404});
     const {data:b}=await a.service.from("businesses").select("verified").eq("id",campaign.business_id).maybeSingle();
-    if(!b?.verified)return NextResponse.json({error:"Компания ещё не подтверждена."},{status:403});
+    if(!b?.verified)return NextResponse.json({error:"Сначала дождитесь подтверждения компании."},{status:403});
 
     const {error}=await a.service.from("business_campaign_applications").upsert({
       campaign_id:campaignId,editor_id:a.user.id,
@@ -128,14 +129,29 @@ export async function POST(req:NextRequest){
     const status=String(body?.status||"");
     if(!["shortlisted","accepted","declined"].includes(status))return NextResponse.json({error:"Недопустимый статус."},{status:400});
 
-    const {data:app}=await a.service.from("business_campaign_applications").select("id,campaign_id").eq("id",id).maybeSingle();
-    if(!app)return NextResponse.json({error:"Отклик не найден."},{status:404});
-    const {data:campaign}=await a.service.from("business_campaigns").select("business_id").eq("id",app.campaign_id).maybeSingle();
-    const {data:business}=campaign?await a.service.from("businesses").select("owner_id").eq("id",campaign.business_id).maybeSingle():{data:null};
+    const {data:app}=await a.service.from("business_campaign_applications").select("id,campaign_id,editor_id").eq("id",id).maybeSingle();
+    if(!app)return NextResponse.json({error:"Отклик отсутствует."},{status:404});
+    const {data:campaign}=await a.service.from("business_campaigns").select("id,title,business_id").eq("id",app.campaign_id).maybeSingle();
+    const {data:business}=campaign?await a.service.from("businesses").select("id,name,owner_id").eq("id",campaign.business_id).maybeSingle():{data:null};
     if(!business||business.owner_id!==a.user.id)return NextResponse.json({error:"Нет доступа."},{status:403});
-    await a.service.from("business_campaign_applications").update({status}).eq("id",id);
-    return NextResponse.json({ok:true});
+    const {error:updateError}=await a.service.from("business_campaign_applications").update({status}).eq("id",id);
+    if(updateError)return NextResponse.json({error:updateError.message},{status:500});
+    let conversationId:null|string=null;
+    if(status==="accepted"&&campaign){
+      const conversation=await ensurePrivateConversation({
+        service:a.service,
+        editorId:app.editor_id,
+        businessId:business.id,
+        businessOwnerId:business.owner_id,
+        sourceKind:"campaign",
+        sourceId:campaign.id,
+        companyName:business.name||"Компания",
+        title:campaign.title||"Совместная работа"
+      });
+      conversationId=conversation.id;
+    }
+    return NextResponse.json({ok:true,conversationId});
   }
 
-  return NextResponse.json({error:"Неизвестное действие."},{status:400});
+  return NextResponse.json({error:"Выберите действие."},{status:400});
 }

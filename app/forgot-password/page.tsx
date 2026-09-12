@@ -24,14 +24,14 @@ export default function ForgotPassword(){
     setLoading(false);
     if(!r.ok){setMessage(authErrorRu(data?.error));return;}
     setCooldown(60);
-    setMessage("Если аккаунт с таким email существует, письмо для смены пароля отправлено через EDITA. Проверь Входящие и Спам.");
+    setMessage("Если аккаунт с такой электронной почтой существует, письмо для смены пароля отправлено через EDITA. Проверь папки «Входящие» и «Спам».");
   }
 
   return <main className="auth-wrap"><section className="auth-card">
     <div className="eyebrow">ВОССТАНОВЛЕНИЕ ДОСТУПА</div><h1>Забыл пароль?</h1>
-    <p>Введи email аккаунта EDITA. Мы пришлём ссылку для создания нового пароля.</p>
+    <p>Введи электронную почту аккаунта EDITA. Мы пришлём ссылку для создания нового пароля.</p>
     <form className="auth-form" onSubmit={submit}>
-      <input required type="email" autoComplete="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)}/>
+      <input required type="email" autoComplete="email" placeholder="Электронная почта" value={email} onChange={e=>setEmail(e.target.value)}/>
       <button className="btn btn-dark" disabled={loading||cooldown>0}>{loading?"Отправляем…":cooldown>0?"Повтор через "+cooldown+" сек":"Отправить ссылку"}</button>
     </form>
     {message&&<div className="auth-msg">{message}</div>}

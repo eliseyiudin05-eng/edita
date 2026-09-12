@@ -32,7 +32,7 @@ export async function POST(req:NextRequest){
   const action=String(body?.action||"");
   const note=String(body?.note||"").trim().slice(0,1000);
   const {data:row}=await service.from("editor_verification_requests").select("id,user_id").eq("id",id).maybeSingle();
-  if(!row)return NextResponse.json({error:"Заявка не найдена."},{status:404});
+  if(!row)return NextResponse.json({error:"Заявка отсутствует."},{status:404});
 
   if(action==="approve"){
     await service.from("editor_verification_requests").update({status:"approved",review_note:note||null,reviewed_at:new Date().toISOString()}).eq("id",id);

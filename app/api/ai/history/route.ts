@@ -14,7 +14,7 @@ export async function GET(req:NextRequest){
 
   try{
     const scope=normalizeAiScope(req.nextUrl.searchParams.get("scope"));
-    const title=String(req.nextUrl.searchParams.get("title")||"AI Помощник").slice(0,120);
+    const title=String(req.nextUrl.searchParams.get("title")||"Помощник EDITA").slice(0,120);
     const lessonSlug=scope.startsWith("lesson:")?scope.slice(7):null;
     const conversation=await getOrCreateConversation(service,user.id,scope,title,lessonSlug);
     const messages=await readConversationMessages(service,user.id,conversation.id);
@@ -43,6 +43,6 @@ export async function DELETE(req:NextRequest){
     return NextResponse.json({ok:true});
   }catch(error){
     console.error("AI history clear error",error);
-    return NextResponse.json({error:"Не удалось очистить историю."},{status:500});
+    return NextResponse.json({error:"Ошибка очистки истории."},{status:500});
   }
 }

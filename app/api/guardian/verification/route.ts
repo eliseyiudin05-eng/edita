@@ -40,7 +40,7 @@ export async function POST(req:NextRequest){
 
   const ageGroup=profile?.onboarding?.ageGroup||"18+";
   if(profile?.role!=="editor"||ageGroup==="18+"){
-    return NextResponse.json({error:"Подтверждение родителя для этого аккаунта не требуется."},{status:400});
+    return NextResponse.json({error:"Этот аккаунт уже доступен по возрасту."},{status:400});
   }
   if(profile?.guardian_verified)return NextResponse.json({ok:true,verified:true});
 
@@ -50,7 +50,7 @@ export async function POST(req:NextRequest){
   const relationship=String(body?.relationship||"").trim().slice(0,80);
 
   if(!guardianName||!guardianEmail.includes("@")||!relationship){
-    return NextResponse.json({error:"Заполни имя родителя, его email и кем он тебе приходится."},{status:400});
+    return NextResponse.json({error:"Заполни имя родителя, его электронную почту и кем он тебе приходится."},{status:400});
   }
 
   const {data,error}=await service.from("guardian_verification_requests").insert({

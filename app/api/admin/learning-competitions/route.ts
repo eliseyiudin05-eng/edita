@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
+import {ensurePrivateConversation} from "@/lib/private-chat-server";
 
 function token(req:NextRequest){const h=req.headers.get("authorization");return h?.startsWith("Bearer ")?h.slice(7):null}
 async function admin(req:NextRequest){
@@ -41,10 +42,10 @@ export async function POST(req:NextRequest){
   if(action==="finalize_views"){
     const competitionId=String(body?.competitionId||"");
     const {data:competition}=await a.service.from("learning_competitions")
-      .select("id,ends_at,selection_metric,prize_split_cents")
+      .select("id,title,ends_at,selection_metric,prize_split_cents")
       .eq("id",competitionId)
       .maybeSingle();
-    if(!competition||competition.selection_metric!=="verified_views")return NextResponse.json({error:"Конкурс по просмотрам не найден."},{status:404});
+    if(!competition||competition.selection_metric!=="verified_views")return NextResponse.json({error:"Конкурс по просмотрам отсутствует."},{status:404});
     if(!competition.ends_at||new Date(competition.ends_at).getTime()>Date.now())return NextResponse.json({error:"Итоги можно зафиксировать только после окончания приёма работ."},{status:409});
     const {data:rows,error:rowsError}=await a.service.from("learning_competition_entries")
       .select("id,user_id,verified_views,views_checked_at,created_at")
@@ -63,6 +64,15 @@ export async function POST(req:NextRequest){
         .update({place:index+1,prize_cents:Number(split[index]||0),status:"winner"})
         .eq("id",ordered[index].id);
       if(updateError)return NextResponse.json({error:updateError.message},{status:500});
+      await ensurePrivateConversation({
+        service:a.service,
+        editorId:ordered[index].user_id,
+        businessOwnerId:a.user.id,
+        sourceKind:"edita_contest",
+        sourceId:competition.id,
+        companyName:"Команда EDITA",
+        title:"Победитель конкурса: "+competition.title
+      });
     }
     return NextResponse.json({ok:true,winners:ordered.slice(0,3).map((row:any,index:number)=>({id:row.id,userId:row.user_id,place:index+1,verifiedViews:row.verified_views,prizeCents:Number(split[index]||0)}))});
   }
@@ -83,10 +93,10 @@ export async function POST(req:NextRequest){
   const {data:entry}=await a.service.from("learning_competition_entries")
     .select("id,user_id,competition_id,rewarded_at")
     .eq("id",id).maybeSingle();
-  if(!entry)return NextResponse.json({error:"Работа не найдена."},{status:404});
+  if(!entry)return NextResponse.json({error:"Работа отсутствует."},{status:404});
 
   const {data:comp}=await a.service.from("learning_competitions")
-    .select("points_reward,competition_kind").eq("id",entry.competition_id).maybeSingle();
+    .select("id,title,points_reward,competition_kind").eq("id",entry.competition_id).maybeSingle();
 
   if(status==="winner"&&comp?.competition_kind==="prize")return NextResponse.json({error:"В денежном конкурсе победители назначаются только автоматическим топ-3 по просмотрам."},{status:409});
 
@@ -102,5 +112,16 @@ export async function POST(req:NextRequest){
 
   const {error}=await a.service.from("learning_competition_entries").update(update).eq("id",id);
   if(error)return NextResponse.json({error:error.message},{status:500});
+  if(status==="winner"&&comp){
+    await ensurePrivateConversation({
+      service:a.service,
+      editorId:entry.user_id,
+      businessOwnerId:a.user.id,
+      sourceKind:"edita_contest",
+      sourceId:comp.id,
+      companyName:"Команда EDITA",
+      title:"Победитель конкурса: "+comp.title
+    });
+  }
   return NextResponse.json({ok:true,status,score:Math.round(score)});
 }

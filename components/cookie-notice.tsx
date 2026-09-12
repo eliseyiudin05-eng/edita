@@ -16,7 +16,7 @@ export default function CookieNotice(){
   return <div className="cookie-notice" role="dialog" aria-label="Информация о cookie">
     <div>
       <b>Файлы cookie</b>
-      <span>Сейчас EDITA использует только технические cookie: для входа, безопасности, оплаты и доступа к закрытому предзапуску. Рекламные cookie не включены.</span>
+      <span>EDITA использует только нужные для работы файлы cookie: для входа и безопасности. Рекламные cookie отсутствуют.</span>
     </div>
     <div className="cookie-actions"><Link href="/cookies">Подробнее</Link><button className="btn btn-dark" onClick={close}>Понятно</button></div>
   </div>

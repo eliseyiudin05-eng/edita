@@ -10,7 +10,7 @@ type FriendRel={id:string;status:string;direction:"incoming"|"outgoing";other:Ra
 type GroupMember={user_id:string;member_role:string;profile:RankRow|null};
 type Group={id:string;name:string;owner_id:string;age_scope:string;join_code:string;members:GroupMember[]};
 type Competition={id:string;title:string;description:string;task:string;audience:string;points_reward:number;ends_at?:string|null;competition_kind?:string;prize_pool_cents?:number;prize_split_cents?:number[];max_entries?:number;selection_metric?:string;requires_public_post?:boolean;social_tag?:string;season_number?:number;recurs_every_months?:number;entry_count?:number;age_eligible?:boolean;guardian_required?:boolean;leaders?:Array<{user_id:string;verified_views:number;place?:number|null;profile?:RankRow|null}>;entry?:{id:string;status:string;judge_score?:number|null;work_url:string;verified_views?:number;place?:number|null;prize_cents?:number}|null};
-type Referral={code:string|null;points:number;qualified:number;pending:number;reward?:{cost:number;label:string}};
+type Referral={code:string|null;points:number;qualified:number;pending:number};
 type BusinessRating={id:string;name:string;verification_level:string;reviews:number;rating:number|null;eligible:boolean;existing:boolean};
 
 export default function SocialHub({ageGroup}:{ageGroup?:string}){
@@ -93,7 +93,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     const h=await headers();
     const r=await fetch("/api/social/friends?search="+encodeURIComponent(search),{headers:h});
     const d=await r.json();
-    if(!r.ok){setMessage(d?.error||"Не удалось найти пользователя.");return;}
+    if(!r.ok){setMessage(d?.error||"Ошибка поиска пользователя.");return;}
     setSearchRows(d.results||[]);
   }
 
@@ -101,7 +101,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     const h=await headers();
     const r=await fetch("/api/social/friends",{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({action,...payload})});
     const d=await r.json();
-    setMessage(r.ok?(action==="send"?"Запрос в друзья отправлен.":"Готово."):d?.error||"Не удалось выполнить действие.");
+    setMessage(r.ok?(action==="send"?"Запрос в друзья отправлен.":"Готово."):d?.error||"Ошибка выполнения действия.");
     if(r.ok){setSearchRows([]);setSearch("");await load()}
   }
 
@@ -120,7 +120,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     const h=await headers();
     const r=await fetch("/api/social/competitions",{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({competitionId:id,workUrl:workUrls[id]||""})});
     const d=await r.json();
-    setMessage(r.ok?"Работа отправлена. После проверки появится результат.":d?.error||"Не удалось отправить.");
+    setMessage(r.ok?"Работа отправлена. После проверки появится результат.":d?.error||"Ошибка отправки работы.");
     if(r.ok)await load();
   }
 
@@ -129,19 +129,6 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     const link=window.location.origin+"/signup/editor?ref="+referral.code;
     try{await navigator.clipboard.writeText(link);setMessage("Реферальная ссылка скопирована.");}
     catch{setMessage("Твоя ссылка: "+link)}
-  }
-
-  async function redeemReferral(){
-    if(!referral||referral.points<500)return;
-    const h=await headers();
-    const r=await fetch("/api/social/referrals",{
-      method:"POST",
-      headers:{...h,"Content-Type":"application/json"},
-      body:JSON.stringify({action:"redeem"})
-    });
-    const d=await r.json();
-    setMessage(r.ok?"Готово: 30 дней AI PRO добавлены в аккаунт.":d?.error||"Не удалось обменять баллы.");
-    if(r.ok)await load();
   }
 
   return <div className="social-hub">
@@ -161,7 +148,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
       <section className="card">
         <div className="eyebrow">ОБЩИЙ РЕЙТИНГ</div>
         <h3>Монтажёры EDITA</h3>
-        <p className="muted">Очки складываются из XP, AI Score и наград за полезную активность. Email, возраст и доход здесь не показываются.</p>
+        <p className="muted">Очки складываются из пройденных уроков, оценки роликов и полезной активности. Электронная почта, возраст и доход всегда скрыты.</p>
         <div className="mini-ranking">
           {ranking.slice(0,20).map((row,i)=><div className="mini-rank-row profile-rank-row" key={row.id}><b>#{i+1}</b><ProfileAvatar src={row.avatar_url} name={row.display_name} size="sm"/><span><strong>{row.display_name||"Монтажёр"}</strong><small>@{row.username||"editor"}{row.school_name?" · "+row.school_name:""}</small></span><em>{row.rating_points||0}</em></div>)}
           {ranking.length===0&&<p className="muted">Рейтинг заполнится после первых учеников.</p>}
@@ -179,7 +166,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     {view==="schools"&&<section className="card school-ranking-card">
       <div className="eyebrow">КОМАНДНЫЙ РЕЙТИНГ</div>
       <h3>Школы, колледжи и вузы</h3>
-      <p className="muted">Баллы складываются только у тех, кто сам включил публичное название учебного заведения в профиле. Класс, email и другие личные данные не показываются.</p>
+      <p className="muted">Баллы складываются у тех, кто сам включил название учебного заведения в профиле. Класс, электронная почта и другие личные данные всегда скрыты.</p>
       <div className="school-ranking-list">
         {schoolRanking.map((school,index)=><article className="school-rank-row" key={school.name}><b>#{index+1}</b><div className="school-avatar-stack">{school.avatars.map((avatar,i)=><ProfileAvatar key={i} src={avatar.src} name={avatar.name} size="sm"/>)}</div><div><strong>{school.name}</strong><span>{school.members} {school.members===1?"участник":"участников"}</span></div><em>{school.points.toLocaleString("ru-RU")} баллов</em></article>)}
         {schoolRanking.length===0?<div className="auth-msg">Пока нет открытых школьных команд. Добавь учебное заведение в профиле и отдельно разреши показывать его в рейтинге.</div>:null}
@@ -194,17 +181,17 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
         <div className="friend-search-results">
           {searchRows.map(row=><div className="friend-row profile-friend-row" key={row.id}><ProfileAvatar src={row.avatar_url} name={row.display_name} size="sm"/><div><b>{row.display_name||"Монтажёр"} · @{row.username||"editor"}</b><span>{row.rating_points||0} рейтинга{row.school_name?" · "+row.school_name:""}</span></div><button className="btn btn-ghost" onClick={()=>friendAction("send",{username:row.username})}>Добавить</button></div>)}
         </div>
-        <div className="minor-safety-note"><b>Безопасность</b><span>{ageGroup&&ageGroup!=="18+"?"Твой аккаунт до 18 лет может дружить только с другими аккаунтами до 18 лет.":"Дружба доступна только между аккаунтами одной возрастной группы."} Личных сообщений между незнакомыми пользователями сейчас нет.</span></div>
+        <div className="minor-safety-note"><b>Безопасность</b><span>{ageGroup&&ageGroup!=="18+"?"Твой аккаунт до 18 лет может дружить только с другими аккаунтами до 18 лет.":"Дружба доступна только между аккаунтами одной возрастной группы."} Закрытый рабочий чат появляется только после выбора монтажёра компанией.</span></div>
       </section>
 
       <section className="card">
         <div className="eyebrow">ЗАПРОСЫ</div>
         <h3>Новые друзья</h3>
         {incoming.length===0&&outgoing.length===0?<p className="muted">Новых запросов нет.</p>:null}
-        {incoming.map(r=><div className="friend-row profile-friend-row" key={r.id}><ProfileAvatar src={r.other?.avatar_url} name={r.other?.display_name} size="sm"/><div><b>{r.other?.display_name||"Монтажёр"} · @{r.other?.username||"editor"}</b><span>хочет добавить тебя</span></div><div><button className="btn btn-dark" onClick={()=>friendAction("accept",{id:r.id})}>Принять</button><button className="btn btn-ghost" onClick={()=>friendAction("decline",{id:r.id})}>Отклонить</button></div></div>)}
+        {incoming.map(r=><div className="friend-row profile-friend-row" key={r.id}><ProfileAvatar src={r.other?.avatar_url} name={r.other?.display_name} size="sm"/><div><b>{r.other?.display_name||"Монтажёр"} · @{r.other?.username||"editor"}</b><span>хочет добавить тебя</span></div><div><button className="btn btn-dark" onClick={()=>friendAction("accept",{id:r.id})}>Принять</button><button className="btn btn-ghost" onClick={()=>friendAction("decline",{id:r.id})}>Пропустить</button></div></div>)}
         {outgoing.map(r=><div className="friend-row" key={r.id}><div><b>@{r.other?.username||"editor"}</b><span>запрос отправлен</span></div><button className="btn btn-ghost" onClick={()=>friendAction("cancel",{id:r.id})}>Отменить</button></div>)}
         <h3 style={{marginTop:24}}>Мои друзья</h3>
-        {friends.length===0?<p className="muted">Пока никого.</p>:friends.map(r=><div className="friend-row profile-friend-row" key={r.id}><ProfileAvatar src={r.other?.avatar_url} name={r.other?.display_name} size="sm"/><div><b>{r.other?.display_name||"Монтажёр"} · @{r.other?.username||"editor"}</b><span>{r.other?.xp||0} XP · {r.other?.rating_points||0} рейтинга{r.other?.school_name?" · "+r.other.school_name:""}</span></div></div>)}
+        {friends.length===0?<p className="muted">Пока никого.</p>:friends.map(r=><div className="friend-row profile-friend-row" key={r.id}><ProfileAvatar src={r.other?.avatar_url} name={r.other?.display_name} size="sm"/><div><b>{r.other?.display_name||"Монтажёр"} · @{r.other?.username||"editor"}</b><span>{r.other?.xp||0} опыта · {r.other?.rating_points||0} баллов рейтинга{r.other?.school_name?" · "+r.other.school_name:""}</span></div></div>)}
       </section>
     </div>}
 
@@ -212,7 +199,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
       <section className="card">
         <div className="eyebrow">УЧИТЬСЯ ВМЕСТЕ</div>
         <h3>Создать учебную группу</h3>
-        <p className="muted">Подходит друзьям, одноклассникам или маленькой команде. Общий чат посвящён монтажу, а AI помогает с вопросами и проверяет безопасность сообщений.</p>
+        <p className="muted">Подходит друзьям, одноклассникам или маленькой команде. Общий чат посвящён монтажу, а помощник отвечает на вопросы и проверяет безопасность сообщений.</p>
         <div className="business-form">
           <input placeholder="Например: 9Б · монтаж" value={groupName} onChange={e=>setGroupName(e.target.value)}/>
           <button className="btn btn-dark" onClick={()=>groupAction("create")}>Создать группу</button>
@@ -225,7 +212,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
       </section>
 
       <section className="group-list">
-        {groups.length===0?<div className="card"><p className="muted">Ты пока не состоишь ни в одной группе.</p></div>:groups.map(g=><article className="card group-card" key={g.id}>
+        {groups.length===0?<div className="card"><p className="muted">Твои учебные группы появятся здесь.</p></div>:groups.map(g=><article className="card group-card" key={g.id}>
           <div className="verification-head"><div><div className="eyebrow">{g.age_scope==="under14"?"ГРУППА · ДО 14":g.age_scope==="14-17"?"ГРУППА · 14–17":"ГРУППА · 18+"}</div><h3>{g.name}</h3></div><span className="verification-badge">Код {g.join_code}</span></div>
           <div className="mini-ranking">{g.members.map((m,i)=><div className="mini-rank-row profile-rank-row" key={m.user_id}><b>#{i+1}</b><ProfileAvatar src={m.profile?.avatar_url} name={m.profile?.display_name} size="sm"/><span><strong>{m.profile?.display_name||"Монтажёр"}</strong><small>@{m.profile?.username||"editor"}{m.member_role==="owner"?" · создатель":""}</small></span><em>{m.profile?.rating_points||0}</em></div>)}</div>
           <button className="btn btn-dark" onClick={()=>setActiveGroupId(activeGroupId===g.id?null:g.id)}>{activeGroupId===g.id?"Закрыть чат":"Открыть чат"}</button>
@@ -235,19 +222,19 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     </div>}
 
     {view==="competitions"&&<div className="competition-grid">
-      <div className="card featured-competition official-challenge-link"><div><div className="eyebrow">ОФИЦИАЛЬНЫЕ КОНКУРСЫ</div><h3>Челленджи от EDITA теперь в отдельном разделе</h3><p className="muted">Там находятся призовой фонд 10 000 ₽, правила, отправка Reel и рейтинг подтверждённых просмотров.</p></div><a className="btn btn-dark" href="/platform#edita-challenges">Открыть челленджи EDITA</a></div>
+      <div className="card featured-competition official-challenge-link"><div><div className="eyebrow">ОФИЦИАЛЬНЫЕ КОНКУРСЫ</div><h3>Конкурсы EDITA находятся в отдельном разделе</h3><p className="muted">Там есть призовой фонд 10 000 ₽, правила, отправка ролика и рейтинг подтверждённых просмотров.</p></div><a className="btn btn-dark" href="/platform#edita-challenges">Открыть конкурсы EDITA</a></div>
       {learningCompetitions.map(c=><article className="card competition-card" key={c.id}>
-        <div className="verification-head"><div><div className="eyebrow">{c.competition_kind==="prize"?"ПРИЗОВОЙ КОНКУРС EDITA":c.audience==="youth"?"ДО 18 ЛЕТ":"УЧЕБНОЕ СОРЕВНОВАНИЕ"}</div><h3>{c.title}</h3></div><span className="verification-badge ok">{c.competition_kind==="prize"?money(c.prize_pool_cents||0):"+"+c.points_reward+" XP"}</span></div>
+        <div className="verification-head"><div><div className="eyebrow">{c.competition_kind==="prize"?"ПРИЗОВОЙ КОНКУРС EDITA":c.audience==="youth"?"ДО 18 ЛЕТ":"УЧЕБНОЕ СОРЕВНОВАНИЕ"}</div><h3>{c.title}</h3></div><span className="verification-badge ok">{c.competition_kind==="prize"?money(c.prize_pool_cents||0):"+"+c.points_reward+" опыта"}</span></div>
         <p>{c.description}</p>
         <div className="lesson-example"><b>Задание</b><span>{c.task}</span></div>
         {c.competition_kind==="prize"?<div className="competition-terms-grid"><span><b>1 место</b>{money(c.prize_split_cents?.[0]||0)}</span><span><b>2 место</b>{money(c.prize_split_cents?.[1]||0)}</span><span><b>3 место</b>{money(c.prize_split_cents?.[2]||0)}</span><span><b>Лимит</b>{c.entry_count||0} / {c.max_entries||100}</span></div>:null}
-        {c.competition_kind==="prize"?<div className="competition-rules-short"><b>Главные условия</b><span>Опубликовать ролик в открытой социальной сети</span><span>Отметить {c.social_tag||"EDITA"}</span><span>Три победителя определяются по подтверждённому числу просмотров</span><span>Накрутка и чужой контент запрещены</span><a href="/challenge-rules">Полные правила конкурса →</a></div>:null}
+        {c.competition_kind==="prize"?<div className="competition-rules-short"><b>Главные условия</b><span>Опубликовать ролик в открытой социальной сети</span><span>Отметить {c.social_tag||"EDITA"}</span><span>Три победителя определяются по подтверждённому числу просмотров</span><span>Участвуют свои материалы и честные просмотры</span><a href="/challenge-rules">Полные правила конкурса →</a></div>:null}
         {c.ends_at&&<p className="muted">Приём работ до {new Date(c.ends_at).toLocaleDateString("ru-RU")} · новый сезон каждые {c.recurs_every_months||2} месяца</p>}
         {c.guardian_required?<div className="minor-safety-note"><b>Нужно подтверждение взрослого</b><span>До 18 лет участие в денежном конкурсе доступно после подтверждения законного представителя в профиле.</span></div>:null}
         {c.age_eligible===false?<div className="minor-safety-note"><b>Конкурс доступен с 14 лет</b><span>Уроки и обычные учебные соревнования остаются доступны.</span></div>:null}
         {c.entry?<div className="auth-msg">Работа отправлена · статус: <b>{c.entry.place?c.entry.place+" место":c.entry.status}</b>{c.selection_metric==="verified_views"?" · "+Number(c.entry.verified_views||0).toLocaleString("ru-RU")+" подтверждённых просмотров":c.entry.judge_score!=null?" · оценка "+c.entry.judge_score+"/100":""}</div>:<div className="business-form">
-          <input type="url" placeholder="Ссылка на опубликованный Reel" value={workUrls[c.id]||""} onChange={e=>setWorkUrls({...workUrls,[c.id]:e.target.value})}/>
-          <button className="btn btn-dark" disabled={c.age_eligible===false||c.guardian_required||(c.entry_count||0)>=(c.max_entries||100)} onClick={()=>submitCompetition(c.id)}>Отправить опубликованный Reel</button>
+          <input type="url" placeholder="Ссылка на опубликованный ролик" value={workUrls[c.id]||""} onChange={e=>setWorkUrls({...workUrls,[c.id]:e.target.value})}/>
+          <button className="btn btn-dark" disabled={c.age_eligible===false||c.guardian_required||(c.entry_count||0)>=(c.max_entries||100)} onClick={()=>submitCompetition(c.id)}>Отправить опубликованный ролик</button>
         </div>}
         {c.competition_kind==="prize"&&c.leaders?.length?<div className="competition-live-leaders"><b>Текущий рейтинг просмотров</b>{c.leaders.slice(0,5).map((leader,index)=><div key={leader.user_id}><span>{leader.place||index+1}</span><ProfileAvatar src={leader.profile?.avatar_url} name={leader.profile?.display_name} size="sm"/><p><strong>{leader.profile?.display_name||"Монтажёр"}</strong><small>@{leader.profile?.username||"editor"}</small></p><em>{Number(leader.verified_views||0).toLocaleString("ru-RU")}</em></div>)}</div>:null}
       </article>)}
@@ -265,7 +252,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
         {b.eligible&&!b.existing&&(()=>{
           const form=ratingForm[b.id]||{briefClarity:5,communication:5,fairness:5,comment:""};
           return <div className="business-form">
-            <label className="field-label">Понятность ТЗ · {form.briefClarity}/5</label>
+            <label className="field-label">Понятность задания · {form.briefClarity}/5</label>
             <input type="range" min="1" max="5" value={form.briefClarity} onChange={e=>setRatingForm({...ratingForm,[b.id]:{...form,briefClarity:Number(e.target.value)}})}/>
             <label className="field-label">Общение · {form.communication}/5</label>
             <input type="range" min="1" max="5" value={form.communication} onChange={e=>setRatingForm({...ratingForm,[b.id]:{...form,communication:Number(e.target.value)}})}/>
@@ -276,7 +263,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
               const h=await headers();
               const r=await fetch("/api/community/business-ratings",{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({businessId:b.id,...form})});
               const d=await r.json();
-              setMessage(r.ok?"Спасибо. Оценка сохранена.":d?.error||"Не удалось сохранить оценку.");
+              setMessage(r.ok?"Спасибо. Оценка сохранена.":d?.error||"Ошибка сохранения оценки.");
               if(r.ok)await load();
             }}>Оценить компанию</button>
           </div>
@@ -288,16 +275,16 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     {view==="referrals"&&<section className="card referral-card">
       <div className="eyebrow">ПРИГЛАСИ ДРУГА</div>
       <h3>Учиться вместе выгоднее</h3>
-      <p>Отправь другу свою ссылку. Награда появляется не за пустую регистрацию, а когда друг действительно начинает учиться и завершает 3 урока.</p>
+      <p>Отправь другу свою ссылку. Награда появляется после первых трёх завершённых уроков друга.</p>
       {referral?.code?<><div className="referral-code">{referral.code}</div><button className="btn btn-lime" onClick={copyReferral}>Скопировать ссылку</button></>:<p className="muted">Код появится после входа в аккаунт.</p>}
       <div className="referral-stats">
         <div><strong>{referral?.qualified||0}</strong><span>активных друзей</span></div>
         <div><strong>{referral?.pending||0}</strong><span>ещё начинают</span></div>
-        <div><strong>{referral?.points||0}</strong><span>EDITA Points</span></div>
+        <div><strong>{referral?.points||0}</strong><span>баллов EDITA</span></div>
       </div>
-      <div className="lesson-example"><b>За каждого активного друга</b><span>Тебе: +150 XP и +100 EDITA Points. Другу: +50 XP после подтверждённого email и первых трёх завершённых уроков.</span></div>
-      <button className="btn btn-dark" disabled={(referral?.points||0)<500} onClick={redeemReferral}>500 EDITA Points → 30 дней AI PRO</button>
-      <p className="muted">Это внутренняя награда платформы, не денежная выплата. Поддельные или повторные аккаунты награду не дают.</p>
+      <div className="lesson-example"><b>За каждого активного друга</b><span>Тебе: +150 опыта и +100 баллов EDITA. Другу: +50 опыта после подтверждения электронной почты и первых трёх завершённых уроков.</span></div>
+      <div className="auth-msg"><b>Баллы показывают твой вклад в сообщество.</b> Все функции EDITA уже открыты бесплатно, поэтому баллы нужны только для достижений и рейтинга.</div>
+      <p className="muted">Это внутренняя награда платформы. Денежная выплата отсутствует, а поддельные и повторные аккаунты остаются без баллов.</p>
     </section>}
   </div>
 }

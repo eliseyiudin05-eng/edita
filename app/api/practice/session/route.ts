@@ -19,7 +19,7 @@ export async function GET(req:NextRequest){
     .select("scenario,messages,result,updated_at")
     .eq("user_id",a.user.id)
     .maybeSingle();
-  if(error)return NextResponse.json({error:"Не удалось загрузить тренировку."},{status:503});
+  if(error)return NextResponse.json({error:"Ошибка загрузки тренировки."},{status:503});
   return NextResponse.json({session:data||null});
 }
 
@@ -42,6 +42,6 @@ export async function POST(req:NextRequest){
   const {error}=await a.service.from("practice_sessions").upsert({
     user_id:a.user.id,scenario,messages,result,updated_at:new Date().toISOString()
   },{onConflict:"user_id"});
-  if(error)return NextResponse.json({error:"Не удалось сохранить тренировку."},{status:503});
+  if(error)return NextResponse.json({error:"Ошибка сохранения тренировки."},{status:503});
   return NextResponse.json({ok:true});
 }

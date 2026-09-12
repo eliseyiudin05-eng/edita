@@ -27,7 +27,7 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
         <h1>{lesson.title}</h1>
         <p>{lesson.summary}</p>
         <div className="lesson-meta">
-          <span>{lesson.level}</span><span>{lesson.minutes} минут</span><span>{lesson.software}</span><span>+{lesson.xp} XP</span>
+          <span>{lesson.level}</span><span>{lesson.minutes} минут</span><span>{lesson.software}</span><span>+{lesson.xp} опыта</span>
         </div>
       </div>
     </header>
@@ -46,7 +46,7 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
           <div className="eyebrow">ВИЗУАЛЬНАЯ КАРТА</div>
           <h2>{lesson.theoryOnly?"Посмотри и запомни главное":"Что ты увидишь на экране"}</h2>
           <LessonVisual lesson={lesson}/>
-          {lesson.source?<div className="official-source-box"><div><b>{lesson.source.label}</b><span>Интерфейс может немного меняться после обновлений. Сверяй установку и названия с сайтом разработчика.</span></div><a className="btn btn-ghost" href={lesson.source.url} target="_blank" rel="noreferrer">Открыть официальный сайт ↗</a></div>:null}
+          {lesson.source?<div className="official-source-box"><div><b>{lesson.source.label}</b><span>Кнопки могут немного менять место после обновлений. Сверяй установку и названия с сайтом разработчика.</span></div><a className="btn btn-ghost" href={lesson.source.url} target="_blank" rel="noreferrer">Открыть официальный сайт ↗</a></div>:null}
         </section>
 
         {lesson.clicks?.length?<section className="lesson-panel">
@@ -73,10 +73,10 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
 
         <section className="lesson-two-columns">
           <div className="lesson-panel checklist-panel"><h2>{lesson.theoryOnly?"После урока ты понимаешь":"Как понять, что готово"}</h2>{lesson.checklist.map(item=><p key={item}><span>✓</span>{item}</p>)}</div>
-          <div className="lesson-panel mistakes-panel"><h2>{lesson.theoryOnly?"Не перепутай":"Частые ошибки"}</h2>{lesson.mistakes.map(item=><p key={item}><span>!</span>{item}</p>)}</div>
+          <div className="lesson-panel mistakes-panel"><h2>{lesson.theoryOnly?"Важно различать":"Частые ошибки"}</h2>{lesson.mistakes.map(item=><p key={item}><span>!</span>{item}</p>)}</div>
         </section>
 
-        <section className="lesson-panel lifehack-panel"><div className="lifehack-icon">⚡</div><div><div className="eyebrow">ЛАЙФХАК</div><h2>Сделай быстрее</h2><p>{lesson.lifehack}</p></div></section>
+        <section className="lesson-panel lifehack-panel"><div className="lifehack-icon">⚡</div><div><div className="eyebrow">ПОЛЕЗНЫЙ СОВЕТ</div><h2>Сделай быстрее</h2><p>{lesson.lifehack}</p></div></section>
 
         <section className={"lesson-panel assignment-card "+(lesson.theoryOnly?"theory-completion-card":"")}>
           <div className="eyebrow">{lesson.theoryOnly?"БЕЗ ПРАКТИКИ":"МАЛЕНЬКАЯ ПРАКТИКА"}</div>
@@ -95,7 +95,7 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
         <AiCoach
           compact
           scopeKey={"lesson:"+lesson.slug}
-          title="AI рядом с уроком"
+          title="Помощник рядом с уроком"
           welcome={"Я уже знаю, что ты проходишь урок «"+lesson.title+"». Скажи, на каком шаге застрял — объясню без выхода из урока."}
           prompts={lesson.prompts}
           context={{lessonSlug:lesson.slug,lessonTitle:lesson.title,lessonSummary:lesson.summary,lessonSteps:lesson.steps,editor:lesson.software,level:lesson.level}}

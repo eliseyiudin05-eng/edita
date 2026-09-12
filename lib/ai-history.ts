@@ -25,7 +25,7 @@ export async function getOrCreateConversation(
   const {data,error}=await service.from("ai_conversations").insert({
     user_id:userId,
     scope_key:scope,
-    title:String(title||"AI Помощник").slice(0,120),
+    title:String(title||"Помощник EDITA").slice(0,120),
     lesson_slug:lessonSlug?String(lessonSlug).slice(0,120):null
   }).select("id,scope_key,title,lesson_slug,updated_at").single();
   if(error)throw error;

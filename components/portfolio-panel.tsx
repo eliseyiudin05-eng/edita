@@ -6,9 +6,9 @@ import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 type Item={id:string;title:string;video_url:string;display_url?:string;tags:string[];ai_score:number|null};
 
 const demo:Item[]=[
-  {id:"d1",title:"VOLT / Gym Promo",video_url:"",tags:["ads","reels"],ai_score:91},
-  {id:"d2",title:"Finance Expert Reel",video_url:"",tags:["talking-head"],ai_score:86},
-  {id:"d3",title:"North Coffee",video_url:"",tags:["challenge-winner"],ai_score:90},
+  {id:"d1",title:"VOLT — реклама зала",video_url:"",tags:["реклама","спорт"],ai_score:91},
+  {id:"d2",title:"Разговор с финансовым экспертом",video_url:"",tags:["эксперт","субтитры"],ai_score:86},
+  {id:"d3",title:"North Coffee",video_url:"",tags:["кофе","победитель"],ai_score:90},
 ];
 
 export default function PortfolioPanel(){
@@ -39,7 +39,7 @@ export default function PortfolioPanel(){
   async function add(e:FormEvent){
     e.preventDefault();
     const supabase=getSupabaseBrowserClient();
-    if(!supabase){setMessage("В demo работа не сохраняется. После подключения Auth она попадёт в публичный профиль.");return;}
+    if(!supabase){setMessage("В примере работа хранится только до обновления страницы. В аккаунте она попадёт в публичный профиль.");return;}
     const {data:{user}}=await supabase.auth.getUser();
     if(!user){setMessage("Войди в аккаунт, чтобы добавить работу.");return;}
     const tags=form.tags.split(",").map(v=>v.trim()).filter(Boolean);
@@ -51,24 +51,24 @@ export default function PortfolioPanel(){
 
   return <div className="portfolio-panel">
     <section className="card">
-      <div className="eyebrow">ADD WORK</div><h3>Добавить работу в портфолио</h3>
+      <div className="eyebrow">НОВАЯ РАБОТА</div><h3>Добавить работу в портфолио</h3>
       <form className="business-form" onSubmit={add}>
         <input required placeholder="Название работы" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
         <input required type="url" placeholder="Ссылка на видео (YouTube/Vimeo/Drive/прямая ссылка)" value={form.url} onChange={e=>setForm({...form,url:e.target.value})}/>
-        <input placeholder="Теги через запятую: reels, ads, talking-head" value={form.tags} onChange={e=>setForm({...form,tags:e.target.value})}/>
+        <input placeholder="Темы через запятую: реклама, спорт, эксперт" value={form.tags} onChange={e=>setForm({...form,tags:e.target.value})}/>
         <button className="btn btn-dark">Добавить</button>
       </form>
       {message&&<div className="auth-msg">{message}</div>}
-      {demoMode&&<p className="muted">Сейчас показан demo fallback.</p>}
+      {demoMode&&<p className="muted">Сейчас показан пример. После входа здесь будут ваши работы.</p>}
     </section>
 
     <section className="portfolio-work-grid portfolio-live-grid">
       {items.length?items.map(item=><article className="portfolio-work" key={item.id}>
-        <div className="work-preview">{item.display_url&&isDirectVideo(item.display_url)?<video controls preload="metadata" src={item.display_url}/>:<span>EDITA WORK</span>}</div>
+        <div className="work-preview">{item.display_url&&isDirectVideo(item.display_url)?<video controls preload="metadata" src={item.display_url}/>:<span>РАБОТА EDITA</span>}</div>
         <h2>{item.title}</h2>
-        <div className="work-meta"><span>{item.tags.join(" · ")}</span>{item.ai_score!=null&&<b>AI {item.ai_score}</b>}</div>
+        <div className="work-meta"><span>{item.tags.join(" · ")}</span>{item.ai_score!=null&&<b>Оценка {item.ai_score}</b>}</div>
         {item.display_url&&!isDirectVideo(item.display_url)&&<a className="work-link" href={item.display_url} target="_blank" rel="noreferrer">Открыть работу ↗</a>}
-      </article>):<div className="card"><p>Добавь первую работу или выиграй Challenge — она появится здесь.</p></div>}
+      </article>):<div className="card"><p>Добавь первую работу или выиграй конкурс — она появится здесь.</p></div>}
     </section>
   </div>
 }

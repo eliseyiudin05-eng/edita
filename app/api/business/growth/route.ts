@@ -65,7 +65,7 @@ export async function POST(req:NextRequest){
   const service=getSupabaseServiceClient();
   if(!user||!service)return NextResponse.json({error:"Нужен вход."},{status:401});
   const {data:business}=await service.from("businesses").select("id,verified").eq("owner_id",user.id).maybeSingle();
-  if(!business)return NextResponse.json({error:"Бизнес-профиль не найден."},{status:404});
+  if(!business)return NextResponse.json({error:"Профиль компании отсутствует."},{status:404});
 
   const body=await req.json().catch(()=>({}));
   const action=String(body?.action||"");
@@ -73,7 +73,7 @@ export async function POST(req:NextRequest){
   if(action==="save_editor"){
     const username=String(body?.username||"").trim().replace(/^@/,"").toLowerCase();
     const {data:editor}=await service.from("public_profiles").select("id,username").ilike("username",username).maybeSingle();
-    if(!editor)return NextResponse.json({error:"Монтажёр с таким @username не найден."},{status:404});
+    if(!editor)return NextResponse.json({error:"Монтажёр с таким адресом профиля отсутствует."},{status:404});
     const {error}=await service.from("business_saved_editors").upsert({
       business_id:business.id,editor_id:editor.id,note:String(body?.note||"").trim().slice(0,500)||null
     },{onConflict:"business_id,editor_id"});

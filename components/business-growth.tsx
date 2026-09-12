@@ -38,7 +38,7 @@ export default function BusinessGrowth(){
     const h=await headers();
     const r=await fetch("/api/business/growth",{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({action:"save_editor",username,note})});
     const d=await r.json();
-    setMessage(r.ok?"Монтажёр добавлен в ваш пул талантов.":d?.error||"Ошибка.");
+    setMessage(r.ok?"Монтажёр добавлен в ваш список.":d?.error||"Ошибка.");
     if(r.ok){setUsername("");setNote("");await load()}
   }
 
@@ -59,8 +59,8 @@ export default function BusinessGrowth(){
 
   return <div className="business-stack">
     <section className="card business-growth-card">
-      <div className="eyebrow">EDITA BRAND LEAGUE</div>
-      <div className="verification-head"><div><h3>{season||"Лига компаний"}</h3><p className="muted">Проверенные компании соревнуются не деньгами, а качественной активностью на платформе.</p></div>{mine&&<span className="verification-badge ok">{mine.points} очков</span>}</div>
+      <div className="eyebrow">РЕЙТИНГ КОМПАНИЙ</div>
+      <div className="verification-head"><div><h3>{season||"Лига компаний"}</h3><p className="muted">Место зависит от полезных действий: заданий, ответов участникам и выбранных победителей.</p></div>{mine&&<span className="verification-badge ok">{mine.points} очков</span>}</div>
       <div className="league-rules"><span>+ за проверку компании</span><span>+ за реальные задания</span><span>+ за работы участников</span><span>+ за выбранных победителей</span><span>+ за хорошие оценки монтажёров</span></div>
       <div className="business-league-list">
         {board.length===0?<p className="muted">Лига стартует с первых проверенных компаний.</p>:board.slice(0,8).map((b,i)=><div className="business-league-row" key={b.id}><b>#{i+1}</b><span>{b.name}{b.review_rating!=null?" · "+b.review_rating+" ★":""}</span><strong>{b.points}</strong></div>)}
@@ -70,28 +70,28 @@ export default function BusinessGrowth(){
 
     <section className="card">
       <div className="eyebrow">СВОЯ КОМАНДА МОНТАЖЁРОВ</div>
-      <h3>Пул талантов</h3>
-      <p className="muted">Сохраняйте сильных монтажёров после Challenge и возвращайтесь к ним в следующих рекламных кампаниях.</p>
+      <h3>Сохранённые монтажёры</h3>
+      <p className="muted">Сохраняйте сильных монтажёров после конкурса и возвращайтесь к ним в следующих проектах.</p>
       <form className="business-form" onSubmit={save}>
-        <input required placeholder="@username монтажёра" value={username} onChange={e=>setUsername(e.target.value)}/>
-        <input placeholder="Заметка: сильные Reels, хороший звук…" value={note} onChange={e=>setNote(e.target.value)}/>
-        <button className="btn btn-dark">Добавить в пул</button>
+        <input required placeholder="Адрес страницы монтажёра, например editor-name" value={username} onChange={e=>setUsername(e.target.value)}/>
+        <input placeholder="Заметка: сильные ролики, хороший звук…" value={note} onChange={e=>setNote(e.target.value)}/>
+        <button className="btn btn-dark">Сохранить монтажёра</button>
       </form>
       {message&&<div className="auth-msg">{message}</div>}
       <div className="talent-pool">
-        {talent.length===0?<p className="muted">Пока пусто. Добавьте первого монтажёра по его @username.</p>:talent.map(t=><div className="talent-row" key={t.editor_id}><div><b>@{t.profile?.username||"editor"}</b><span>{t.profile?.rating_points||0} рейтинга · {t.profile?.xp||0} XP</span></div><button className="btn btn-ghost" onClick={()=>remove(t.editor_id)}>Убрать</button></div>)}
+        {talent.length===0?<p className="muted">Пока пусто. Добавьте первого монтажёра по адресу его страницы.</p>:talent.map(t=><div className="talent-row" key={t.editor_id}><div><b>@{t.profile?.username||"editor"}</b><span>{t.profile?.rating_points||0} баллов рейтинга · {t.profile?.xp||0} опыта</span></div><button className="btn btn-ghost" onClick={()=>remove(t.editor_id)}>Убрать</button></div>)}
       </div>
     </section>
 
     <section className="card">
-      <div className="eyebrow">МАРКЕТИНГОВЫЕ КАМПАНИИ</div>
-      <h3>Не только «найти монтажёра»</h3>
-      <p className="muted">EDITA должна закрывать весь цикл контента: тест идеи → конкурс → команда → регулярные ролики.</p>
+      <div className="eyebrow">ПРОЕКТЫ КОМПАНИИ</div>
+      <h3>Соберите команду для разных задач</h3>
+      <p className="muted">EDITA связывает все шаги: проверка идеи → конкурс → команда → регулярные ролики.</p>
       <div className="benefit-grid campaign-template-grid">
-        <div><b>UGC Sprint</b><span>Собрать 5–20 разных подач одного продукта от креаторов.</span><button className="btn btn-ghost" onClick={()=>copyTemplate("UGC Sprint","Нужно создать несколько живых вертикальных роликов о продукте. Важно: разные первые 2 секунды, честная подача, без заученного рекламного текста. Укажите продукт, обязательные тезисы, ограничения, срок и бюджет.")}>Шаблон ТЗ</button></div>
-        <div><b>Hiring Challenge</b><span>Проверить монтажёров на одном реальном задании до найма.</span><button className="btn btn-ghost" onClick={()=>copyTemplate("Hiring Challenge","Тестовое оплачиваемое задание для выбора постоянного монтажёра. Всем участникам одинаковые исходники и одинаковое ТЗ. Укажите формат, длительность, референс, критерии оценки, срок и оплату.")}>Шаблон ТЗ</button></div>
-        <div><b>Launch Campaign</b><span>Серия роликов под запуск продукта или акции.</span><button className="btn btn-ghost" onClick={()=>copyTemplate("Launch Campaign","Кампания запуска продукта. Нужна серия коротких роликов с разными хуками и единым визуальным стилем. Укажите даты запуска, оффер, целевую аудиторию, обязательные кадры и запрещённые формулировки.")}>Шаблон ТЗ</button></div>
-        <div><b>Brand Battle</b><span>Сезонное соревнование компаний в Brand League по качеству работы с креаторами.</span><button className="btn btn-ghost" onClick={()=>copyTemplate("Brand Battle","Брендовая кампания для участия в сезонном рейтинге EDITA. Сделайте понятное ТЗ, быстро дайте обратную связь участникам и выберите победителя — эти действия учитываются в Brand League.")}>Как участвовать</button></div>
+        <div><b>Отзывы о продукте</b><span>Собрать 5–20 разных живых роликов об одном продукте.</span><button className="btn btn-ghost" onClick={()=>copyTemplate("Отзывы о продукте","Создайте несколько живых вертикальных роликов о продукте. Важно: разные первые 2 секунды, честная подача и естественная речь. Укажите продукт, главные мысли, ограничения, срок и бюджет.")}>Взять пример задания</button></div>
+        <div><b>Выбор монтажёра</b><span>Сравнить монтажёров на одном оплачиваемом задании.</span><button className="btn btn-ghost" onClick={()=>copyTemplate("Выбор монтажёра","Оплачиваемое задание для выбора постоянного монтажёра. Всем участникам выдаются одинаковые исходные файлы и условия. Укажите формат, длительность, пример, правила оценки, срок и оплату.")}>Взять пример задания</button></div>
+        <div><b>Запуск продукта</b><span>Серия роликов к запуску продукта или акции.</span><button className="btn btn-ghost" onClick={()=>copyTemplate("Запуск продукта","Нужна серия коротких роликов с разным началом и единым стилем. Укажите даты запуска, предложение для зрителя, аудиторию, обязательные кадры и слова, которые следует обходить.")}>Взять пример задания</button></div>
+        <div><b>Сезон бренда</b><span>Соревнование компаний по качеству работы с монтажёрами.</span><button className="btn btn-ghost" onClick={()=>copyTemplate("Сезон бренда","Создайте понятное задание, быстро дайте ответ участникам и выберите победителя. Эти действия поднимают компанию в рейтинге EDITA.")}>Как участвовать</button></div>
       </div>
     </section>
 
@@ -99,10 +99,10 @@ export default function BusinessGrowth(){
       <div className="eyebrow">ЗАЧЕМ БИЗНЕСУ ОСТАВАТЬСЯ В EDITA</div>
       <h3>Все кампании в одном месте</h3>
       <div className="benefit-grid">
-        <div><b>Фирменные Challenge</b><span>Запускайте серию заданий под один бренд.</span></div>
-        <div><b>Пул талантов</b><span>Не ищите хорошего монтажёра заново каждый месяц.</span></div>
-        <div><b>Brand League</b><span>Рейтинг активности и заметность среди участников платформы.</span></div>
-        <div><b>Работы по одному ТЗ</b><span>Сравнивайте кандидатов в одинаковых условиях.</span></div>
+        <div><b>Конкурсы бренда</b><span>Запускайте серию заданий под один бренд.</span></div>
+        <div><b>Своя команда</b><span>Возвращайтесь к хорошим монтажёрам в каждом новом проекте.</span></div>
+        <div><b>Рейтинг компаний</b><span>Активность делает компанию заметнее для участников.</span></div>
+        <div><b>Одинаковое задание</b><span>Сравнивайте кандидатов в одинаковых условиях.</span></div>
       </div>
     </section>
   </div>

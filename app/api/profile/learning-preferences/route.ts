@@ -13,7 +13,7 @@ export async function POST(req:NextRequest){
   const goal=String(body?.goal||"").slice(0,80);
 
   const {data:profile}=await service.from("profiles").select("role,onboarding").eq("id",user.id).maybeSingle();
-  if(!profile)return NextResponse.json({error:"Профиль не найден."},{status:404});
+  if(!profile)return NextResponse.json({error:"Профиль отсутствует."},{status:404});
   if(profile.role!=="editor")return NextResponse.json({error:"Эти настройки доступны только монтажёру."},{status:403});
 
   const onboarding={...(profile.onboarding||{}),level,software,goal};
