@@ -185,3 +185,53 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none!important}
 .verification-checks .check-ok{background:#e9f8e7;border-color:#b8ddb4}
 .verification-checks .check-wait{background:#fafaf7}
 @media(max-width:700px){.verification-checks{grid-template-columns:1fr}}
+
+
+/* Social learning, friends, groups and referrals */
+.social-hub{display:grid;gap:16px}
+.social-tabs{display:flex;gap:8px;flex-wrap:wrap}
+.social-tabs button{border:1px solid var(--line);background:white;border-radius:999px;padding:10px 14px;font-weight:900;cursor:pointer}
+.social-tabs button.active{background:var(--dark);color:white;border-color:var(--dark)}
+.social-columns{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.mini-ranking{display:grid;gap:0;margin-top:12px}
+.mini-rank-row{display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.mini-rank-row:first-child{border-top:0}
+.mini-rank-row>b{font-size:13px;color:var(--muted)}
+.mini-rank-row span{font-weight:800}
+.mini-rank-row strong{font-variant-numeric:tabular-nums}
+.friend-search-results{display:grid;gap:8px;margin-top:12px}
+.friend-row{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding:12px 0}
+.friend-row:first-child{border-top:0}
+.friend-row>div:first-child{display:grid;gap:3px}
+.friend-row span{font-size:12px;color:var(--muted)}
+.friend-row>div:last-child{display:flex;gap:6px}
+.group-list,.competition-grid{display:grid;gap:14px}
+.group-card{overflow:hidden}
+.competition-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.competition-card{display:grid;gap:12px}
+.competition-card p{line-height:1.55}
+.referral-card{max-width:820px}
+.referral-code{display:inline-flex;font-size:26px;letter-spacing:4px;font-weight:1000;background:var(--dark);color:white;padding:14px 18px;border-radius:14px;margin:8px 10px 14px 0}
+.referral-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:20px 0}
+.referral-stats>div{display:grid;gap:4px;background:var(--soft);border-radius:14px;padding:16px}
+.referral-stats strong{font-size:28px}
+.referral-stats span{font-size:12px;color:var(--muted)}
+.league-rules{display:flex;flex-wrap:wrap;gap:7px;margin:16px 0}
+.league-rules span{background:var(--soft);border-radius:999px;padding:7px 10px;font-size:11px;font-weight:800}
+.business-league-list{display:grid;margin-top:8px}
+.business-league-row{display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.business-league-row:first-child{border-top:0}
+.talent-pool{display:grid;margin-top:16px}
+.talent-row{display:flex;justify-content:space-between;gap:12px;align-items:center;border-top:1px solid var(--line);padding:12px 0}
+.talent-row>div{display:grid;gap:4px}
+.talent-row span{font-size:12px;color:var(--muted)}
+.benefit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.benefit-grid>div{display:grid;gap:5px;background:var(--soft);padding:15px;border-radius:14px}
+.benefit-grid span{font-size:12px;color:var(--muted);line-height:1.45}
+
+@media(max-width:760px){
+  .social-columns,.competition-grid,.benefit-grid{grid-template-columns:1fr}
+  .referral-stats{grid-template-columns:1fr}
+  .friend-row{align-items:flex-start;flex-direction:column}
+  .friend-row>div:last-child{width:100%}
+}
