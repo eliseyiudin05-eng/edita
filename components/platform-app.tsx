@@ -140,6 +140,14 @@ export default function PlatformApp(){
        status:"completed",
        completed_at:new Date().toISOString()
      },{onConflict:"user_id,lesson_id"});
+
+     const {data:{session}}=await supabase.auth.getSession();
+     if(session?.access_token){
+       fetch("/api/referral/qualify",{
+         method:"POST",
+         headers:{Authorization:"Bearer "+session.access_token}
+       }).catch(()=>{});
+     }
    }
  }
 
