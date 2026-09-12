@@ -4,6 +4,7 @@ import {FormEvent,useState} from "react";
 import {useRouter} from "next/navigation";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 import {authErrorRu} from "@/lib/auth-errors";
+import DemoAccessButton from "@/components/demo-access-button";
 
 export default function LoginPage(){
   const router=useRouter();
@@ -34,6 +35,8 @@ export default function LoginPage(){
         <button className="btn btn-dark" disabled={loading}>{loading?"Входим...":"Войти"}</button>
       </form>
       {message&&<div className="auth-msg">{message}</div>}
+      <div className="auth-divider"><span>или</span></div>
+      <DemoAccessButton className="btn btn-ghost"/>
       <div className="auth-footer"><Link href="/forgot-password">Забыли пароль?</Link><br/>Нет аккаунта? <Link href="/onboarding"><b>Регистрация</b></Link></div>
     </section>
   </main>

@@ -2,6 +2,7 @@
 
 import {FormEvent,useEffect,useMemo,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
+import GroupChat from "@/components/group-chat";
 
 type RankRow={id:string;username:string|null;display_name:string|null;level:number;xp:number;rating_points:number;ai_score:number|null};
 type FriendRel={id:string;status:string;direction:"incoming"|"outgoing";other:RankRow|null};
@@ -26,6 +27,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
   const [joinCode,setJoinCode]=useState("");
   const [workUrls,setWorkUrls]=useState<Record<string,string>>({});
   const [message,setMessage]=useState("");
+  const [activeGroupId,setActiveGroupId]=useState<string|null>(null);
 
   async function headers():Promise<Record<string,string>>{
     const supabase=getSupabaseBrowserClient();
@@ -177,7 +179,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
       <section className="card">
         <div className="eyebrow">УЧИТЬСЯ ВМЕСТЕ</div>
         <h3>Создать учебную группу</h3>
-        <p className="muted">Подходит друзьям, одноклассникам или маленькой команде. В группе видно общий прогресс и рейтинг, но нет личного чата.</p>
+        <p className="muted">Подходит друзьям, одноклассникам или маленькой команде. Общий чат посвящён монтажу, а AI помогает с вопросами и проверяет безопасность сообщений.</p>
         <div className="business-form">
           <input placeholder="Например: 9Б · монтаж" value={groupName} onChange={e=>setGroupName(e.target.value)}/>
           <button className="btn btn-dark" onClick={()=>groupAction("create")}>Создать группу</button>
@@ -193,7 +195,9 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
         {groups.length===0?<div className="card"><p className="muted">Ты пока не состоишь ни в одной группе.</p></div>:groups.map(g=><article className="card group-card" key={g.id}>
           <div className="verification-head"><div><div className="eyebrow">{g.age_scope==="under14"?"ГРУППА · ДО 14":g.age_scope==="14-17"?"ГРУППА · 14–17":"ГРУППА · 18+"}</div><h3>{g.name}</h3></div><span className="verification-badge">Код {g.join_code}</span></div>
           <div className="mini-ranking">{g.members.map((m,i)=><div className="mini-rank-row" key={m.user_id}><b>#{i+1}</b><span>@{m.profile?.username||"editor"}{m.member_role==="owner"?" · создатель":""}</span><strong>{m.profile?.rating_points||0}</strong></div>)}</div>
+          <button className="btn btn-dark" onClick={()=>setActiveGroupId(activeGroupId===g.id?null:g.id)}>{activeGroupId===g.id?"Закрыть чат":"Открыть чат"}</button>
         </article>)}
+        {activeGroupId&&groups.find(group=>group.id===activeGroupId)?<GroupChat groupId={activeGroupId} groupName={groups.find(group=>group.id===activeGroupId)!.name}/>:null}
       </section>
     </div>}
 

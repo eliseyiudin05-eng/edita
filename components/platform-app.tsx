@@ -4,7 +4,8 @@ import Link from "next/link";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 import ChallengeCenter from "@/components/challenge-center";
 import VideoReview from "@/components/video-review";
-import {curriculum} from "@/lib/curriculum";
+import {curriculum,curriculumModules,curriculumStats} from "@/lib/curriculum";
+import AiCoach from "@/components/ai-coach";
 import BrandBrain from "@/components/brand-brain";
 import ClientSimulator from "@/components/client-simulator";
 import PortfolioPanel from "@/components/portfolio-panel";
@@ -40,10 +41,6 @@ export default function PlatformApp(){
  const [tab,setTab]=useState<Tab>("home");
  const [done,setDone]=useState<string[]>([]);
  const [viewer,setViewer]=useState<Viewer>({name:"Гость",role:null,onboarding:{}});
- const [messages,setMessages]=useState([{from:"ai",text:"Привет! Я помогу с монтажом простыми словами. Можешь спросить: «Что такое хук?», «Как сделать ролик интереснее?» или «Куда нажать в CapCut?»"}]);
- const [input,setInput]=useState("");
- const [loading,setLoading]=useState(false);
- const [aiConfigured,setAiConfigured]=useState<boolean|null>(null);
  const [wins,setWins]=useState(0);
  const [businessStats,setBusinessStats]=useState({challenges:0,submissions:0,jobs:0});
 
@@ -55,7 +52,6 @@ export default function PlatformApp(){
  },[viewer.role]);
 
  useEffect(()=>{
-   fetch("/api/ai/health").then(r=>r.json()).then(d=>setAiConfigured(Boolean(d.connected))).catch(()=>setAiConfigured(false));
    try{
      const raw=localStorage.getItem("edita_lesson_done");
      if(raw)setDone(JSON.parse(raw));
@@ -127,28 +123,18 @@ export default function PlatformApp(){
    localStorage.setItem("edita_lesson_done",JSON.stringify(next));
 
    const supabase=getSupabaseBrowserClient();
-   const {data:{user}}=await supabase.auth.getUser();
-   if(!user)return;
-   const {data:lesson}=await supabase.from("lessons").select("id").eq("slug",slug).maybeSingle();
-   if(!lesson?.id)return;
-
-   if(wasDone){
-     await supabase.from("lesson_progress").delete().eq("user_id",user.id).eq("lesson_id",lesson.id);
-   }else{
-     await supabase.from("lesson_progress").upsert({
-       user_id:user.id,
-       lesson_id:lesson.id,
-       status:"completed",
-       completed_at:new Date().toISOString()
-     },{onConflict:"user_id,lesson_id"});
-
-     const {data:{session}}=await supabase.auth.getSession();
-     if(session?.access_token){
+   const {data:{session}}=await supabase.auth.getSession();
+   if(!session?.access_token)return;
+   const response=await fetch("/api/lessons/progress",{
+     method:"POST",
+     headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},
+     body:JSON.stringify({slug,completed:!wasDone})
+   });
+   if(response.ok&&!wasDone){
        fetch("/api/referral/qualify",{
          method:"POST",
          headers:{Authorization:"Bearer "+session.access_token}
        }).catch(()=>{});
-     }
    }
  }
 
@@ -157,39 +143,6 @@ export default function PlatformApp(){
    if(supabase)await supabase.auth.signOut();
    setViewer({name:"Гость",role:null,onboarding:{}});
    setTab("home");
- }
-
- async function ask(e:React.FormEvent){
-   e.preventDefault();
-   if(!input.trim()||loading)return;
-   const q=input;
-   setMessages(m=>[...m,{from:"user",text:q}]);
-   setInput("");
-   setLoading(true);
-   try{
-     const supabase=getSupabaseBrowserClient();
-     const {data:{session}}=await supabase.auth.getSession();
-     const headers:Record<string,string>={"Content-Type":"application/json"};
-     if(session?.access_token)headers.Authorization="Bearer "+session.access_token;
-     const r=await fetch("/api/ai",{
-       method:"POST",
-       headers,
-       body:JSON.stringify({
-         message:q,
-         context:{
-           level:viewer.onboarding?.level||"unknown",
-           xp,
-           editor:viewer.onboarding?.software||"CapCut",
-           goal:viewer.onboarding?.goal||"freelance",
-           role:viewer.role,
-           completedLessons:done
-         },
-         history:messages
-       })
-     });
-     const d=await r.json();
-     setMessages(m=>[...m,{from:"ai",text:d.reply||"Не получилось ответить."}]);
-   } finally {setLoading(false)}
  }
 
  const roleLabel=viewer.role==="business"?"Бизнес":viewer.role==="editor"?"Монтажёр":"Гость";
@@ -216,8 +169,8 @@ export default function PlatformApp(){
        <div className="user-pill"><span className="user-dot"/><span>{viewer.role?"online":"demo"} · {planLabel}{viewer.role==="editor"?" · "+xp+" XP":""}</span></div>
      </header>
 
-     {tab==="home"&&<Page title={viewer.role?"Продолжай, "+viewer.name+".":"Добро пожаловать в EDITA."} sub={viewer.role?"Если не знаешь, что делать — начни с Академии и первых 5 простых уроков.":"Демо платформы. Пройди короткую настройку, чтобы получить свой маршрут."}>
-       <section className="mission"><small>НАЧНИ ОТСЮДА</small><h2>{done.length?"Продолжи следующий урок":"Урок 1: что такое монтаж"}</h2><p>Сначала разберись в простых словах: монтаж, хук, ритм, B-roll, CTA и ТЗ. Потом переходи к практике.</p><button className="btn btn-lime" onClick={()=>setTab("academy")}>Открыть Академию →</button></section>
+     {tab==="home"&&<Page title={viewer.role?"Продолжай, "+viewer.name+".":"Добро пожаловать в EDITA."} sub={viewer.role?"Если не знаешь, что делать — продолжи маршрут с ближайшего незавершённого урока.":"Демо платформы. Войди одним нажатием, чтобы AI-диалоги и прогресс сохранялись."}>
+       <section className="mission"><small>ТВОЙ МАРШРУТ</small><h2>{done.length?"Продолжи следующий урок":"Первый Reel — с самой первой кнопки"}</h2><p>{curriculum.length} коротких уроков ведут от установки CapCut и первой склейки до цвета, звука, портфолио и работы с клиентом.</p><button className="btn btn-lime" onClick={()=>setTab("academy")}>Продолжить в Академии →</button></section>
        <div className="grid">
          <Card title="Твой рост"><div className="stats"><Stat n={viewer.aiScore!=null?String(viewer.aiScore):"—"} t="AI Score"/><Stat n={String(done.length)} t="уроков"/><Stat n={String(wins)} t="побед"/></div></Card>
          <Card title="Arena"><p className="muted">Открытые задания и тренировочные соревнования появляются здесь после публикации.</p><button className="btn btn-dark" onClick={()=>setTab("arena")}>Открыть Arena</button></Card>
@@ -225,20 +178,41 @@ export default function PlatformApp(){
        </div>
      </Page>}
 
-     {tab==="academy"&&<Page title="Академия" sub="Иди сверху вниз. Первые 5 уроков объясняют базу совсем простыми словами, дальше начинается практика.">
-       <div className="grid">{curriculum.map((lesson,i)=><div className={"card lesson "+(done.includes(lesson.slug)?"done":"")} key={lesson.slug}>
-         <div className="num">{done.includes(lesson.slug)?"✓":i+1}</div>
-         <div><div className="eyebrow">{lesson.module}</div><h3>{lesson.title}</h3><p className="muted">{lesson.summary}</p>
-           <div className="lesson-actions"><Link className="btn btn-dark" href={"/academy/"+lesson.slug}>Открыть</Link><button className="btn btn-ghost" onClick={()=>toggleLesson(lesson.slug)}>{done.includes(lesson.slug)?"Снять отметку":"+ "+lesson.xp+" XP"}</button></div>
-         </div>
-       </div>)}</div>
+     {tab==="academy"&&<Page title="Академия" sub="От первого запуска программы до сильного портфолио. Каждый урок — объяснение, карта кнопок, практика, проверка и AI рядом.">
+       <div className="academy-overview">
+         <Stat n={String(curriculumStats.lessons)} t="уроков"/><Stat n={Math.round(curriculumStats.minutes/60)+" ч"} t="практики"/><Stat n={String(curriculumStats.assignments)} t="заданий"/><Stat n={String(done.length)} t="пройдено"/>
+       </div>
+       <div className="academy-route-note"><b>Не знаешь, с чего начать?</b><span>Открой первый модуль и иди сверху вниз. Сложность растёт постепенно; продвинутые эффекты не появятся раньше первой готовой работы.</span></div>
+       <div className="academy-modules">{curriculumModules.map((group,moduleIndex)=><section className="academy-module" key={group.module}>
+         <header><div><div className="eyebrow">СТУПЕНЬ {moduleIndex+1}</div><h2>{group.module}</h2></div><span>{group.lessons.filter(item=>done.includes(item.slug)).length} / {group.lessons.length}</span></header>
+         <div className="academy-lesson-grid">{group.lessons.map(lesson=>{
+           const lessonIndex=curriculum.findIndex(item=>item.slug===lesson.slug);
+           return <article className={"academy-lesson-card "+(done.includes(lesson.slug)?"done":"")} key={lesson.slug}>
+             <div className="academy-lesson-top"><span className="num">{done.includes(lesson.slug)?"✓":lessonIndex+1}</span><div><small>{lesson.level} · {lesson.minutes} мин</small><b>{lesson.software}</b></div></div>
+             <h3>{lesson.title}</h3><p>{lesson.summary}</p>
+             <div className="academy-tags"><span>{lesson.track}</span>{lesson.clicks?.length?<span>Карта кнопок</span>:null}<span>AI в уроке</span></div>
+             <div className="lesson-actions"><Link className="btn btn-dark" href={"/academy/"+lesson.slug}>Открыть урок</Link><button className="btn btn-ghost" onClick={()=>toggleLesson(lesson.slug)}>{done.includes(lesson.slug)?"Снять":"+ "+lesson.xp+" XP"}</button></div>
+           </article>
+         })}</div>
+       </section>)}</div>
      </Page>}
 
      {tab==="practice"&&<Page title="Практика" sub="Симулятор реального клиента: цена, правки, сроки и переговоры."><ClientSimulator/></Page>}
 
-     {tab==="coach"&&<Page title="AI Помощник" sub="Спроси про монтаж обычными словами. Если что-то непонятно — попроси объяснить ещё проще.">
-       <div className={"ai-status "+(aiConfigured?"online":"offline")}>{aiConfigured===null?"Проверяю AI…":aiConfigured?"● AI подключён":"● AI работает в упрощённом режиме"}</div>
-       <div className="card chat"><div className="feed">{messages.map((m,i)=><div className={"bubble "+m.from} key={i}>{m.text}</div>)}{loading&&<div className="bubble">Разбираю…</div>}</div><form className="form" onSubmit={ask}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Почему мой Reel выглядит скучно?"/><button className="btn btn-lime">Спросить</button></form></div>
+     {tab==="coach"&&<Page title="AI Помощник" sub="Спроси про монтаж обычными словами. Ответ придёт короткими блоками, со шагами, проверкой и лайфхаком.">
+       <AiCoach
+         scopeKey="main"
+         title="EDITA AI Coach"
+         prompts={["Я впервые открыл CapCut. С чего начать?","Помоги сделать Reel за 30 минут","Почему мой ролик выглядит скучно?","Объясни мой следующий урок"]}
+         context={{
+           level:viewer.onboarding?.level||"unknown",
+           xp,
+           editor:viewer.onboarding?.software||"CapCut",
+           goal:viewer.onboarding?.goal||"freelance",
+           role:viewer.role,
+           completedLessons:done
+         }}
+       />
      </Page>}
 
      {tab==="review"&&<Page title="Разбор видео" sub="Загрузи ролик. EDITA посмотрит отдельные кадры и простыми словами подскажет, что улучшить.">{viewer.role==="editor"&&viewer.plan!=="pro"?<UpgradePro/>:<VideoReview/>}</Page>}
