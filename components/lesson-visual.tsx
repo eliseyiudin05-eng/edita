@@ -1,7 +1,32 @@
+import Image from "next/image";
 import type {Lesson} from "@/lib/curriculum";
 
 type VisualKind="theory"|"mobile"|"desktop"|"social"|"audio"|"career";
 type Focus="home"|"media"|"preview"|"timeline"|"tools"|"text"|"audio"|"export";
+type InterfaceShot={
+  src:string;
+  width:number;
+  height:number;
+  alt:string;
+  sourceLabel:string;
+  sourceUrl:string;
+  mobile?:boolean;
+};
+
+const interfaceShots={
+  capcutHome:{src:"/images/academy/capcut-mobile-home.webp",width:333,height:592,alt:"Экран мобильного приложения CapCut с панелью инструментов и таймлайном",sourceLabel:"официальная карточка CapCut в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas",mobile:true},
+  capcutCaptions:{src:"/images/academy/capcut-mobile-captions.webp",width:333,height:592,alt:"Экран CapCut с инструментами автоматических субтитров",sourceLabel:"официальная карточка CapCut в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas",mobile:true},
+  capcutText:{src:"/images/academy/capcut-mobile-text.webp",width:333,height:592,alt:"Экран CapCut с шаблонами текста",sourceLabel:"официальная карточка CapCut в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas",mobile:true},
+  capcutEffects:{src:"/images/academy/capcut-mobile-effects.webp",width:333,height:592,alt:"Экран CapCut с панелью видеоэффектов",sourceLabel:"официальная карточка CapCut в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas",mobile:true},
+  capcutDesktop:{src:"/images/academy/capcut-desktop.webp",width:1052,height:592,alt:"Интерфейс CapCut на компьютере с медиатекой, окном просмотра и таймлайном",sourceLabel:"официальная карточка CapCut",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas"},
+  vn:{src:"/images/academy/vn-mobile.webp",width:333,height:592,alt:"Экран мобильного редактора VN с клипами на таймлайне",sourceLabel:"официальная карточка VN в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.frontrow.vlog",mobile:true},
+  inshot:{src:"/images/academy/inshot-mobile.webp",width:272,height:592,alt:"Экран мобильного редактора InShot с окном просмотра и нижним таймлайном",sourceLabel:"официальная карточка InShot в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.camerasideas.instashot",mobile:true},
+  premiere:{src:"/images/academy/premiere-pro.webp",width:1000,height:563,alt:"Рабочее пространство Adobe Premiere Pro с панелью Project, окнами просмотра и многодорожечным таймлайном",sourceLabel:"снимок интерфейса Premiere Pro",sourceUrl:"https://www.capcut.com/pt-br/resource/adobe-premiere-pro-tutorial"},
+  davinci:{src:"/images/academy/davinci-resolve.webp",width:1600,height:886,alt:"Страница Edit в DaVinci Resolve с Media Pool, окнами просмотра, Inspector и таймлайном",sourceLabel:"пресс-материалы Blackmagic Design",sourceUrl:"https://www.businesswire.com/news/home/20210819005831/en/Blackmagic-Design-Announces-DaVinci-Resolve-17.3"},
+  finalCut:{src:"/images/academy/final-cut-pro.webp",width:1304,height:1022,alt:"Интерфейс Final Cut Pro с Browser, Viewer и Magnetic Timeline",sourceLabel:"руководство Apple Support",sourceUrl:"https://support.apple.com/guide/final-cut-pro/final-cut-pro-interface-ver92bd100a/mac"},
+  canva:{src:"/images/academy/canva-video.webp",width:1492,height:986,alt:"Видеоредактор Canva с библиотекой материалов, окном просмотра и сценами",sourceLabel:"официальная страница Canva Video",sourceUrl:"https://www.canva.com/video-editor/"},
+  afterEffects:{src:"/images/academy/after-effects.webp",width:1600,height:947,alt:"Рабочее пространство Adobe After Effects с панелями Project, Composition, Layers и Timeline",sourceLabel:"снимок интерфейса After Effects",sourceUrl:"https://dev.to/kocreative/after-effects-the-basics-915"}
+} satisfies Record<string,InterfaceShot>;
 
 const theoryStages:Record<string,string[]>={
   "start-without-fear":["Понять основу","Собрать 3 работы","Найти первый заказ","Цель: 10 000 ₽"],
@@ -54,10 +79,31 @@ function focusLabel(focus:Focus,ui:ReturnType<typeof labels>){
   return ui[focus as keyof typeof ui]||"Главный инструмент урока";
 }
 
+function interfaceShot(lesson:Lesson,focus:Focus):InterfaceShot|null{
+  const software=lesson.software.toLocaleLowerCase("ru-RU");
+  if(software.includes("capcut на телефоне")){
+    if(lesson.slug==="capcut-auto-captions")return interfaceShots.capcutCaptions;
+    if(focus==="text")return interfaceShots.capcutText;
+    if(focus==="tools")return interfaceShots.capcutEffects;
+    return interfaceShots.capcutHome;
+  }
+  if(software.includes("capcut desktop"))return interfaceShots.capcutDesktop;
+  if(software==="capcut"||software.includes("capcut /"))return interfaceShots.capcutDesktop;
+  if(software==="vn")return interfaceShots.vn;
+  if(software==="inshot")return interfaceShots.inshot;
+  if(software.includes("after effects"))return interfaceShots.afterEffects;
+  if(software.includes("final cut"))return interfaceShots.finalCut;
+  if(software.includes("canva"))return interfaceShots.canva;
+  if(software.includes("davinci"))return interfaceShots.davinci;
+  if(software.includes("premiere"))return interfaceShots.premiere;
+  return null;
+}
+
 export default function LessonVisual({lesson}:{lesson:Lesson}){
   const kind=visualKind(lesson);
   const focus=focusBySlug[lesson.slug]||"preview";
   const ui=labels(lesson.software);
+  const shot=interfaceShot(lesson,focus);
 
   if(kind==="theory"){
     const stages=theoryStages[lesson.slug]||["Понять","Увидеть пример","Запомнить основу","Идти дальше"];
@@ -67,6 +113,15 @@ export default function LessonVisual({lesson}:{lesson:Lesson}){
       <figcaption>Главная мысль: {lesson.summary}</figcaption>
     </figure>;
   }
+
+  if(shot)return <figure className={"lesson-visual lesson-real-interface "+(shot.mobile?"real-mobile-interface":"real-desktop-interface")}>
+    <div className="lesson-visual-head"><span>РЕАЛЬНЫЙ ИНТЕРФЕЙС · {lesson.software}</span><b>{lesson.title}</b></div>
+    <div className="lesson-real-interface-frame">
+      <Image src={shot.src} width={shot.width} height={shot.height} sizes={shot.mobile?"(max-width: 720px) 78vw, 330px":"(max-width: 900px) 92vw, 760px"} alt={shot.alt}/>
+      <span className="lesson-interface-focus"><small>СЕЙЧАС ИЩЕМ</small><b>{focusLabel(focus,ui)}</b></span>
+    </div>
+    <figcaption><b>Не учи весь экран:</b> найди только отмеченную зону. В новой версии кнопка может немного сдвинуться. <a href={shot.sourceUrl} target="_blank" rel="noreferrer">Источник: {shot.sourceLabel} ↗</a></figcaption>
+  </figure>;
 
   if(kind==="audio")return <figure className="lesson-visual lesson-audio-visual" role="img" aria-label={"Схема звука: "+lesson.title}>
     <div className="lesson-visual-head"><span>{lesson.software}</span><b>{lesson.title}</b></div>

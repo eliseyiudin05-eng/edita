@@ -9,7 +9,7 @@ async function sha256(value:string){
 
 export default async function proxy(req:NextRequest){
   const path=req.nextUrl.pathname;
-  if(process.env.NODE_ENV==="development"&&req.nextUrl.hostname==="127.0.0.1"){
+  if(process.env.NODE_ENV==="development"){
     return NextResponse.next();
   }
   if(
