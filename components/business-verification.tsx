@@ -36,7 +36,16 @@ export default function BusinessVerification(){
     reportedAudience:""
   });
 
-  useEffect(()=>{void load()},[]);
+  useEffect(()=>{
+    try{
+      const raw=localStorage.getItem("edita_business_verification_prefill");
+      if(raw){
+        const saved=JSON.parse(raw);
+        setForm(v=>({...v,...saved}));
+      }
+    }catch{}
+    void load();
+  },[]);
 
   async function authHeaders():Promise<Record<string,string>>{
     const supabase=getSupabaseBrowserClient();
@@ -90,6 +99,7 @@ export default function BusinessVerification(){
       if(!r.ok)throw new Error(json?.error||"Не удалось отправить заявку.");
 
       setFiles([]);
+      localStorage.removeItem("edita_business_verification_prefill");
       setMessage("Заявка отправлена. Проверка проходит вручную: документы и публичные ссылки сверяются человеком.");
       await load();
     }catch(e){
