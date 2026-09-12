@@ -38,7 +38,7 @@ export default function BusinessVerification(){
 
   useEffect(()=>{void load()},[]);
 
-  async function authHeaders(){
+  async function authHeaders():Promise<Record<string,string>>{
     const supabase=getSupabaseBrowserClient();
     const {data:{session}}=await supabase.auth.getSession();
     return session?.access_token?{Authorization:"Bearer "+session.access_token}:{};
