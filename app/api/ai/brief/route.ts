@@ -34,7 +34,7 @@ export async function POST(req:NextRequest){
       headers:{"Content-Type":"application/json",Authorization:"Bearer "+process.env.OPENAI_API_KEY},
       body:JSON.stringify({
         model:process.env.OPENAI_MODEL||"gpt-5.6-luna",
-        instructions:"Ты senior creative producer EDITA. Преврати сырой запрос бизнеса в чёткое ТЗ для видеомонтажёра. Ничего важного не выдумывай: если данных нет, формулируй нейтрально. Критерии должны быть проверяемыми. Пиши по-русски.",
+        instructions:"Ты помощник EDITA для бизнеса. Преврати сырой запрос в очень понятное ТЗ для монтажёра. Пиши простыми русскими словами. Если нужно слово вроде CTA или B-roll, сразу объясни его. Ничего важного не выдумывай. Критерии должны быть такими, чтобы человек мог ответить «да, выполнено» или «нет».",
         input:"Brand context: "+JSON.stringify(brandContext||{})+"\n\nСырой бриф:\n"+brief,
         max_output_tokens:1200,
         text:{format:{type:"json_schema",name:"edita_brief",strict:true,schema}}
