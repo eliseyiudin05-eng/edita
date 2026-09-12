@@ -30,9 +30,9 @@ type Submission={
 };
 
 const demoChallenges:Challenge[]=[
-  {id:"demo-coffee",brand:"DEMO · NORTH COFFEE",title:"Reel из утренней съёмки",brief:"Собери вертикальный Reel 20–30 секунд. Покажи атмосферу утра, продукт крупно и закончи понятным CTA. Музыка не должна перебивать естественный звук.",prize_cents:0,ends_at:new Date(Date.now()+3*86400000).toISOString(),status:"open",source_assets:[]},
-  {id:"demo-fitness",brand:"DEMO · VOLT FITNESS",title:"Реклама нового зала",brief:"30 секунд. Быстрый hook, 3 ключевых преимущества, динамичный sound design. Избегай перегруза переходами.",prize_cents:0,ends_at:new Date(Date.now()+5*86400000).toISOString(),status:"open",source_assets:[]},
-  {id:"demo-motion",brand:"DEMO · MOTION LAB",title:"Talking-head Short",brief:"Сделай экспертный Short до 35 секунд: чистая речь, крупные субтитры, B-roll только по смыслу.",prize_cents:0,ends_at:new Date(Date.now()+2*86400000).toISOString(),status:"open",source_assets:[]},
+  {id:"demo-coffee",brand:"ПРИМЕР · NORTH COFFEE",title:"Reel из утренней съёмки",brief:"Собери вертикальный Reel 20–30 секунд. Покажи атмосферу утра, продукт крупно и закончи понятным CTA. Музыка не должна перебивать естественный звук.",prize_cents:0,ends_at:new Date(Date.now()+3*86400000).toISOString(),status:"open",source_assets:[]},
+  {id:"demo-fitness",brand:"ПРИМЕР · VOLT FITNESS",title:"Реклама нового зала",brief:"30 секунд. Быстрый hook, 3 ключевых преимущества, динамичный sound design. Избегай перегруза переходами.",prize_cents:0,ends_at:new Date(Date.now()+5*86400000).toISOString(),status:"open",source_assets:[]},
+  {id:"demo-motion",brand:"ПРИМЕР · MOTION LAB",title:"Talking-head Short",brief:"Сделай экспертный Short до 35 секунд: чистая речь, крупные субтитры, B-roll только по смыслу.",prize_cents:0,ends_at:new Date(Date.now()+2*86400000).toISOString(),status:"open",source_assets:[]},
 ];
 
 export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerified,mode}:{role:Role;viewerName:string;ageGroup?:string;guardianVerified?:boolean;mode:"arena"|"business"}){
@@ -149,7 +149,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
     e.preventDefault();
     if(!selected||!file){setMessage("Сначала выбери видеофайл.");return;}
     if(role==="editor"&&ageGroup&&ageGroup!=="18+"&&!guardianVerified){
-      setMessage("Коммерческие Challenge для пользователей младше 18 лет доступны только после подтверждения законного представителя. Обучение, Practice и AI доступны без этой отправки.");
+      setMessage("Коммерческие задания для пользователей младше 18 лет доступны только после подтверждения законного представителя. Обучение, Practice и AI доступны без этой отправки.");
       return;
     }
 
@@ -263,7 +263,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
 
     if(!supabase||!businessId){
       const demo:Challenge={id:"local-"+Date.now(),business_id:"demo",brand:form.brand||viewerName,title:form.title,brief:form.brief,prize_cents:Number(form.prize||0)*100,ends_at:form.deadline?new Date(form.deadline).toISOString():null,status:"open",source_assets:sourceAssets};
-      setChallenges(c=>[demo,...c]);setSelectedId(demo.id);setMessage("Демо Challenge создан локально.");
+      setChallenges(c=>[demo,...c]);setSelectedId(demo.id);setMessage("Пример задания создан только в браузере.");
       setLoading(false);return;
     }
 
@@ -278,7 +278,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
 
     if(error){setMessage(error.message);setLoading(false);return;}
     const item:Challenge={...(data as any),brand:form.brand||viewerName,source_assets:(data as any).source_assets||[]};
-    setChallenges(c=>[item,...c]);setSelectedId(item.id);setMessage("Challenge опубликован в Arena.");
+    setChallenges(c=>[item,...c]);setSelectedId(item.id);setMessage("Задание опубликовано в Arena.");
     setForm({brand:form.brand,title:"",brief:"",sourceUrl:"",prize:"10000",deadline:""});setLoading(false);
   }
 
@@ -310,7 +310,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
   if(mode==="business"){
     return <div className="challenge-layout">
       <section className="card">
-        <div className="eyebrow">NEW CHALLENGE</div>
+        <div className="eyebrow">НОВОЕ ЗАДАНИЕ</div>
         <h3>Создать реальное ТЗ</h3>
         {!businessVerified&&<div className="auth-msg">Публикация закрыта до проверки компании. Заполни блок «Проверка бизнеса» выше.</div>}
         <form className="business-form" onSubmit={createChallenge}>
@@ -325,13 +325,13 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
       </section>
 
       <section className="card">
-        <div className="eyebrow">SUBMISSIONS</div>
+        <div className="eyebrow">РАБОТЫ УЧАСТНИКОВ</div>
         <h3>Работы участников</h3>
         {submissions.length===0?<p className="muted">Когда монтажёры отправят работы, они появятся здесь.</p>:<div className="submission-list">
           {submissions.map(s=><article className="submission submission-video" key={s.id}>
             <div className="submission-preview">{s.video_url?<video controls preload="metadata" src={s.video_url}/>:<div className="work-preview">VIDEO</div>}</div>
             <div className="submission-info"><b>{s.editor_name}</b><div><span className="tag">{s.status}</span>{s.ai_score!=null&&<span className="tag">AI {s.ai_score}</span>}</div></div>
-            <div className="submission-actions"><button className="btn" onClick={()=>setSubmissionStatus(s.id,"shortlisted")}>Shortlist</button><button className="btn btn-dark" onClick={()=>setSubmissionStatus(s.id,"winner")}>Победитель</button></div>
+            <div className="submission-actions"><button className="btn" onClick={()=>setSubmissionStatus(s.id,"shortlisted")}>В избранное</button><button className="btn btn-dark" onClick={()=>setSubmissionStatus(s.id,"winner")}>Победитель</button></div>
           </article>)}
         </div>}
       </section>
@@ -339,7 +339,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
   }
 
   if(role&&challenges.length===0){
-    return <div className="card"><div className="eyebrow">ARENA</div><h3>Пока нет открытых Challenge</h3><p className="muted">Когда бизнес опубликует первое реальное ТЗ, оно появится здесь. Демо-призы зарегистрированным пользователям не показываются.</p></div>
+    return <div className="card"><div className="eyebrow">ARENA</div><h3>Пока нет открытых заданий</h3><p className="muted">Когда бизнес опубликует первое реальное ТЗ, оно появится здесь. Демо-призы зарегистрированным пользователям не показываются.</p></div>
   }
 
   return <div className="challenge-layout">
@@ -351,7 +351,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
     </section>
 
     {selected&&<section className="card challenge-detail">
-      <div className="eyebrow">REAL BRIEF</div>
+      <div className="eyebrow">ТЗ ОТ КОМПАНИИ</div>
       <h2>{selected.title}</h2>
       <div className="challenge-meta"><span>{selected.brand}</span>{selected.brand_verified&&<span className="tag verification-mini">{badgeName(selected.verification_level)}</span>}<b>{money(selected.prize_cents)}</b><span>{deadline(selected.ends_at)}</span></div>
       <p>{selected.brief}</p>
