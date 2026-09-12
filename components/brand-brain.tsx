@@ -50,15 +50,15 @@ export default function BrandBrain({viewerName="Business"}:{viewerName?:string})
     const supabase=getSupabaseBrowserClient();
     if(!supabase||!businessId){
       localStorage.setItem("edita_brand_brain",JSON.stringify(form));
-      setMessage("Brand Brain сохранён локально в demo.");
+      setMessage("Профиль бренда сохранён локально в demo.");
       return;
     }
     const {error}=await supabase.from("businesses").update({brand_context:form}).eq("id",businessId);
-    setMessage(error?error.message:"Brand Brain сохранён. Его можно использовать для новых ТЗ и AI-проверок.");
+    setMessage(error?error.message:"Профиль бренда сохранён. Его можно использовать для новых ТЗ и AI-проверок.");
   }
 
   return <section className="card brand-brain">
-    <div className="eyebrow">BRAND BRAIN</div>
+    <div className="eyebrow">ПРОФИЛЬ БРЕНДА</div>
     <h3>Контекст бренда для всех монтажёров</h3>
     <p className="muted">Сохраняем стиль один раз, чтобы новый редактор не начинал с нуля.</p>
     <form className="business-form" onSubmit={save}>
@@ -67,7 +67,7 @@ export default function BrandBrain({viewerName="Business"}:{viewerName?:string})
       <input placeholder="Цвета / шрифты / визуальные правила" value={form.colors} onChange={e=>setForm({...form,colors:e.target.value})}/>
       <input placeholder="Ссылки на лучшие референсы" value={form.references} onChange={e=>setForm({...form,references:e.target.value})}/>
       <textarea placeholder="Повторяющиеся пожелания по монтажу и правкам" value={form.editingRules} onChange={e=>setForm({...form,editingRules:e.target.value})}/>
-      <button className="btn btn-dark">Сохранить Brand Brain</button>
+      <button className="btn btn-dark">Сохранить Профиль бренда</button>
     </form>
     {message&&<div className="auth-msg">{message}</div>}
   </section>
