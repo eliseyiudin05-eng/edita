@@ -56,17 +56,16 @@ export async function POST(req:NextRequest){
 
   const createdUserId=(data as any)?.user?.id;
   if(role==="editor"&&referralCode&&createdUserId){
-    const {data:referrer}=await service.from("profiles")
-      .select("id,referral_code")
-      .eq("referral_code",referralCode)
+    const {data:codeRow}=await service.from("referral_codes")
+      .select("user_id")
+      .eq("code",referralCode)
       .maybeSingle();
-    if(referrer?.id&&referrer.id!==createdUserId){
+    if(codeRow?.user_id&&codeRow.user_id!==createdUserId){
       await service.from("referrals").upsert({
-        referrer_id:referrer.id,
-        referred_id:createdUserId,
-        referral_code:referralCode,
-        status:"pending"
-      },{onConflict:"referred_id"});
+        referrer_id:codeRow.user_id,
+        referred_user_id:createdUserId,
+        status:"signup"
+      },{onConflict:"referred_user_id"});
     }
   }
 
