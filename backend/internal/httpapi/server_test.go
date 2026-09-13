@@ -15,6 +15,7 @@ import (
 
 	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
 )
@@ -23,7 +24,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.13",
+		Version:      "1.0.14",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -57,7 +58,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.13"`) {
+	if !strings.Contains(body, `"version":"1.0.14"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -115,6 +116,19 @@ type fakeSocialGroupsReader struct {
 	err     error
 	token   string
 	subject string
+}
+
+type fakeBusinessReader struct {
+	result  business.Verification
+	err     error
+	token   string
+	subject string
+}
+
+func (reader *fakeBusinessReader) GetVerification(_ context.Context, token, subject string) (business.Verification, error) {
+	reader.token = token
+	reader.subject = subject
+	return reader.result, reader.err
 }
 
 func (reader *fakeSocialGroupsReader) GetGroups(_ context.Context, token, subject string) (social.Groups, error) {
@@ -320,6 +334,38 @@ func TestSocialGroupsRequiresAuthAndForwardsOnlyVerifiedToken(t *testing.T) {
 	}
 	if strings.Contains(response.Body.String(), "private-user-id") || strings.Contains(response.Body.String(), "owner_id") {
 		t.Fatalf("response exposes verified owner identity: %s", response.Body.String())
+	}
+}
+
+func TestBusinessVerificationRequiresAuthAndOmitsInternalIdentifiers(t *testing.T) {
+	reader := &fakeBusinessReader{result: business.Verification{
+		Business: business.BusinessProfile{Name: "KIVRONIX", VerificationStatus: "pending", VerificationLevel: "verified_company"},
+		Request:  &business.VerificationRequest{RequestedLevel: "verified_company", Status: "pending", CreatedAt: "2026-09-13T22:00:00Z"},
+	}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "private-user-id", Role: "authenticated"}},
+		Business:          reader,
+		DependencyTimeout: time.Second,
+	})
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/v1/business/verification", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d", unauthorized.Code)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/business/verification?owner_id=other", nil)
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "private-user-id" {
+		t.Fatalf("unexpected response or reader arguments: status=%d token=%q subject=%q body=%s", response.Code, reader.token, reader.subject, response.Body.String())
+	}
+	for _, forbidden := range []string{"private-user-id", "owner_id", "business_id", `"id"`, "inn", "registration_number", "document_paths"} {
+		if strings.Contains(response.Body.String(), forbidden) {
+			t.Fatalf("response exposes internal or verification data %q: %s", forbidden, response.Body.String())
+		}
 	}
 }
 

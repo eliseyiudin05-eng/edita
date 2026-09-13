@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.13
+## Stage v1.0.14
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -22,9 +22,11 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - friend-list output omits both participant UUIDs and keeps only the relationship ID required by the existing mutation route;
 - `GET /v1/social/groups` reads at most 20 groups and 500 members visible to the verified JWT subject under member-only RLS;
 - group profile lookups are chunked, and group creation, joining, and messages remain outside Go;
+- `GET /v1/business/verification` reads one owner-bound company and its latest verification request under user RLS;
+- the business response omits internal IDs, tax/registration numbers, document paths, URLs and reported audience;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-Next.js remains the gateway and write authority. Profile, academy progress, social ranking, friend-list and study-group reads can independently compare legacy and Go responses in shadow mode, or route a bounded 1–10% read-only canary to Go. Every migration mode is disabled by default, and no financial request is routed to Go.
+Next.js remains the gateway and write authority. Profile, academy progress, social ranking, friend-list and study-group reads can independently compare legacy and Go responses in shadow mode, or route a bounded 1–10% read-only canary to Go. Business-verification status is shadow-only. Every migration mode is disabled by default, and no financial request is routed to Go.
 
 ## Run locally
 
@@ -46,6 +48,7 @@ Endpoints:
 - `GET /v1/social/ranking` — returns a bounded ranking of public profiles without database identifiers.
 - `GET /v1/social/friends` — returns only the authenticated user's bounded friend list without participant UUIDs.
 - `GET /v1/social/groups` — returns only bounded groups and member cards visible to the authenticated member.
+- `GET /v1/business/verification` — returns the authenticated owner's minimized business-verification status.
 
 For a persistent IPv4-only Go service, use the Supabase session pooler URL (port `5432`). For a direct IPv6 connection, use the direct URL. The transaction pooler (port `6543`) is also supported; the driver automatically disables prepared statements for that mode. Keep the database password only in the deployment secret store.
 
@@ -62,3 +65,5 @@ For the social ranking stage, keep `GO_BACKEND_SOCIAL_SHADOW_READS_ENABLED=false
 For friend-list shadow reads, apply the participant-only friendships RLS migration, deploy Go, then set `GO_BACKEND_SOCIAL_FRIENDS_SHADOW_READS_ENABLED=true`. `GO_BACKEND_SOCIAL_FRIENDS_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. The existing Next.js response remains authoritative, and comparison logs contain no relation, participant, profile, or token data. After stable comparisons, disable shadow mode, enable `GO_BACKEND_SOCIAL_FRIENDS_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_SOCIAL_FRIENDS_CANARY_PERCENT=1`. The percentage is hard-limited to 10. Timeout, malformed/oversized response, excessive latency, or an open circuit falls back within the same request. A 20% unhealthy rate in a 10–20 result window pauses the canary locally for five minutes; a mismatch opens it immediately. The environment flag is the global kill switch. Friend search and all friendship writes remain in Next.js/Supabase in v1.0.11.
 
 For study-group shadow reads, apply the member-only group RLS migration, deploy Go, then set `GO_BACKEND_SOCIAL_GROUPS_SHADOW_READS_ENABLED=true`. `GO_BACKEND_SOCIAL_GROUPS_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. The legacy response remains authoritative. Logs contain no tokens, join codes, group/member identifiers, names, profile data, or membership state. After stable comparisons, disable shadow mode, enable `GO_BACKEND_SOCIAL_GROUPS_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_SOCIAL_GROUPS_CANARY_PERCENT=1`. The percentage is hard-limited to 10. Timeout, malformed/oversized response, excessive latency, or an open circuit falls back within the same request. A 20% unhealthy rate in a 10–20 result window pauses the canary locally for five minutes; a mismatch opens it immediately. The environment flag is the global kill switch. Group creation, joining, and chat messages remain in Next.js/Supabase in v1.0.13.
+
+For business-verification shadow reads, apply the owner-only request RLS migration, deploy Go, then set `GO_BACKEND_BUSINESS_VERIFICATION_SHADOW_READS_ENABLED=true`. `GO_BACKEND_BUSINESS_VERIFICATION_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. The legacy response remains authoritative. Go accepts one owner-filtered business and at most one latest request, with a 32 KiB response cap. Logs contain no tokens, owner/business/request IDs, company details, verification values, or document metadata. Company creation, document upload, submission, and admin review remain in Next.js/Supabase in v1.0.14.

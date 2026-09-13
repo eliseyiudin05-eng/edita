@@ -1,5 +1,6 @@
-import {NextRequest,NextResponse} from "next/server";
+import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
+import {businessVerificationShadowEnabled,compareBusinessVerificationWithGo,normalizeBusinessVerification} from "@/lib/go-business-verification-shadow";
 
 function tokenFrom(req:NextRequest){
   const bearer=req.headers.get("authorization");
@@ -29,13 +30,16 @@ export async function GET(req:NextRequest){
   }
 
   const {data:request}=await service.from("business_verification_requests")
-    .select("id,requested_level,legal_name,inn,registration_number,website_url,social_url,reported_audience,status,review_note,created_at,reviewed_at")
+    .select("requested_level,status,review_note,created_at")
     .eq("business_id",business.id)
     .order("created_at",{ascending:false})
     .limit(1)
     .maybeSingle();
 
-  return NextResponse.json({business,request:request||null});
+  const result=normalizeBusinessVerification({business,request:request||null});
+  if(!result)return NextResponse.json({error:"Не удалось загрузить статус проверки."},{status:503});
+  if(businessVerificationShadowEnabled())after(()=>compareBusinessVerificationWithGo(tokenFrom(req)!,result));
+  return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(req:NextRequest){
