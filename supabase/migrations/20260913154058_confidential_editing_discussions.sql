@@ -36,6 +36,7 @@ revoke all on public.discussion_messages from anon,authenticated;
 grant all on public.discussion_members to service_role;
 grant all on public.discussion_messages to service_role;
 
+drop policy if exists "discussion members deny direct access" on public.discussion_members;
 create policy "discussion members deny direct access"
   on public.discussion_members
   for all
@@ -43,6 +44,7 @@ create policy "discussion members deny direct access"
   using (false)
   with check (false);
 
+drop policy if exists "discussion messages deny direct access" on public.discussion_messages;
 create policy "discussion messages deny direct access"
   on public.discussion_messages
   for all

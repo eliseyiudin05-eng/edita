@@ -64,8 +64,7 @@ export async function POST(req:NextRequest){
   if(createdUserId){
     const profileUpdate:Record<string,unknown>={
       school_name:schoolName||null,
-      onboarding:metadata.onboarding,
-      ...(role==="editor"?{referral_points:5}:{})
+      onboarding:metadata.onboarding
     };
     const {error:profileError}=await service.from("profiles").update(profileUpdate).eq("id",createdUserId);
     if(profileError)console.error("Could not save signup profile extras",{code:profileError.code||"profile_update_failed"});
