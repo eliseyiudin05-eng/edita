@@ -30,6 +30,8 @@ export function businessVerificationShadowEnabled(){
   return process.env.GO_BACKEND_BUSINESS_VERIFICATION_SHADOW_READS_ENABLED==="true"&&Boolean(verificationEndpoint());
 }
 
+export function goBusinessVerificationBackendConfigured(){return Boolean(verificationEndpoint())}
+
 export function normalizeBusinessVerification(value:unknown):BusinessVerificationResponse|null{
   if(!value||typeof value!=="object")return null;
   const row=value as Record<string,unknown>;
@@ -41,11 +43,15 @@ export function normalizeBusinessVerification(value:unknown):BusinessVerificatio
 
 export async function compareBusinessVerificationWithGo(token:string,legacy:BusinessVerificationResponse){
   const result=await readBusinessVerificationFromGo(token,shadowTimeout());
-  const outcome=result.ok?(JSON.stringify(result.value)===JSON.stringify(legacy)?"match":"mismatch"):result.outcome;
+  const outcome=result.ok?(sameBusinessVerification(result.value,legacy)?"match":"mismatch"):result.outcome;
   console.info("go_business_verification_shadow",{route:"business_verification",outcome,duration_ms:result.durationMs});
 }
 
-async function readBusinessVerificationFromGo(token:string,timeoutMs:number):Promise<GoBusinessReadResult>{
+export function sameBusinessVerification(left:BusinessVerificationResponse,right:BusinessVerificationResponse){
+  return JSON.stringify(left)===JSON.stringify(right);
+}
+
+export async function readBusinessVerificationFromGo(token:string,timeoutMs:number):Promise<GoBusinessReadResult>{
   const started=Date.now();
   try{
     const endpoint=verificationEndpoint();

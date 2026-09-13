@@ -1,6 +1,7 @@
 import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {businessVerificationShadowEnabled,compareBusinessVerificationWithGo,normalizeBusinessVerification} from "@/lib/go-business-verification-shadow";
+import {businessVerificationCanaryEnabled,recordBusinessVerificationCanaryComparison,tryBusinessVerificationCanary} from "@/lib/go-business-verification-canary";
 
 function tokenFrom(req:NextRequest){
   const bearer=req.headers.get("authorization");
@@ -8,7 +9,8 @@ function tokenFrom(req:NextRequest){
 }
 
 export async function GET(req:NextRequest){
-  const user=await getUserFromAccessToken(tokenFrom(req));
+  const accessToken=tokenFrom(req);
+  const user=await getUserFromAccessToken(accessToken);
   const service=getSupabaseServiceClient();
   if(!user||!service)return NextResponse.json({error:"Нужен вход в аккаунт."},{status:401});
 
@@ -38,7 +40,14 @@ export async function GET(req:NextRequest){
 
   const result=normalizeBusinessVerification({business,request:request||null});
   if(!result)return NextResponse.json({error:"Не удалось загрузить статус проверки."},{status:503});
-  if(businessVerificationShadowEnabled())after(()=>compareBusinessVerificationWithGo(tokenFrom(req)!,result));
+  const canary=await tryBusinessVerificationCanary(accessToken!);
+  if(canary.attempted&&canary.value){
+    after(()=>recordBusinessVerificationCanaryComparison(canary.value!,result));
+    return NextResponse.json(canary.value,{headers:{"Cache-Control":"no-store"}});
+  }
+  if(!businessVerificationCanaryEnabled()&&businessVerificationShadowEnabled()){
+    after(()=>compareBusinessVerificationWithGo(accessToken!,result));
+  }
   return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
 }
 
