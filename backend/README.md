@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.8
+## Stage v1.0.9
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -20,7 +20,7 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - the social response omits profile UUIDs and all non-public profile fields;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-Next.js remains the gateway and write authority. Profile and academy progress reads can independently compare legacy and Go responses in shadow mode, or route a bounded 1–10% read-only canary to Go. Social ranking is shadow-only in this version. Every migration mode is disabled by default, and no financial request is routed to Go.
+Next.js remains the gateway and write authority. Profile, academy progress and social ranking reads can independently compare legacy and Go responses in shadow mode, or route a bounded 1–10% read-only canary to Go. Every migration mode is disabled by default, and no financial request is routed to Go.
 
 ## Run locally
 
@@ -51,4 +51,4 @@ After shadow results are stable, disable shadow mode, set `GO_BACKEND_CANARY_REA
 
 For the academy stage, keep `GO_BACKEND_ACADEMY_SHADOW_READS_ENABLED=false` until the Go build is healthy, then enable it to compare `/v1/academy/progress` after legacy responses are sent. `GO_BACKEND_ACADEMY_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. After stable comparisons, disable academy shadow mode, enable `GO_BACKEND_ACADEMY_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_ACADEMY_CANARY_PERCENT=1`. The percentage is hard-limited to 10. Timeout, malformed/oversized response, excessive latency, or an open circuit falls back to the existing Supabase read. A 20% unhealthy rate in a 10–20 result window pauses academy canary locally for five minutes; a contract mismatch opens the circuit immediately. The environment flag is the global kill switch. Writes, XP persistence, and unlock decisions remain in Next.js/Supabase.
 
-For the social stage, keep `GO_BACKEND_SOCIAL_SHADOW_READS_ENABLED=false` until the Go build is healthy, then enable it to compare `/v1/social/ranking` after legacy responses are sent. `GO_BACKEND_SOCIAL_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. Both reads use the caller's bearer token and the Supabase publishable key. Social writes, friendships, groups, chats and competitions remain in Next.js/Supabase in v1.0.8.
+For the social stage, keep `GO_BACKEND_SOCIAL_SHADOW_READS_ENABLED=false` until the Go build is healthy, then enable it to compare `/v1/social/ranking` after legacy responses are sent. `GO_BACKEND_SOCIAL_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. After stable comparisons, disable social shadow mode, enable `GO_BACKEND_SOCIAL_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_SOCIAL_CANARY_PERCENT=1`. The percentage is hard-limited to 10. Timeout, malformed/oversized response, excessive latency, or an open circuit falls back to the existing Supabase read. A 20% unhealthy rate in a 10–20 result window pauses social canary locally for five minutes; a contract mismatch opens the circuit immediately. The environment flag is the global kill switch. Both reads use the caller's bearer token and the Supabase publishable key. Social writes, friendships, groups, chats and competitions remain in Next.js/Supabase in v1.0.9.

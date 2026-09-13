@@ -13,7 +13,7 @@ export type SocialRankRow={
 
 export type SocialRankingResponse={ranking:SocialRankRow[]};
 
-type GoSocialReadResult=
+export type GoSocialReadResult=
   |{ok:true;value:SocialRankingResponse;durationMs:number}
   |{ok:false;outcome:string;durationMs:number};
 
@@ -24,6 +24,10 @@ const usernamePattern=/^[a-z0-9][a-z0-9._-]{2,29}$/;
 
 export function socialRankingShadowEnabled(){
   return process.env.GO_BACKEND_SOCIAL_SHADOW_READS_ENABLED==="true"&&Boolean(socialEndpoint());
+}
+
+export function goSocialBackendConfigured(){
+  return Boolean(socialEndpoint());
 }
 
 export function normalizeSocialRanking(rows:unknown,viewerId?:string):SocialRankingResponse|null{
@@ -43,7 +47,7 @@ export async function compareSocialRankingWithGo(token:string,legacy:SocialRanki
   console.info("go_social_shadow",{route:"social_ranking",outcome,duration_ms:result.durationMs});
 }
 
-async function readSocialRankingFromGo(token:string,timeoutMs:number):Promise<GoSocialReadResult>{
+export async function readSocialRankingFromGo(token:string,timeoutMs:number):Promise<GoSocialReadResult>{
   const started=Date.now();
   try{
     const endpoint=socialEndpoint();
@@ -103,7 +107,7 @@ function boundedInteger(value:unknown,minimum:number,maximum:number){
   return typeof value==="number"&&Number.isInteger(value)&&value>=minimum&&value<=maximum;
 }
 
-function sameSocialRanking(candidate:SocialRankingResponse,legacy:SocialRankingResponse){
+export function sameSocialRanking(candidate:SocialRankingResponse,legacy:SocialRankingResponse){
   return JSON.stringify(candidate)===JSON.stringify(legacy);
 }
 

@@ -1,5 +1,6 @@
 import {after,NextRequest,NextResponse} from "next/server";
 import {compareSocialRankingWithGo,normalizeSocialRanking,socialRankingShadowEnabled} from "@/lib/go-social-shadow";
+import {recordSocialRankingCanaryComparison,socialRankingCanaryEnabled,trySocialRankingCanary} from "@/lib/go-social-canary";
 import {getSocialRanking,getUserFromAccessToken} from "@/lib/server-supabase";
 
 function bearer(req:NextRequest){
@@ -13,11 +14,25 @@ export async function GET(req:NextRequest){
   const user=await getUserFromAccessToken(token);
   if(!user||!token)return NextResponse.json({error:"Нужен вход в аккаунт."},{status:401});
 
+  const canary=await trySocialRankingCanary(token);
+  if(canary.attempted&&canary.value){
+    after(async()=>{
+      try{
+        const {data,error}=await getSocialRanking(token);
+        const legacy=!error?normalizeSocialRanking(data,user.id):null;
+        recordSocialRankingCanaryComparison(canary.value!,legacy);
+      }catch{
+        recordSocialRankingCanaryComparison(canary.value!,null);
+      }
+    });
+    return NextResponse.json(canary.value,{headers:{"Cache-Control":"no-store"}});
+  }
+
   const {data,error}=await getSocialRanking(token);
   if(error)return NextResponse.json({error:"Не удалось загрузить рейтинг."},{status:503});
   const legacy=normalizeSocialRanking(data,user.id);
   if(!legacy)return NextResponse.json({error:"Данные рейтинга повреждены."},{status:500});
 
-  if(socialRankingShadowEnabled())after(()=>compareSocialRankingWithGo(token,legacy));
+  if(!socialRankingCanaryEnabled()&&socialRankingShadowEnabled())after(()=>compareSocialRankingWithGo(token,legacy));
   return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
 }

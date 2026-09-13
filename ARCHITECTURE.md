@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.8)
+## Go migration boundary (v1.0.9)
 
 - Production writes and business decisions remain in Next.js/Supabase.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
@@ -62,6 +62,8 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Social ranking adds `GET /v1/social/ranking` in shadow-only mode. Browser reads now pass through the authenticated Next.js gateway instead of querying `public_profiles` directly.
 - Both legacy and Go social reads use the user's token with the publishable key. The external contract is limited to 50 ranked public profiles and removes database UUIDs before responding.
 - Social shadow logs contain only route, outcome and duration; names, usernames, schools, avatars, scores and identifiers are excluded.
+- Social ranking may serve a separately controlled 1–10% read-only canary. Failure, excessive latency or invalid output falls back to the existing Supabase read in the same request.
+- Social shadow and canary modes are mutually exclusive. A dedicated circuit breaker pauses degraded social canary traffic for five minutes, while the environment flag provides global rollback.
 - The Go profile endpoint derives identity only from a locally verified access token, forwards that token to the Supabase Data API and filters on the same subject; the existing profile RLS policy remains active.
 - The profile response omits user identity and every unrelated profile/onboarding field.
 - Go connects to PostgreSQL through a bounded pool and requires encrypted database transport in production.
