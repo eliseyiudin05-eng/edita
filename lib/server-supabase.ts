@@ -74,6 +74,19 @@ export async function getLessonProgress(token:string,userId:string){
     .eq("status","completed");
 }
 
+export async function getSocialRanking(token:string){
+  const {url,key}=publicConfig();
+  const client=createClient(url,key,{
+    auth:{persistSession:false,autoRefreshToken:false},
+    global:{headers:{Authorization:"Bearer "+token}}
+  });
+  return client.from("public_profiles")
+    .select("id,username,display_name,level,xp,rating_points,ai_score,avatar_url,school_name,skills")
+    .order("rating_points",{ascending:false})
+    .order("id",{ascending:true})
+    .limit(50);
+}
+
 export async function canUseArenaReview(token:string|undefined|null,challengeId?:string|null){
   if(!challengeId)return false;
   const auth=await getAuthenticatedProfile(token);

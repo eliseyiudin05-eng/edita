@@ -16,13 +16,14 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
 )
 
 func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.7",
+		Version:      "1.0.8",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -56,7 +57,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.7"`) {
+	if !strings.Contains(body, `"version":"1.0.8"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -93,6 +94,19 @@ type fakeAcademyReader struct {
 	err     error
 	token   string
 	subject string
+}
+
+type fakeSocialReader struct {
+	result  social.Ranking
+	err     error
+	token   string
+	subject string
+}
+
+func (reader *fakeSocialReader) GetRanking(_ context.Context, token, subject string) (social.Ranking, error) {
+	reader.token = token
+	reader.subject = subject
+	return reader.result, reader.err
 }
 
 func (reader *fakeAcademyReader) GetProgress(_ context.Context, token, subject string) (academy.Progress, error) {
@@ -193,6 +207,35 @@ func TestAcademyProgressRejectsNonAuthenticatedRole(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden || reader.subject != "" {
 		t.Fatalf("unexpected response: status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestSocialRankingRequiresAuthAndForwardsOnlyVerifiedToken(t *testing.T) {
+	reader := &fakeSocialReader{result: social.Ranking{Ranking: []social.RankRow{{
+		Level: 2, XP: 300, RatingPoints: 1200, Viewer: true,
+	}}}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "private-user-id", Role: "authenticated"}},
+		Social:            reader,
+		DependencyTimeout: time.Second,
+	})
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/v1/social/ranking", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d", unauthorized.Code)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/social/ranking?user_id=other", nil)
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "private-user-id" {
+		t.Fatalf("unexpected response or reader token: status=%d token=%q body=%s", response.Code, reader.token, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "private-user-id") {
+		t.Fatalf("response exposes verified identity: %s", response.Body.String())
 	}
 }
 

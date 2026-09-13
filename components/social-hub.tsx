@@ -6,6 +6,7 @@ import GroupChat from "@/components/group-chat";
 import ProfileAvatar from "@/components/profile-avatar";
 
 type RankRow={id:string;username:string|null;display_name:string|null;level:number;xp:number;rating_points:number;ai_score:number|null;avatar_url?:string|null;school_name?:string|null};
+type RankingRow=Omit<RankRow,"id">&{viewer:boolean;skills:string[]};
 type FriendRel={id:string;status:string;direction:"incoming"|"outgoing";other:RankRow|null};
 type GroupMember={user_id:string;member_role:string;profile:RankRow|null};
 type Group={id:string;name:string;owner_id:string;age_scope:string;join_code:string;members:GroupMember[]};
@@ -16,7 +17,7 @@ type BusinessRating={id:string;name:string;verification_level:string;reviews:num
 
 export default function SocialHub({ageGroup}:{ageGroup?:string}){
   const [view,setView]=useState<"rating"|"schools"|"friends"|"groups"|"competitions"|"companies"|"referrals">("rating");
-  const [ranking,setRanking]=useState<RankRow[]>([]);
+  const [ranking,setRanking]=useState<RankingRow[]>([]);
   const [relations,setRelations]=useState<FriendRel[]>([]);
   const [groups,setGroups]=useState<Group[]>([]);
   const [competitions,setCompetitions]=useState<Competition[]>([]);
@@ -30,7 +31,6 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
   const [workUrls,setWorkUrls]=useState<Record<string,string>>({});
   const [message,setMessage]=useState("");
   const [activeGroupId,setActiveGroupId]=useState<string|null>(null);
-  const [viewerId,setViewerId]=useState<string|null>(null);
 
   async function headers():Promise<Record<string,string>>{
     const supabase=getSupabaseBrowserClient();
@@ -42,21 +42,16 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     const supabase=getSupabaseBrowserClient();
     const {data:{user}}=await supabase.auth.getUser();
     if(!user)return;
-    setViewerId(user.id);
-    const {data:ranks}=await supabase.from("public_profiles")
-      .select("id,username,display_name,level,xp,rating_points,ai_score,avatar_url,school_name")
-      .order("rating_points",{ascending:false})
-      .limit(50);
-    setRanking((ranks||[]) as RankRow[]);
-
     const h=await headers();
-    const [f,g,c,r,biz]=await Promise.all([
+    const [rankData,f,g,c,r,biz]=await Promise.all([
+      fetch("/api/social/ranking",{headers:h,cache:"no-store"}).then(x=>x.json()),
       fetch("/api/social/friends",{headers:h,cache:"no-store"}).then(x=>x.json()),
       fetch("/api/social/groups",{headers:h,cache:"no-store"}).then(x=>x.json()),
       fetch("/api/social/competitions",{headers:h,cache:"no-store"}).then(x=>x.json()),
       fetch("/api/social/referrals",{headers:h,cache:"no-store"}).then(x=>x.json()),
       fetch("/api/community/business-ratings",{headers:h,cache:"no-store"}).then(x=>x.json())
     ]);
+    setRanking((rankData.ranking||[]) as RankingRow[]);
     setRelations(f.relations||[]);
     setGroups(g.groups||[]);
     setCompetitions(c.competitions||[]);
@@ -71,10 +66,10 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
   const incoming=useMemo(()=>relations.filter(r=>r.status==="pending"&&r.direction==="incoming"),[relations]);
   const outgoing=useMemo(()=>relations.filter(r=>r.status==="pending"&&r.direction==="outgoing"),[relations]);
   const friendRanking=useMemo(()=>{
-    const mine=ranking.find(row=>row.id===viewerId);
+    const mine=ranking.find(row=>row.viewer);
     const values=[...(mine?[mine]:[]),...friends.map(friend=>friend.other).filter((row):row is RankRow=>Boolean(row))];
     return values.sort((a,b)=>(b.rating_points||0)-(a.rating_points||0));
-  },[friends,ranking,viewerId]);
+  },[friends,ranking]);
   const schoolRanking=useMemo(()=>{
     const schools=new Map<string,{name:string;points:number;members:number;avatars:Array<{src?:string|null;name?:string|null}>}>();
     for(const row of ranking){
@@ -159,7 +154,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
         <h3>Монтажёры KIVRONIX</h3>
         <p className="muted">Очки складываются из пройденных уроков, оценки роликов и полезной активности. Электронная почта, возраст и доход всегда скрыты.</p>
         <div className="mini-ranking">
-          {ranking.slice(0,20).map((row,i)=><div className="mini-rank-row profile-rank-row" key={row.id}><b>#{i+1}</b><ProfileAvatar src={row.avatar_url} name={row.display_name} size="sm"/><span><strong>{row.display_name||"Монтажёр"}</strong><small>@{row.username||"editor"}{row.school_name?" · "+row.school_name:""}</small></span><em>{row.rating_points||0}</em></div>)}
+          {ranking.slice(0,20).map((row,i)=><div className="mini-rank-row profile-rank-row" key={(row.username||"editor")+i}><b>#{i+1}</b><ProfileAvatar src={row.avatar_url} name={row.display_name} size="sm"/><span><strong>{row.display_name||"Монтажёр"}</strong><small>@{row.username||"editor"}{row.school_name?" · "+row.school_name:""}</small></span><em>{row.rating_points||0}</em></div>)}
           {ranking.length===0&&<p className="muted">Рейтинг заполнится после первых учеников.</p>}
         </div>
       </section>
@@ -167,7 +162,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
         <div className="eyebrow">СРЕДИ ДРУЗЕЙ</div>
         <h3>Кто продвинулся дальше</h3>
         <div className="mini-ranking">
-          {friendRanking.length<=1?<p className="muted">Добавь друзей — здесь появится ваш маленький рейтинг.</p>:friendRanking.map((row,i)=><div className="mini-rank-row profile-rank-row" key={row.id}><b>#{i+1}</b><ProfileAvatar src={row.avatar_url} name={row.display_name} size="sm"/><span><strong>{row.id===viewerId?"Ты":row.display_name||"Монтажёр"}</strong><small>@{row.username||"editor"}</small></span><em>{row.rating_points||0}</em></div>)}
+          {friendRanking.length<=1?<p className="muted">Добавь друзей — здесь появится ваш маленький рейтинг.</p>:friendRanking.map((row,i)=><div className="mini-rank-row profile-rank-row" key={("id" in row?row.id:row.username)||String(i)}><b>#{i+1}</b><ProfileAvatar src={row.avatar_url} name={row.display_name} size="sm"/><span><strong>{"viewer" in row&&row.viewer?"Ты":row.display_name||"Монтажёр"}</strong><small>@{row.username||"editor"}</small></span><em>{row.rating_points||0}</em></div>)}
         </div>
       </section>
     </div>}
