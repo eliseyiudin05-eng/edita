@@ -3,8 +3,16 @@ export type LearningPreferencesResponse={
   preferences:{level:string;software:string;goal:string};
 };
 
+export type GoProfileReadResult=
+  |{ok:true;value:LearningPreferencesResponse;durationMs:number}
+  |{ok:false;outcome:string;durationMs:number};
+
 export function learningPreferencesShadowEnabled(){
   return process.env.GO_BACKEND_SHADOW_READS_ENABLED==="true"&&Boolean(process.env.GO_BACKEND_URL);
+}
+
+export function goProfileBackendConfigured(){
+  return Boolean(profileEndpoint());
 }
 
 export function normalizeLearningPreferences(role:unknown,onboarding:unknown):LearningPreferencesResponse|null{
@@ -21,36 +29,33 @@ export function normalizeLearningPreferences(role:unknown,onboarding:unknown):Le
 }
 
 export async function compareLearningPreferencesWithGo(token:string,legacy:LearningPreferencesResponse){
+  const result=await readLearningPreferencesFromGo(token,shadowTimeout());
+  const outcome=result.ok?(sameLearningPreferences(result.value,legacy)?"match":"mismatch"):result.outcome;
+  console.info("go_profile_shadow",{route:"learning_preferences",outcome,duration_ms:result.durationMs});
+}
+
+export async function readLearningPreferencesFromGo(token:string,timeoutMs:number):Promise<GoProfileReadResult>{
   const started=Date.now();
-  let outcome="unavailable";
   try{
     const endpoint=profileEndpoint();
-    if(!endpoint){
-      outcome="invalid_configuration";
-      return;
-    }
+    if(!endpoint)return failed("invalid_configuration",started);
     const response=await fetch(endpoint,{
       method:"GET",
       headers:{Authorization:`Bearer ${token}`,Accept:"application/json"},
       cache:"no-store",
       redirect:"error",
-      signal:AbortSignal.timeout(shadowTimeout()),
+      signal:AbortSignal.timeout(timeoutMs),
     });
-    if(!response.ok){
-      outcome=`http_${response.status}`;
-      return;
-    }
+    if(!response.ok)return failed(`http_${response.status}`,started);
+    const declaredLength=Number(response.headers.get("content-length")||"0");
+    if(Number.isFinite(declaredLength)&&declaredLength>64*1024)return failed("response_too_large",started);
     const raw=await response.text();
-    if(raw.length>64*1024){
-      outcome="response_too_large";
-      return;
-    }
-    const candidate=JSON.parse(raw) as unknown;
-    outcome=isSameResponse(candidate,legacy)?"match":"mismatch";
+    if(new TextEncoder().encode(raw).byteLength>64*1024)return failed("response_too_large",started);
+    const value=parseLearningPreferences(JSON.parse(raw) as unknown);
+    return value?{ok:true,value,durationMs:Date.now()-started}:failed("invalid_response",started);
   }catch(error){
-    outcome=error instanceof Error&&error.name==="TimeoutError"?"timeout":"unavailable";
-  }finally{
-    console.info("go_profile_shadow",{route:"learning_preferences",outcome,duration_ms:Date.now()-started});
+    const timeout=error instanceof Error&&(error.name==="TimeoutError"||error.name==="AbortError");
+    return failed(timeout?"timeout":"unavailable",started);
   }
 }
 
@@ -72,11 +77,23 @@ function boundedString(value:unknown){
   return typeof value==="string"?value.slice(0,80):"";
 }
 
-function isSameResponse(candidate:unknown,legacy:LearningPreferencesResponse){
-  if(!candidate||typeof candidate!=="object")return false;
+function parseLearningPreferences(candidate:unknown):LearningPreferencesResponse|null{
+  if(!candidate||typeof candidate!=="object")return null;
   const value=candidate as Partial<LearningPreferencesResponse>;
-  return value.role===legacy.role&&
-    value.preferences?.level===legacy.preferences.level&&
-    value.preferences?.software===legacy.preferences.software&&
-    value.preferences?.goal===legacy.preferences.goal;
+  if(value.role!=="editor"&&value.role!=="business"&&value.role!=="admin")return null;
+  const preferences=value.preferences;
+  if(!preferences||typeof preferences.level!=="string"||typeof preferences.software!=="string"||typeof preferences.goal!=="string")return null;
+  if(preferences.level.length>80||preferences.software.length>80||preferences.goal.length>80)return null;
+  return {role:value.role,preferences:{level:preferences.level,software:preferences.software,goal:preferences.goal}};
+}
+
+export function sameLearningPreferences(candidate:LearningPreferencesResponse,legacy:LearningPreferencesResponse){
+  return candidate.role===legacy.role&&
+    candidate.preferences.level===legacy.preferences.level&&
+    candidate.preferences.software===legacy.preferences.software&&
+    candidate.preferences.goal===legacy.preferences.goal;
+}
+
+function failed(outcome:string,started:number):GoProfileReadResult{
+  return {ok:false,outcome,durationMs:Date.now()-started};
 }

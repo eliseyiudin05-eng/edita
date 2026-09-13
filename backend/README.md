@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.4
+## Stage v1.0.5
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -16,7 +16,7 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - only `role`, `level`, `software`, and `goal` are returned; identity and unrelated onboarding fields are omitted;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-Next.js is still the production source of truth. Its profile route can compare the legacy response with Go after sending the legacy response to the user. Shadow reads are disabled by default, and no financial request is routed to Go.
+Next.js remains the gateway and write authority. Its profile route can compare legacy and Go responses in shadow mode, or route a bounded 1–10% read-only canary to Go. Both modes are disabled by default, and no financial request is routed to Go.
 
 ## Run locally
 
@@ -39,4 +39,6 @@ For a persistent IPv4-only Go service, use the Supabase session pooler URL (port
 
 Use a dedicated least-privilege database role for the Go service. It still needs only permission to connect and run the readiness probe; do not give it the `postgres` owner role or put a service-role key in the connection settings. The profile request uses a Supabase publishable key plus the user's access token, never a secret/service-role key, so RLS remains active.
 
-To enable comparison after deploying the Go service, set `GO_BACKEND_URL` to its HTTPS origin and set `GO_BACKEND_SHADOW_READS_ENABLED=true` in Next.js. The optional `GO_BACKEND_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. The legacy response remains authoritative even on mismatch, timeout, or Go failure.
+To enable comparison after deploying the Go service, set `GO_BACKEND_URL` to its HTTPS origin and set `GO_BACKEND_SHADOW_READS_ENABLED=true` in Next.js. The optional `GO_BACKEND_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. The legacy response remains authoritative in shadow mode.
+
+After shadow results are stable, disable shadow mode, set `GO_BACKEND_CANARY_READS_ENABLED=true`, and begin with `GO_BACKEND_CANARY_PERCENT=1`. An active canary suppresses shadow requests even if the shadow flag was accidentally left enabled. The percentage is hard-limited to 10. `GO_BACKEND_CANARY_TIMEOUT_MS` is bounded to 250–3000 ms and `GO_BACKEND_CANARY_MAX_LATENCY_MS` controls when a completed Go request still falls back. Failures and slow responses fall back within the same request. A per-instance circuit breaker pauses the canary for five minutes at a 20% unhealthy rate after at least 10 results, while any contract mismatch opens it immediately. Set the canary flag to `false` for global rollback.
