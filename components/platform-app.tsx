@@ -22,6 +22,7 @@ import ProfileAvatar from "@/components/profile-avatar";
 import KivronixChallenges from "@/components/kivronix-challenges";
 import PrivateChats from "@/components/private-chats";
 import {futurePlans} from "@/lib/plans";
+import PayoutPanel from "@/components/payout-panel";
 
 type Tab="home"|"academy"|"practice"|"coach"|"review"|"kivronix-challenges"|"arena"|"portfolio"|"jobs"|"messages"|"community"|"wallet"|"plans"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string;ageGroup?:string};
@@ -231,9 +232,9 @@ export default function PlatformApp(){
        <div style={{marginTop:14}}>{viewer.username?<Link className="btn btn-dark" href={"/u/"+viewer.username}>Открыть страницу с работами</Link>:<Link className="btn btn-dark" href="/u/demo">Посмотреть пример</Link>}</div>
      </Page>}
 
-     {tab==="wallet"&&<Page title="Мои итоги" sub="Прогресс, KIVRONIX Points и текущий режим доступа.">
+     {tab==="wallet"&&<Page title="Мои итоги" sub="Денежные выигрыши, KIVRONIX Points и текущий режим доступа.">
        <div className="grid">
-         <Card title="Заработано"><div className="wallet-number">{money(viewer.earningsCents||0)}</div><p className="muted">Доход от проектов и заданий после подключения реальных выплат.</p></Card>
+         <Card title="К выводу"><div className="wallet-number">{money(viewer.earningsCents||0)}</div><p className="muted">Сюда попадают подтверждённые денежные призы. KIVRONIX Points хранятся отдельно и не являются рублями.</p><PayoutPanel balanceCents={viewer.earningsCents||0}/></Card>
          <Card title="KIVRONIX Points"><div className="wallet-number">{Number(viewer.referralPoints||0).toLocaleString("ru-RU")} KP</div><p className="muted">Приглашай активных друзей и получай внутренние баллы. Каталог наград находится в сообществе.</p><button className="btn btn-dark" onClick={()=>goTab("community")}>Открыть награды</button></Card>
          <Card title="Доступ"><div className="wallet-number">{accessLabel}</div><p className="muted">Оплата выключена. Будущие планы уже можно посмотреть без подключения карты.</p><Link className="btn btn-ghost" href="/pricing">Будущие тарифы</Link></Card>
        </div>
