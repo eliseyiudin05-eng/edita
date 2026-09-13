@@ -21,8 +21,9 @@ import ProfileEditor from "@/components/profile-editor";
 import ProfileAvatar from "@/components/profile-avatar";
 import KivronixChallenges from "@/components/kivronix-challenges";
 import PrivateChats from "@/components/private-chats";
+import {futurePlans} from "@/lib/plans";
 
-type Tab="home"|"academy"|"practice"|"coach"|"review"|"kivronix-challenges"|"arena"|"portfolio"|"jobs"|"messages"|"community"|"wallet"|"profile"|"business";
+type Tab="home"|"academy"|"practice"|"coach"|"review"|"kivronix-challenges"|"arena"|"portfolio"|"jobs"|"messages"|"community"|"wallet"|"plans"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string;ageGroup?:string};
 type Viewer={
   name:string;
@@ -41,7 +42,7 @@ type Viewer={
 
 const allTabs:[Tab,string][]=[
   ["home","Главная"],["academy","Обучение"],["practice","Практика"],["coach","Помощник"],["review","Разбор видео"],
-  ["kivronix-challenges","Конкурсы KIVRONIX"],["arena","Конкурсы компаний"],["portfolio","Мои работы"],["jobs","Работа"],["messages","Закрытые чаты"],["community","Сообщество"],["wallet","Мои итоги"],["profile","Профиль"],["business","Компания"]
+  ["kivronix-challenges","Конкурсы KIVRONIX"],["arena","Конкурсы компаний"],["portfolio","Мои работы"],["jobs","Работа"],["messages","Закрытые чаты"],["community","Сообщество"],["wallet","Мои итоги"],["plans","Тариф и доступ"],["profile","Профиль"],["business","Компания"]
 ];
 
 export default function PlatformApp(){
@@ -53,7 +54,7 @@ export default function PlatformApp(){
 
  const xp=useMemo(()=>done.reduce((sum,slug)=>sum+(curriculum.find(l=>l.slug===slug)?.xp||0),0),[done]);
  const tabs=useMemo(()=>{
-   if(viewer.role==="business") return allTabs.filter(([id])=>["home","coach","review","arena","messages","profile","business"].includes(id));
+   if(viewer.role==="business") return allTabs.filter(([id])=>["home","coach","review","arena","messages","plans","profile","business"].includes(id));
    if(viewer.role==="editor") return allTabs.filter(([id])=>id!=="business");
    return allTabs;
  },[viewer.role]);
@@ -235,6 +236,32 @@ export default function PlatformApp(){
          <Card title="Заработано"><div className="wallet-number">{money(viewer.earningsCents||0)}</div><p className="muted">Доход от проектов и заданий после подключения реальных выплат.</p></Card>
          <Card title="KIVRONIX Points"><div className="wallet-number">{Number(viewer.referralPoints||0).toLocaleString("ru-RU")} KP</div><p className="muted">Приглашай активных друзей и получай внутренние баллы. Каталог наград находится в сообществе.</p><button className="btn btn-dark" onClick={()=>goTab("community")}>Открыть награды</button></Card>
          <Card title="Доступ"><div className="wallet-number">{accessLabel}</div><p className="muted">Оплата выключена. Будущие планы уже можно посмотреть без подключения карты.</p><Link className="btn btn-ghost" href="/pricing">Будущие тарифы</Link></Card>
+       </div>
+     </Page>}
+
+     {tab==="plans"&&<Page title="Тариф и доступ" sub="Текущий режим, будущие возможности и понятные условия без скрытого подключения.">
+       <div className="grid">
+         <Card title="Сейчас доступно">
+           <div className="wallet-number">{accessLabel}</div>
+           <p className="muted">{activePaidPlan&&viewer.planExpiresAt
+             ?"Активен до "+new Date(viewer.planExpiresAt).toLocaleDateString("ru-RU")
+             :"Во время раннего доступа основные функции открыты бесплатно. Банковская карта не требуется."}</p>
+         </Card>
+         {viewer.role==="business"
+           ?<Card title={futurePlans.studio_plus.name}>
+             <div className="wallet-number">{futurePlans.studio_plus.priceRub.toLocaleString("ru-RU")} ₽</div>
+             <p className="muted">План для регулярных конкурсов, команды и расширенной работы с кандидатами. Призовой фонд каждого задания оплачивается отдельно и не входит в подписку.</p>
+             <Link className="btn btn-dark" href="/pricing">Посмотреть будущий Studio+</Link>
+           </Card>
+           :<Card title={futurePlans.creator_plus.name}>
+             <div className="wallet-number">{futurePlans.creator_plus.priceRub.toLocaleString("ru-RU")} ₽</div>
+             <p className="muted">Будущий план с расширенными разборами и аналитикой. Его можно будет получить на 30 дней за {futurePlans.creator_plus.pointsPrice} KIVRONIX Points.</p>
+             <div className="lesson-actions"><button className="btn btn-dark" onClick={()=>goTab("community")}>Баллы и награды</button><Link className="btn btn-ghost" href="/pricing">Все условия</Link></div>
+           </Card>}
+         <Card title="Оплата под контролем">
+           <p className="muted">Списания выключены. Когда платные планы будут готовы, стоимость и срок появятся до оплаты, а подключение потребует отдельного подтверждения.</p>
+           <Link className="btn btn-ghost" href="/pricing">Сравнить возможности</Link>
+         </Card>
        </div>
      </Page>}
 
