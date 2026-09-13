@@ -1,5 +1,6 @@
-import {NextRequest,NextResponse} from "next/server";
+import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
+import {compareSocialGroupsWithGo,normalizeSocialGroups,socialGroupsShadowEnabled} from "@/lib/go-social-groups-shadow";
 
 function token(req:NextRequest){
   const h=req.headers.get("authorization");
@@ -7,40 +8,46 @@ function token(req:NextRequest){
 }
 
 async function auth(req:NextRequest){
-  const user=await getUserFromAccessToken(token(req));
+  const accessToken=token(req);
+  const user=await getUserFromAccessToken(accessToken);
   const service=getSupabaseServiceClient();
-  return user&&service?{user,service}:null;
+  return user&&service&&accessToken?{user,service,token:accessToken}:null;
 }
 
 function scope(profile:any){
   return profile?.onboarding?.ageGroup||"18+";
 }
 
-export async function GET(req:NextRequest){
-  const a=await auth(req);
-  if(!a)return NextResponse.json({error:"Нужен вход."},{status:401});
-
-  const {data:memberships}=await a.service.from("study_group_members")
+async function readLegacyGroups(a:NonNullable<Awaited<ReturnType<typeof auth>>>){
+  const {data:memberships,error:membershipError}=await a.service.from("study_group_members")
     .select("group_id,member_role")
-    .eq("user_id",a.user.id);
+    .eq("user_id",a.user.id)
+    .order("joined_at",{ascending:false})
+    .limit(20);
+  if(membershipError)return null;
   const ids=(memberships||[]).map((m:any)=>m.group_id);
-  if(!ids.length)return NextResponse.json({groups:[]});
+  if(!ids.length)return {groups:[]};
 
-  const {data:groups}=await a.service.from("study_groups")
+  const {data:groups,error:groupsError}=await a.service.from("study_groups")
     .select("id,name,description,owner_id,age_scope,join_code,max_members,created_at")
-    .in("id",ids);
+    .in("id",ids)
+    .limit(20);
+  if(groupsError)return null;
 
   const result=await Promise.all((groups||[]).map(async(g:any)=>{
-    const {data:members}=await a.service.from("study_group_members")
+    const {data:members,error:membersError}=await a.service.from("study_group_members")
       .select("user_id,member_role,joined_at")
-      .eq("group_id",g.id);
+      .eq("group_id",g.id)
+      .limit(100);
+    if(membersError)throw new Error("members_unavailable");
 
     const userIds=(members||[]).map((m:any)=>m.user_id);
-    const {data:profiles}=userIds.length
+    const {data:profiles,error:profilesError}=userIds.length
       ? await a.service.from("public_profiles")
           .select("id,username,display_name,level,xp,rating_points,ai_score,avatar_url,school_name")
           .in("id",userIds)
-      : {data:[] as any[]};
+      : {data:[] as any[],error:null};
+    if(profilesError)throw new Error("profiles_unavailable");
 
     const pmap=Object.fromEntries((profiles||[]).map((p:any)=>[p.id,p]));
     return {
@@ -51,7 +58,21 @@ export async function GET(req:NextRequest){
     };
   }));
 
-  return NextResponse.json({groups:result});
+  return normalizeSocialGroups(result,true);
+}
+
+export async function GET(req:NextRequest){
+  const a=await auth(req);
+  if(!a)return NextResponse.json({error:"Нужен вход."},{status:401});
+
+  try{
+    const legacy=await readLegacyGroups(a);
+    if(!legacy)return NextResponse.json({error:"Не удалось загрузить учебные группы."},{status:503});
+    if(socialGroupsShadowEnabled())after(()=>compareSocialGroupsWithGo(a.token,legacy));
+    return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
+  }catch{
+    return NextResponse.json({error:"Не удалось загрузить учебные группы."},{status:503});
+  }
 }
 
 export async function POST(req:NextRequest){

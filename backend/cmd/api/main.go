@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	version = "1.0.11"
+	version = "1.0.12"
 	commit  = "local"
 )
 
@@ -67,6 +67,7 @@ func main() {
 	var academyReader httpapi.AcademyProgressReader
 	var socialReader httpapi.SocialRankingReader
 	var socialFriendsReader httpapi.SocialFriendsReader
+	var socialGroupsReader httpapi.SocialGroupsReader
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
 			cfg.SupabaseURL,
@@ -101,6 +102,7 @@ func main() {
 		}
 		socialReader = socialClient
 		socialFriendsReader = socialClient
+		socialGroupsReader = socialClient
 	}
 
 	server := &http.Server{
@@ -108,7 +110,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Social: socialReader, SocialFriends: socialFriendsReader,
+			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
