@@ -91,9 +91,11 @@ export async function POST(req:NextRequest){
   if(!/^https?:\/\//i.test(workUrl))return NextResponse.json({error:"Нужна ссылка на работу, начинающаяся с http:// или https://."},{status:400});
 
   const [{data:profile},{data:comp}]=await Promise.all([
-    service.from("profiles").select("onboarding,guardian_verified").eq("id",user.id).maybeSingle(),
+    service.from("profiles").select("role,onboarding,guardian_verified,level,xp").eq("id",user.id).maybeSingle(),
     service.from("learning_competitions").select("id,audience,status,ends_at,competition_kind,max_entries,requires_public_post").eq("id",competitionId).maybeSingle()
   ]);
+  if(profile?.role!=="editor")return NextResponse.json({error:"Участвовать может только монтажёр."},{status:403});
+  if(Number(profile?.level||1)<2||Number(profile?.xp||0)<300)return NextResponse.json({error:"Конкурсы откроются на уровне 2 после 300 XP."},{status:403});
   if(!comp||comp.status!=="open"||(comp.ends_at&&new Date(comp.ends_at).getTime()<Date.now()))return NextResponse.json({error:"Соревнование уже закрыто."},{status:400});
   const adult=(profile?.onboarding?.ageGroup||"18+")==="18+";
   if(comp.competition_kind==="prize"&&profile?.onboarding?.ageGroup==="under14")return NextResponse.json({error:"Денежный конкурс KIVRONIX доступен участникам с 14 лет."},{status:403});

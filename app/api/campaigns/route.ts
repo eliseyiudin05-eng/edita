@@ -9,7 +9,7 @@ async function auth(req:NextRequest){
   const service=getSupabaseServiceClient();
   if(!user||!service)return null;
   const {data:profile}=await service.from("profiles")
-    .select("id,role,display_name,username,onboarding,guardian_verified")
+    .select("id,role,display_name,username,onboarding,guardian_verified,level,xp")
     .eq("id",user.id).maybeSingle();
   if(!profile)return null;
   return {user,service,profile};
@@ -103,6 +103,7 @@ export async function POST(req:NextRequest){
 
   if(action==="apply"){
     if(a.profile.role!=="editor")return NextResponse.json({error:"Нужен аккаунт монтажёра."},{status:403});
+    if(Number(a.profile.level||1)<2||Number(a.profile.xp||0)<300)return NextResponse.json({error:"Работа откроется на уровне 2 после 300 XP."},{status:403});
     const age=a.profile.onboarding?.ageGroup||"18+";
     if(age!=="18+"&&!a.profile.guardian_verified)return NextResponse.json({error:"Для коммерческой кампании сначала нужно подтверждение родителя."},{status:403});
 

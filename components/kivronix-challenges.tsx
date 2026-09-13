@@ -29,6 +29,7 @@ export default function KivronixChallenges(){
   const [workUrl,setWorkUrl]=useState("");
   const [message,setMessage]=useState("");
   const [sending,setSending]=useState(false);
+  const [levelEligible,setLevelEligible]=useState(false);
 
   async function load(){
     try{
@@ -36,6 +37,8 @@ export default function KivronixChallenges(){
       const {data:{session}}=await supabase.auth.getSession();
       setSignedIn(Boolean(session));
       if(!session)return;
+      const {data:profile}=await supabase.from("profiles").select("level,xp").eq("id",session.user.id).maybeSingle();
+      setLevelEligible(Number(profile?.level||1)>=2&&Number(profile?.xp||0)>=300);
       const response=await fetch("/api/social/competitions",{headers:{Authorization:"Bearer "+session.access_token},cache:"no-store"});
       const data=await response.json().catch(()=>({}));
       if(response.ok){
@@ -67,7 +70,7 @@ export default function KivronixChallenges(){
   const prizes=competition.prize_split_cents?.length?competition.prize_split_cents:fallback.prize_split_cents!;
   const count=Number(competition.entry_count||0);
   const limit=Number(competition.max_entries||100);
-  const blocked=competition.age_eligible===false||competition.guardian_required||count>=limit;
+  const blocked=!levelEligible||competition.age_eligible===false||competition.guardian_required||count>=limit;
 
   return <div className="kivronix-challenges">
     <section className="kivronix-challenge-hero">
@@ -116,6 +119,7 @@ export default function KivronixChallenges(){
 
     <section className="card kivronix-work-submit" id="send-kivronix-work">
       <div><div className="eyebrow">ТВОЯ РАБОТА</div><h3>{competition.entry?"Работа уже участвует":"Отправь опубликованный ролик"}</h3></div>
+      {signedIn&&!levelEligible&&<div className="auth-msg"><b>Конкурсы откроются на уровне 2 · 300 XP.</b><br/>Сначала заверши первые уроки. Задание и правила уже можно посмотреть.</div>}
       {loading?<div className="auth-msg">Загружаем конкурс…</div>:competition.entry?<div className="kivronix-entry-status"><b>{competition.entry.place?competition.entry.place+" место":"Ссылка принята"}</b><span>{Number(competition.entry.verified_views||0).toLocaleString("ru-RU")} подтверждённых просмотров</span><a href={competition.entry.work_url} target="_blank" rel="noreferrer">Открыть публикацию ↗</a>{competition.entry.place&&<a href="#messages" onClick={()=>rememberChat("kivronix_contest",competition.id)}>Открыть закрытый чат ↗</a>}</div>:!signedIn?<div className="kivronix-signin-box"><p>Для отправки ссылки нужен аккаунт KIVRONIX. Сам конкурс можно посмотреть без входа.</p><Link className="btn btn-dark" href="/login?from=/platform%23kivronix-challenges">Войти и участвовать</Link></div>:<div className="business-form"><label className="field-label" htmlFor="kivronix-work-url">Прямая ссылка на открытую публикацию</label><input id="kivronix-work-url" type="url" inputMode="url" placeholder="https://…" value={workUrl} onChange={event=>setWorkUrl(event.target.value)}/><button className="btn btn-dark" onClick={submit} disabled={!competition.id||blocked||sending||!workUrl.trim()}>{sending?"Отправляем…":count>=limit?"Лимит участников достигнут":competition.age_eligible===false?"Доступно с 14 лет":competition.guardian_required?"Нужно подтверждение взрослого":"Отправить работу"}</button></div>}
       {message?<div className="auth-msg">{message}</div>:null}
     </section>

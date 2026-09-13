@@ -15,9 +15,13 @@ export default function SignupChooser(){
         <span className="signup-icon">B</span>
         <div><b>Я представляю бизнес</b><p>Хочу дать задание, найти монтажёра или опубликовать вакансию.</p><span>Регистрация бизнеса →</span></div>
       </Link>
+      <Link className="signup-path" href="/signup/creator">
+        <span className="signup-icon">@</span>
+        <div><b>Мне нужен монтажёр</b><p>Я блогер, эксперт или автор. Хочу ставить задания на Reels, TikTok и Shorts и общаться с исполнителем.</p><span>Регистрация заказчика →</span></div>
+      </Link>
     </div>
 
-    <div className="auth-msg"><b>Важно:</b> бизнес проходит отдельную проверку. Публикация настоящих вакансий и заданий открывается после подтверждения компании.</div>
+    <div className="auth-msg"><b>Важно:</b> компании подтверждают документы, а частные заказчики — публичный аккаунт в социальной сети. До проверки публиковать задания нельзя.</div>
     <div className="auth-footer">Уже есть аккаунт? <Link href="/login"><b>Войти</b></Link></div>
   </section></main>
 }

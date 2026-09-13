@@ -37,7 +37,7 @@ const demoChallenges:Challenge[]=[
   {id:"demo-motion",brand:"ПРИМЕР · MOTION LAB",title:"Короткий ролик с экспертом",brief:"Сделай вертикальный ролик длиной до 35 секунд: чистая речь, крупные субтитры и дополнительные кадры по смыслу.",prize_cents:0,prize_points:0,custom_prize:"Годовая лицензия на набор шаблонов",ends_at:new Date(Date.now()+2*86400000).toISOString(),status:"open",source_assets:[]},
 ];
 
-export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerified,mode}:{role:Role;viewerName:string;ageGroup?:string;guardianVerified?:boolean;mode:"arena"|"business"}){
+export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerified,editorEligible=true,mode}:{role:Role;viewerName:string;ageGroup?:string;guardianVerified?:boolean;editorEligible?:boolean;mode:"arena"|"business"}){
   const [challenges,setChallenges]=useState<Challenge[]>(demoChallenges);
   const [selectedId,setSelectedId]=useState(demoChallenges[0].id);
   const [submissions,setSubmissions]=useState<Submission[]>([]);
@@ -152,6 +152,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
   async function submitWork(e:FormEvent){
     e.preventDefault();
     if(!selected||!file){setMessage("Сначала выбери видеофайл.");return;}
+    if(role==="editor"&&!editorEligible){setMessage("Конкурсы откроются на уровне 2 после 300 XP. Сначала заверши первые уроки.");return;}
     if(role==="editor"&&ageGroup&&ageGroup!=="18+"&&!guardianVerified){
       setMessage("Для отправки коммерческой работы пользователю младше 18 лет нужно подтверждение взрослого. Обучение, практика и помощник уже доступны.");
       return;

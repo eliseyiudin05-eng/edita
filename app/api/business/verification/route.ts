@@ -11,7 +11,7 @@ export async function GET(req:NextRequest){
   const service=getSupabaseServiceClient();
   if(!user||!service)return NextResponse.json({error:"Нужен вход в аккаунт."},{status:401});
 
-  const {data:profile}=await service.from("profiles").select("role").eq("id",user.id).maybeSingle();
+  const {data:profile}=await service.from("profiles").select("role,onboarding").eq("id",user.id).maybeSingle();
   if(profile?.role!=="business")return NextResponse.json({error:"Раздел доступен бизнес-аккаунту."},{status:403});
 
   let {data:business}=await service.from("businesses")
@@ -43,10 +43,11 @@ export async function POST(req:NextRequest){
   const service=getSupabaseServiceClient();
   if(!user||!service)return NextResponse.json({error:"Нужен вход в аккаунт."},{status:401});
 
-  const {data:profile}=await service.from("profiles").select("role").eq("id",user.id).maybeSingle();
+  const {data:profile}=await service.from("profiles").select("role,onboarding").eq("id",user.id).maybeSingle();
   if(profile?.role!=="business")return NextResponse.json({error:"Раздел доступен бизнес-аккаунту."},{status:403});
 
   const body=await req.json();
+  const creatorAccount=profile?.onboarding?.accountKind==="creator"&&body?.creatorAccount===true;
   const requestedLevel=body?.requestedLevel==="popular_brand"?"popular_brand":"verified_company";
   const legalName=String(body?.legalName||"").trim().slice(0,180);
   const inn=String(body?.inn||"").replace(/\D/g,"").slice(0,12);
@@ -58,11 +59,15 @@ export async function POST(req:NextRequest){
     ? body.documentPaths.filter((v:any)=>typeof v==="string"&&v.startsWith(user.id+"/")).slice(0,3)
     : [];
 
-  if(!legalName)return NextResponse.json({error:"Напиши официальное название компании или ИП."},{status:400});
-  if(!inn&&!registrationNumber)return NextResponse.json({error:"Укажи ИНН или ОГРН / ОГРНИП."},{status:400});
+  if(creatorAccount){
+    if(!/^https:\/\//i.test(socialUrl))return NextResponse.json({error:"Добавь полную HTTPS-ссылку на открытый аккаунт."},{status:400});
+  }else{
+    if(!legalName)return NextResponse.json({error:"Напиши официальное название компании или ИП."},{status:400});
+    if(!inn&&!registrationNumber)return NextResponse.json({error:"Укажи ИНН или ОГРН / ОГРНИП."},{status:400});
+  }
   if(inn&&![10,12].includes(inn.length))return NextResponse.json({error:"ИНН должен состоять из 10 или 12 цифр."},{status:400});
   if(registrationNumber&&![13,15].includes(registrationNumber.length))return NextResponse.json({error:"ОГРН обычно содержит 13 цифр, ОГРНИП — 15."},{status:400});
-  if(documentPaths.length===0)return NextResponse.json({error:"Добавь хотя бы один документ для проверки."},{status:400});
+  if(!creatorAccount&&documentPaths.length===0)return NextResponse.json({error:"Добавь хотя бы один документ для проверки."},{status:400});
   if(requestedLevel==="popular_brand"&&!websiteUrl&&!socialUrl){
     return NextResponse.json({error:"Для отметки «Известный бренд» добавь сайт или публичную страницу бренда."},{status:400});
   }
@@ -79,7 +84,7 @@ export async function POST(req:NextRequest){
     business_id:business.id,
     created_by:user.id,
     requested_level:requestedLevel,
-    legal_name:legalName,
+    legal_name:creatorAccount?(user.user_metadata?.display_name||"Частный заказчик"):legalName,
     inn:inn||null,
     registration_number:registrationNumber||null,
     website_url:websiteUrl||null,

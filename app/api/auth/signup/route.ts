@@ -13,6 +13,7 @@ export async function POST(req:NextRequest){
   const email=String(body?.email||"").trim().toLowerCase();
   const password=String(body?.password||"");
   const role=body?.role==="business"?"business":"editor";
+  const accountKind=role==="business"&&body?.accountKind==="creator"?"creator":"business";
   const displayName=String(body?.displayName||"").trim().slice(0,120);
   const businessName=String(body?.businessName||"").trim().slice(0,160);
   const onboarding=body?.onboarding&&typeof body.onboarding==="object"?body.onboarding:{};
@@ -34,7 +35,7 @@ export async function POST(req:NextRequest){
     role,
     display_name:displayName,
     business_name:role==="business"?businessName:undefined,
-    onboarding:{...onboarding,motivation:role==="editor"?motivation:undefined,schoolName:schoolName||undefined,role},
+    onboarding:{...onboarding,accountKind,motivation:role==="editor"?motivation:undefined,schoolName:schoolName||undefined,role},
     accepted_terms:true,
     accepted_personal_data:true,
     terms_version:"2026-09-12",

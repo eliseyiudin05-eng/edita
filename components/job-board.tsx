@@ -15,6 +15,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
   const [jobs,setJobs]=useState<Job[]>([]);
   const [businessId,setBusinessId]=useState<string|null>(null);
   const [businessVerified,setBusinessVerified]=useState(false);
+  const [editorEligible,setEditorEligible]=useState(true);
   const [message,setMessage]=useState("");
   const [busyKey,setBusyKey]=useState("");
   const [form,setForm]=useState({title:"",description:"",min:"",max:""});
@@ -54,6 +55,8 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
       const editorMap=Object.fromEntries((editors||[]).map(editor=>[editor.id,editor]));
       setJobs(rows.map(job=>({...job,applications:(applications||[]).filter(item=>item.job_id===job.id).map(item=>({...item,editor:editorMap[item.editor_id]||null}))})));
     }else{
+      const {data:editorProfile}=await supabase.from("profiles").select("level,xp").eq("id",user.id).maybeSingle();
+      setEditorEligible(Number(editorProfile?.level||1)>=2&&Number(editorProfile?.xp||0)>=300);
       const {data,error}=await supabase.from("jobs").select("id,business_id,title,description,budget_min_cents,budget_max_cents").eq("status","open").order("created_at",{ascending:false});
       if(error){setMessage(error.message);setJobs(demoJobs);return;}
       const rows=(data||[]) as any[];
@@ -71,6 +74,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
   }
 
   async function apply(jobId:string){
+    if(!editorEligible){setMessage("Заказы откроются на уровне 2 после 300 XP. Сначала заверши первые уроки — так заказчик получит подготовленного монтажёра.");return;}
     if(mode==="editor"&&ageGroup&&ageGroup!=="18+"&&!guardianVerified){setMessage("Сначала нужно подтверждение родителя или законного представителя. Учиться можно без него.");return;}
     const supabase=getSupabaseBrowserClient();
     if(!supabase){setMessage("Пример: заявка сохранена только в браузере.");return;}
@@ -115,6 +119,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
   }
 
   return <div className="job-board">
+    {mode==="editor"&&!editorEligible&&<div className="auth-msg"><b>Работа откроется на уровне 2 · 300 XP.</b><br/>Пройди первые уроки и выполни учебные шаги. Смотреть задания можно уже сейчас, откликнуться — после достижения уровня.</div>}
     {mode==="business"&&<section className="card"><div className="eyebrow">НОВАЯ ВАКАНСИЯ</div><h3>Опубликовать вакансию</h3>{!businessVerified&&<div className="auth-msg">Сначала нужна проверка компании. Это защищает монтажёров от вымышленных работодателей.</div>}<form className="business-form" onSubmit={create}>
       <input required placeholder="Название роли" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
       <textarea required placeholder="Задачи, объём, формат работы" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
