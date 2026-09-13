@@ -1,0 +1,16 @@
+import {NextRequest,NextResponse} from "next/server";
+import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
+import {moderateGroupMessage} from "@/lib/content-moderation";
+
+const TOPIC="company-growth";
+function token(req:NextRequest){const value=req.headers.get("authorization");return value?.startsWith("Bearer ")?value.slice(7):null}
+async function access(req:NextRequest){
+  const user=await getUserFromAccessToken(token(req)),service=getSupabaseServiceClient();
+  if(!user||!service)return null;
+  const {data:profile}=await service.from("profiles").select("role,display_name").eq("id",user.id).maybeSingle();
+  if(profile?.role!=="business")return null;
+  return {user,service,name:profile.display_name||"Компания KIVRONIX"};
+}
+async function list(service:any){const {data,error}=await service.from("business_discussion_messages").select("id,author_id,content,created_at").eq("topic_key",TOPIC).eq("status","published").order("created_at",{ascending:false}).limit(80);if(error)throw error;const rows=(data||[]).reverse(),ids=[...new Set(rows.map((x:any)=>x.author_id))];const {data:profiles}=ids.length?await service.from("profiles").select("id,display_name").in("id",ids):{data:[]};const names=Object.fromEntries((profiles||[]).map((x:any)=>[x.id,x.display_name]));return rows.map((x:any)=>({id:x.id,content:x.content,createdAt:x.created_at,author:names[x.author_id]||"Компания KIVRONIX"}))}
+export async function GET(req:NextRequest){const auth=await access(req);if(!auth)return NextResponse.json({error:"Обсуждение доступно только бизнес-аккаунтам."},{status:403});try{return NextResponse.json({messages:await list(auth.service)})}catch{return NextResponse.json({error:"Не удалось открыть обсуждение."},{status:503})}}
+export async function POST(req:NextRequest){const auth=await access(req);if(!auth)return NextResponse.json({error:"Обсуждение доступно только бизнес-аккаунтам."},{status:403});const body=await req.json().catch(()=>({})),content=String(body.content||"").trim();if(!content||content.length>1400)return NextResponse.json({error:"Сообщение должно содержать от 1 до 1400 символов."},{status:400});const moderation=await moderateGroupMessage(content);if(!moderation.allowed)return NextResponse.json({error:moderation.message||"Сообщение остановлено проверкой безопасности."},{status:422});try{const {error}=await auth.service.from("business_discussion_messages").insert({topic_key:TOPIC,author_id:auth.user.id,content});if(error)throw error;return NextResponse.json({ok:true,messages:await list(auth.service)})}catch{return NextResponse.json({error:"Не удалось отправить сообщение."},{status:503})}}

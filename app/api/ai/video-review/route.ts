@@ -71,6 +71,14 @@ const SYSTEM = `
 - Используй спокойные утвердительные фразы и обходись без отдельной отрицательной частицы из букв «н» и «е».
 `;
 
+const BUSINESS_REVIEW_SYSTEM = `
+Ты — аналитик коротких видео KIVRONIX для компаний. Ты видишь отдельные кадры ролика и бизнес-бриф.
+
+Оцени первые секунды, понятность продукта, соответствие целевой аудитории и бренду, темп, субтитры, визуальное разнообразие, призыв к действию и возможность масштабировать формат.
+Отделяй наблюдение по кадрам от гипотезы. Не обещай просмотры или продажи. Формулируй каждую правку как действие команды и добавляй, какую метрику проверить после публикации.
+Пиши по-русски, коротко и по-деловому. Полный файл и звук тебе недоступны, поэтому выводы о них не делай.
+`;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -79,7 +87,7 @@ export async function POST(req: NextRequest) {
     const duration = Number(body.duration || 0);
     const width = Number(body.width || 0);
     const height = Number(body.height || 0);
-    const purpose = body.purpose === "arena" ? "arena" : "standalone";
+    const purpose = body.purpose === "arena" ? "arena" : body.purpose === "business_campaign" ? "business_campaign" : "standalone";
     const challengeId = typeof body.challengeId === "string" ? body.challengeId : null;
     const bearer=req.headers.get("authorization");
     const accessToken=bearer?.startsWith("Bearer ")?bearer.slice(7):null;
@@ -139,7 +147,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
-        instructions: SYSTEM,
+        instructions: purpose==="business_campaign"?BUSINESS_REVIEW_SYSTEM:SYSTEM,
         input: [{ role: "user", content }],
         max_output_tokens: 1800,
         text: {

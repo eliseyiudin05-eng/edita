@@ -231,7 +231,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     </div>}
 
     {view==="competitions"&&<div className="competition-grid">
-      <div className="card featured-competition official-challenge-link"><div><div className="eyebrow">ОФИЦИАЛЬНЫЕ КОНКУРСЫ</div><h3>Конкурсы KIVRONIX находятся в отдельном разделе</h3><p className="muted">Там есть призовой фонд 10 000 ₽, правила, отправка ролика и рейтинг подтверждённых просмотров.</p></div><a className="btn btn-dark" href="/platform#kivronix-challenges">Открыть конкурсы KIVRONIX</a></div>
+      <div className="card featured-competition official-challenge-link"><div><div className="eyebrow">ОФИЦИАЛЬНЫЕ КОНКУРСЫ</div><h3>Конкурсы KIVRONIX находятся в отдельном разделе</h3><p className="muted">Там есть призовой фонд 10 000 KIVRONIX Points, правила, отправка ролика и рейтинг подтверждённых просмотров. 1 Point = 1 ₽ внутри платформы.</p></div><a className="btn btn-dark" href="/platform#kivronix-challenges">Открыть конкурсы KIVRONIX</a></div>
       {learningCompetitions.map(c=><article className="card competition-card" key={c.id}>
         <div className="verification-head"><div><div className="eyebrow">{c.competition_kind==="prize"?"ПРИЗОВОЙ КОНКУРС KIVRONIX":c.audience==="youth"?"ДО 18 ЛЕТ":"УЧЕБНОЕ СОРЕВНОВАНИЕ"}</div><h3>{c.title}</h3></div><span className="verification-badge ok">{c.competition_kind==="prize"?money(c.prize_pool_cents||0):"+"+c.points_reward+" опыта"}</span></div>
         <p>{c.description}</p>
@@ -301,7 +301,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
         </article>)}
       </div>
       <div className="auth-msg"><b>Баллы уже накапливаются.</b> Обмен на Creator+ включится после финальной проверки платных планов; до этого списание невозможно.</div>
-      <p className="muted">KIVRONIX Points — внутренняя награда, а не деньги. Поддельные и повторные аккаунты награды не получают.</p>
+      <p className="muted">KIVRONIX Points — внутренние поинты платформы. 1 Point = 1 ₽ при использовании внутри KIVRONIX. Поддельные и повторные аккаунты награды не получают.</p>
     </section>}
   </div>
 }
