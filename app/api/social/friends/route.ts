@@ -1,14 +1,16 @@
-import {NextRequest,NextResponse} from "next/server";
+import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
+import {compareSocialFriendsWithGo,normalizeSocialFriends,socialFriendsShadowEnabled} from "@/lib/go-social-friends-shadow";
 
 function token(req:NextRequest){
   const h=req.headers.get("authorization");
   return h?.startsWith("Bearer ")?h.slice(7):null;
 }
 async function auth(req:NextRequest){
-  const user=await getUserFromAccessToken(token(req));
+  const accessToken=token(req);
+  const user=await getUserFromAccessToken(accessToken);
   const service=getSupabaseServiceClient();
-  return user&&service?{user,service}:null;
+  return user&&service&&accessToken?{user,service,token:accessToken}:null;
 }
 function ageBand(profile:any){return profile?.onboarding?.ageGroup||"18+"}
 
@@ -29,8 +31,9 @@ export async function GET(req:NextRequest){
   const {data:rels,error}=await a.service.from("friendships")
     .select("id,requester_id,addressee_id,status,created_at")
     .or("requester_id.eq."+a.user.id+",addressee_id.eq."+a.user.id)
-    .order("created_at",{ascending:false});
-  if(error)return NextResponse.json({error:error.message},{status:500});
+    .order("created_at",{ascending:false})
+    .limit(200);
+  if(error)return NextResponse.json({error:"Не удалось загрузить список друзей."},{status:503});
 
   const ids=[...new Set((rels||[]).flatMap((r:any)=>[r.requester_id,r.addressee_id]).filter((id:string)=>id!==a.user.id))];
   const {data:profiles}=ids.length
@@ -38,13 +41,14 @@ export async function GET(req:NextRequest){
     : {data:[] as any[]};
   const map=Object.fromEntries((profiles||[]).map((p:any)=>[p.id,p]));
 
-  return NextResponse.json({
-    relations:(rels||[]).map((r:any)=>({
+  const legacy=normalizeSocialFriends((rels||[]).map((r:any)=>({
       ...r,
       direction:r.requester_id===a.user.id?"outgoing":"incoming",
       other:map[r.requester_id===a.user.id?r.addressee_id:r.requester_id]||null
-    }))
-  });
+    })),a.user.id);
+  if(!legacy)return NextResponse.json({error:"Данные списка друзей повреждены."},{status:500});
+  if(socialFriendsShadowEnabled())after(()=>compareSocialFriendsWithGo(a.token,legacy));
+  return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(req:NextRequest){

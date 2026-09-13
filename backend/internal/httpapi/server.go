@@ -40,6 +40,10 @@ type SocialRankingReader interface {
 	GetRanking(context.Context, string, string) (social.Ranking, error)
 }
 
+type SocialFriendsReader interface {
+	GetFriendships(context.Context, string, string) (social.Friendships, error)
+}
+
 type Options struct {
 	Logger            *slog.Logger
 	Environment       string
@@ -52,6 +56,7 @@ type Options struct {
 	Profiles          LearningPreferencesReader
 	Academy           AcademyProgressReader
 	Social            SocialRankingReader
+	SocialFriends     SocialFriendsReader
 }
 
 type server struct {
@@ -66,6 +71,7 @@ type server struct {
 	profiles          LearningPreferencesReader
 	academy           AcademyProgressReader
 	social            SocialRankingReader
+	socialFriends     SocialFriendsReader
 }
 
 type contextKey string
@@ -100,6 +106,7 @@ func New(options Options) http.Handler {
 		profiles:          options.Profiles,
 		academy:           options.Academy,
 		social:            options.Social,
+		socialFriends:     options.SocialFriends,
 	}
 
 	mux := http.NewServeMux()
@@ -110,8 +117,50 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/profile/learning-preferences", s.learningPreferences)
 	mux.HandleFunc("/v1/academy/progress", s.academyProgress)
 	mux.HandleFunc("/v1/social/ranking", s.socialRanking)
+	mux.HandleFunc("/v1/social/friends", s.socialFriendships)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) socialFriendships(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	if s.auth == nil || s.socialFriends == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "social_service_unavailable", "Friendships are temporarily unavailable.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.socialFriends.GetFriendships(ctx, token, claims.Subject)
+	cancel()
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "social_service_unavailable", "Friendships are temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *server) socialRanking(w http.ResponseWriter, r *http.Request) {
