@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.5)
+## Go migration boundary (v1.0.6)
 
 - Production writes and business decisions remain in Next.js/Supabase.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
@@ -53,6 +53,10 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Every canary failure, timeout, oversized or malformed response, or response above the configured latency ceiling falls back to the existing Supabase read in the same request.
 - A per-instance circuit breaker pauses Go traffic for five minutes after at least 20% unhealthy outcomes in a 10–20 sample window. A contract mismatch opens it immediately. The environment kill switch remains the global rollback control.
 - Successful canary responses are compared with the legacy result after the response is sent; comparison logs contain no token, user ID, or profile values.
+- The academy adds `GET /v1/academy/progress` in shadow-only mode. The Next.js gateway remains authoritative and academy writes stay in the existing handler.
+- Academy progress is read with the user's bearer token and an explicit verified-subject filter, so `lesson_progress` ownership RLS remains active. Go validates every returned owner before removing identity from the response.
+- The academy response exposes only sorted completed lesson slugs and derived XP; submission notes, timestamps, scores, lesson IDs, and user IDs are omitted.
+- Browser components read academy progress through the authenticated Next.js gateway instead of querying `lesson_progress` directly.
 - The Go profile endpoint derives identity only from a locally verified access token, forwards that token to the Supabase Data API and filters on the same subject; the existing profile RLS policy remains active.
 - The profile response omits user identity and every unrelated profile/onboarding field.
 - Go connects to PostgreSQL through a bounded pool and requires encrypted database transport in production.

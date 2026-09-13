@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 )
@@ -30,6 +31,10 @@ type LearningPreferencesReader interface {
 	GetLearningPreferences(context.Context, string, string) (profile.LearningPreferences, error)
 }
 
+type AcademyProgressReader interface {
+	GetProgress(context.Context, string, string) (academy.Progress, error)
+}
+
 type Options struct {
 	Logger            *slog.Logger
 	Environment       string
@@ -40,6 +45,7 @@ type Options struct {
 	Database          Pinger
 	Auth              TokenVerifier
 	Profiles          LearningPreferencesReader
+	Academy           AcademyProgressReader
 }
 
 type server struct {
@@ -52,6 +58,7 @@ type server struct {
 	database          Pinger
 	auth              TokenVerifier
 	profiles          LearningPreferencesReader
+	academy           AcademyProgressReader
 }
 
 type contextKey string
@@ -84,6 +91,7 @@ func New(options Options) http.Handler {
 		database:          options.Database,
 		auth:              options.Auth,
 		profiles:          options.Profiles,
+		academy:           options.Academy,
 	}
 
 	mux := http.NewServeMux()
@@ -92,8 +100,50 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/meta", s.meta)
 	mux.HandleFunc("/v1/diagnostics/auth", s.authDiagnostic)
 	mux.HandleFunc("/v1/profile/learning-preferences", s.learningPreferences)
+	mux.HandleFunc("/v1/academy/progress", s.academyProgress)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) academyProgress(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	if s.auth == nil || s.academy == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "academy_service_unavailable", "Academy progress is temporarily unavailable.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.academy.GetProgress(ctx, token, claims.Subject)
+	cancel()
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "academy_service_unavailable", "Academy progress is temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *server) learningPreferences(w http.ResponseWriter, r *http.Request) {

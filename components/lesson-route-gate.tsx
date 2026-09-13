@@ -22,20 +22,37 @@ export default function LessonRouteGate({requiredSlugs,previousSlug,children}:{r
       }catch{}
 
       const supabase=getSupabaseBrowserClient();
-      const {data:{user}}=await supabase.auth.getUser();
+      const [{data:{user}},{data:{session}}]=await Promise.all([
+        supabase.auth.getUser(),
+        supabase.auth.getSession(),
+      ]);
       if(!user){
         router.replace("/login?from="+encodeURIComponent(pathname));
         return;
       }
       if(user){
-        const {data:profile}=await supabase.from("profiles").select("onboarding").eq("id",user.id).maybeSingle();
-        const {data}=await supabase.from("lesson_progress")
-          .select("status,lessons!inner(slug)")
-          .eq("user_id",user.id)
-          .eq("status","completed");
-        const fromAccount=(data||[]).map((row:any)=>row.lessons?.slug).filter((slug:any)=>typeof slug==="string");
+        if(!session?.access_token){
+          router.replace("/login?from="+encodeURIComponent(pathname));
+          return;
+        }
+        const headers={Authorization:"Bearer "+session.access_token};
+        const responses=await Promise.all([
+          fetch("/api/profile/learning-preferences",{headers,cache:"no-store"}),
+          fetch("/api/lessons/progress",{headers,cache:"no-store"}),
+        ]).catch(()=>null);
+        if(!responses){
+          if(active)setChecking(false);
+          return;
+        }
+        const [profileResponse,progressResponse]=responses;
+        if(!profileResponse.ok||!progressResponse.ok){
+          if(active)setChecking(false);
+          return;
+        }
+        const [profile,progress]=await Promise.all([profileResponse.json(),progressResponse.json()]);
+        const fromAccount=Array.isArray(progress?.completedSlugs)?progress.completedSlugs.filter((slug:unknown):slug is string=>typeof slug==="string"):[];
         completed=fromAccount;
-        const startIndex=learningStartIndex(profile?.onboarding?.level);
+        const startIndex=learningStartIndex(profile?.preferences?.level);
         const currentIndex=curriculum.findIndex(item=>item.slug===pathname.split("/").pop());
         const requiredForLevel=currentIndex>=0?curriculum.slice(startIndex,currentIndex).map(item=>item.slug):requiredSlugs;
         if(active){setUnlocked(currentIndex<=startIndex||requiredForLevel.every(slug=>completed.includes(slug)));setChecking(false)}

@@ -1,10 +1,26 @@
-import {NextRequest,NextResponse} from "next/server";
+import {after,NextRequest,NextResponse} from "next/server";
 import {curriculum,lessonBySlug} from "@/lib/curriculum";
-import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
+import {academyProgressShadowEnabled,compareAcademyProgressWithGo,normalizeAcademyProgress} from "@/lib/go-academy-shadow";
+import {getLessonProgress,getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 
 function bearer(req:NextRequest){
-  const header=req.headers.get("authorization");
-  return header?.startsWith("Bearer ")?header.slice(7):null;
+  const header=req.headers.get("authorization")||"";
+  const match=/^Bearer ([^\s]+)$/i.exec(header);
+  return match?.[1]||null;
+}
+
+export async function GET(req:NextRequest){
+  const token=bearer(req);
+  const user=await getUserFromAccessToken(token);
+  if(!user||!token)return NextResponse.json({error:"Нужен вход в аккаунт."},{status:401});
+
+  const {data,error}=await getLessonProgress(token,user.id);
+  if(error)return NextResponse.json({error:"Не удалось загрузить прогресс."},{status:503});
+  const legacy=normalizeAcademyProgress(data);
+  if(!legacy)return NextResponse.json({error:"Прогресс повреждён."},{status:500});
+
+  if(academyProgressShadowEnabled())after(()=>compareAcademyProgressWithGo(token,legacy));
+  return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(req:NextRequest){

@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 )
@@ -21,7 +22,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.5",
+		Version:      "1.0.6",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -55,7 +56,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.5"`) {
+	if !strings.Contains(body, `"version":"1.0.6"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -85,6 +86,19 @@ type fakeProfileReader struct {
 	err     error
 	token   string
 	subject string
+}
+
+type fakeAcademyReader struct {
+	result  academy.Progress
+	err     error
+	token   string
+	subject string
+}
+
+func (reader *fakeAcademyReader) GetProgress(_ context.Context, token, subject string) (academy.Progress, error) {
+	reader.token = token
+	reader.subject = subject
+	return reader.result, reader.err
 }
 
 func (reader *fakeProfileReader) GetLearningPreferences(_ context.Context, token, subject string) (profile.LearningPreferences, error) {
@@ -131,6 +145,49 @@ func TestLearningPreferencesRejectsNonAuthenticatedRole(t *testing.T) {
 		Profiles: reader,
 	})
 	request := httptest.NewRequest(http.MethodGet, "/v1/profile/learning-preferences", nil)
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || reader.subject != "" {
+		t.Fatalf("unexpected response: status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestAcademyProgressRequiresAuthAndReadsVerifiedSubject(t *testing.T) {
+	reader := &fakeAcademyReader{result: academy.Progress{CompletedSlugs: []string{"first"}, XP: 100}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "private-user-id", Role: "authenticated"}},
+		Academy:           reader,
+		DependencyTimeout: time.Second,
+	})
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/v1/academy/progress", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d", unauthorized.Code)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/academy/progress?user_id=other", nil)
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "private-user-id" {
+		t.Fatalf("unexpected response or reader arguments: status=%d token=%q subject=%q body=%s", response.Code, reader.token, reader.subject, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "private-user-id") {
+		t.Fatalf("response exposes identity: %s", response.Body.String())
+	}
+}
+
+func TestAcademyProgressRejectsNonAuthenticatedRole(t *testing.T) {
+	reader := &fakeAcademyReader{}
+	handler := New(Options{
+		Logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:    claimsVerifier{claims: auth.Claims{Subject: "private-user-id", Role: "anon"}},
+		Academy: reader,
+	})
+	request := httptest.NewRequest(http.MethodGet, "/v1/academy/progress", nil)
 	request.Header.Set("Authorization", "Bearer signed.token.value")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)

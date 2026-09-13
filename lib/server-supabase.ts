@@ -56,6 +56,24 @@ export async function getProfileLearningPreferences(token:string,userId:string){
   return client.from("profiles").select("role,onboarding").eq("id",userId).maybeSingle();
 }
 
+export async function getLessonProgress(token:string,userId:string){
+  const service=getSupabaseServiceClient();
+  if(service)return service.from("lesson_progress")
+    .select("status,lessons!inner(slug,xp_reward)")
+    .eq("user_id",userId)
+    .eq("status","completed");
+
+  const {url,key}=publicConfig();
+  const client=createClient(url,key,{
+    auth:{persistSession:false,autoRefreshToken:false},
+    global:{headers:{Authorization:"Bearer "+token}}
+  });
+  return client.from("lesson_progress")
+    .select("status,lessons!inner(slug,xp_reward)")
+    .eq("user_id",userId)
+    .eq("status","completed");
+}
+
 export async function canUseArenaReview(token:string|undefined|null,challengeId?:string|null){
   if(!challengeId)return false;
   const auth=await getAuthenticatedProfile(token);

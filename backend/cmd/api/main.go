@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/config"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/database"
@@ -18,7 +19,7 @@ import (
 )
 
 var (
-	version = "1.0.5"
+	version = "1.0.6"
 	commit  = "local"
 )
 
@@ -62,6 +63,7 @@ func main() {
 	}
 
 	var profileReader httpapi.LearningPreferencesReader
+	var academyReader httpapi.AcademyProgressReader
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
 			cfg.SupabaseURL,
@@ -73,6 +75,17 @@ func main() {
 			os.Exit(1)
 		}
 		profileReader = client
+
+		academyClient, err := academy.NewClient(
+			cfg.SupabaseURL,
+			cfg.SupabasePublishableKey,
+			&http.Client{Timeout: cfg.AcademyHTTPTimeout},
+		)
+		if err != nil {
+			logger.Error("academy client configuration failed", "error", err)
+			os.Exit(1)
+		}
+		academyReader = academyClient
 	}
 
 	server := &http.Server{
@@ -80,7 +93,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, Profiles: profileReader,
+			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,

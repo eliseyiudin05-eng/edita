@@ -31,6 +31,7 @@ type Config struct {
 	JWKSCacheTTL           time.Duration
 	JWKSHTTPTimeout        time.Duration
 	ProfileHTTPTimeout     time.Duration
+	AcademyHTTPTimeout     time.Duration
 }
 
 func Load() Config {
@@ -63,6 +64,7 @@ func Load() Config {
 		JWKSCacheTTL:           envDurationBounded("GO_BACKEND_JWKS_CACHE_TTL", 5*time.Minute, time.Minute, 10*time.Minute),
 		JWKSHTTPTimeout:        envDurationBounded("GO_BACKEND_JWKS_HTTP_TIMEOUT", 5*time.Second, time.Second, 15*time.Second),
 		ProfileHTTPTimeout:     envDurationBounded("GO_BACKEND_PROFILE_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
+		AcademyHTTPTimeout:     envDurationBounded("GO_BACKEND_ACADEMY_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
 	}
 }
 

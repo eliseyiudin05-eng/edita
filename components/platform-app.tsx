@@ -99,13 +99,21 @@ export default function PlatformApp(){
        .eq("status","winner");
      setWins(winsCount||0);
 
-     const {data:progressRows}=await supabase.from("lesson_progress")
-       .select("status,lessons(slug)")
-       .eq("user_id",data.user.id)
-       .eq("status","completed");
-     const dbDone=(progressRows||[])
-       .map((row:any)=>row.lessons?.slug)
-       .filter((slug:any)=>typeof slug==="string");
+     const {data:{session}}=await supabase.auth.getSession();
+     let dbDone:string[]=[];
+     if(session?.access_token){
+       try{
+         const progressResponse=await fetch("/api/lessons/progress",{
+           headers:{Authorization:"Bearer "+session.access_token},
+           cache:"no-store",
+         });
+         if(progressResponse.ok){
+           const progress=await progressResponse.json();
+           if(Array.isArray(progress?.completedSlugs))dbDone=progress.completedSlugs.filter((slug:unknown):slug is string=>typeof slug==="string");
+         }
+       }catch{}
+     }
+     if(!active)return;
      setDone(dbDone);
      try{localStorage.setItem("kivronix_lesson_done",JSON.stringify(dbDone))}catch{}
      setViewer({

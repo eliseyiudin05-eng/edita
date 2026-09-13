@@ -19,15 +19,17 @@ export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}
         if(Array.isArray(saved)&&saved.includes(slug)&&active)setDone(true);
       }catch{}
       const supabase=getSupabaseBrowserClient();
-      const {data:{user}}=await supabase.auth.getUser();
-      if(!user)return;
-      const {data}=await supabase.from("lesson_progress")
-        .select("status,lessons!inner(slug)")
-        .eq("user_id",user.id)
-        .eq("status","completed")
-        .eq("lessons.slug",slug)
-        .maybeSingle();
-      if(active)setDone(Boolean(data));
+      const {data:{session}}=await supabase.auth.getSession();
+      if(!session?.access_token)return;
+      try{
+        const response=await fetch("/api/lessons/progress",{
+          headers:{Authorization:"Bearer "+session.access_token},
+          cache:"no-store",
+        });
+        if(!response.ok)return;
+        const data=await response.json();
+        if(active)setDone(Array.isArray(data?.completedSlugs)&&data.completedSlugs.includes(slug));
+      }catch{}
     }
     void load();
     return()=>{active=false};

@@ -83,9 +83,10 @@ func TestLoadAcceptsBoundedOverrides(t *testing.T) {
 	t.Setenv("GO_BACKEND_ADDRESS", "127.0.0.1:9090")
 	t.Setenv("GO_BACKEND_MAX_BODY_BYTES", "2048")
 	t.Setenv("GO_BACKEND_SHUTDOWN_TIMEOUT", "3s")
+	t.Setenv("GO_BACKEND_ACADEMY_HTTP_TIMEOUT", "2s")
 
 	cfg := Load()
-	if cfg.Address != "127.0.0.1:9090" || cfg.MaxBodyBytes != 2048 || cfg.ShutdownTimeout != 3*time.Second {
+	if cfg.Address != "127.0.0.1:9090" || cfg.MaxBodyBytes != 2048 || cfg.ShutdownTimeout != 3*time.Second || cfg.AcademyHTTPTimeout != 2*time.Second {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 }

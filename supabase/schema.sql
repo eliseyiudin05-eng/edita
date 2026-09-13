@@ -119,10 +119,16 @@ create trigger on_auth_user_created after insert on auth.users for each row exec
 
 alter table public.profiles enable row level security;
 alter table public.businesses enable row level security;
+alter table public.lessons enable row level security;
 alter table public.lesson_progress enable row level security;
 alter table public.challenge_submissions enable row level security;
 alter table public.portfolio_items enable row level security;
 alter table public.job_applications enable row level security;
+
+revoke all on table public.lessons from anon, authenticated;
+grant select on table public.lessons to authenticated;
+revoke all on table public.lesson_progress from anon, authenticated;
+grant select on table public.lesson_progress to authenticated;
 
 drop policy if exists "profiles readable" on public.profiles;
 drop policy if exists "own profile readable" on public.profiles;
@@ -131,8 +137,11 @@ drop policy if exists "own profile" on public.profiles;
 create policy "own profile" on public.profiles for update using(auth.uid()=id);
 drop policy if exists "business owner manages business" on public.businesses;
 create policy "business owner manages business" on public.businesses for all using(auth.uid()=owner_id) with check(auth.uid()=owner_id);
+drop policy if exists "published lessons readable" on public.lessons;
+create policy "published lessons readable" on public.lessons for select to authenticated using(published=true);
 drop policy if exists "own progress" on public.lesson_progress;
-create policy "own progress" on public.lesson_progress for all using(auth.uid()=user_id) with check(auth.uid()=user_id);
+drop policy if exists "own progress readable" on public.lesson_progress;
+create policy "own progress readable" on public.lesson_progress for select to authenticated using((select auth.uid())=user_id);
 drop policy if exists "own submissions" on public.challenge_submissions;
 create policy "own submissions" on public.challenge_submissions for all using(auth.uid()=editor_id) with check(auth.uid()=editor_id);
 drop policy if exists "portfolio readable" on public.portfolio_items;
