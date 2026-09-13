@@ -185,6 +185,7 @@ export default function PlatformApp(){
 
      {tab==="home"&&viewer.role==="business"&&!isCreator&&<Page title={"Добро пожаловать, "+viewer.name+"."} sub="Управляйте поиском монтажёров и результатами коротких видео из одного кабинета.">
        <BusinessDashboard stats={businessStats} points={viewer.referralPoints||0} onGo={goTab}/>
+       <WorkWallet/>
      </Page>}
 
      {tab==="home"&&isCreator&&<Page title={"Твои ролики, "+viewer.name+"."} sub="Создавай задания, выбирай монтажёра и следи за выполнением в одном месте.">
