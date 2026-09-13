@@ -10,22 +10,63 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/config"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/database"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/httpapi"
 )
 
 var (
-	version = "1.0.2"
+	version = "1.0.3"
 	commit  = "local"
 )
 
 func main() {
 	cfg := config.Load()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
+	if err := cfg.Validate(); err != nil {
+		logger.Error("invalid backend configuration", "error", err)
+		os.Exit(1)
+	}
+
+	var databasePool *database.Pool
+	var databasePinger httpapi.Pinger
+	if cfg.DatabaseURL != "" {
+		var err error
+		databasePool, err = database.Open(context.Background(), cfg.DatabaseURL, cfg.DatabaseMaxConns, cfg.Environment == "production")
+		if err != nil {
+			logger.Error("database pool configuration failed", "error", err)
+			os.Exit(1)
+		}
+		defer databasePool.Close()
+		databasePinger = databasePool
+	}
+
+	var tokenVerifier *auth.Verifier
+	var authVerifier httpapi.TokenVerifier
+	if cfg.JWKSURL != "" {
+		var err error
+		tokenVerifier, err = auth.NewVerifier(
+			cfg.JWTIssuer,
+			cfg.JWTAudience,
+			cfg.JWKSURL,
+			&http.Client{Timeout: cfg.JWKSHTTPTimeout},
+			cfg.JWKSCacheTTL,
+		)
+		if err != nil {
+			logger.Error("JWT verifier configuration failed", "error", err)
+			os.Exit(1)
+		}
+		authVerifier = tokenVerifier
+	}
 
 	server := &http.Server{
-		Addr:              cfg.Address,
-		Handler:           httpapi.New(httpapi.Options{Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit, MaxBodyBytes: cfg.MaxBodyBytes}),
+		Addr: cfg.Address,
+		Handler: httpapi.New(httpapi.Options{
+			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
+			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
+			Database: databasePinger, Auth: authVerifier,
+		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,

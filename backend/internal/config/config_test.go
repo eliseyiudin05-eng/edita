@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -19,6 +20,51 @@ func TestLoadUsesSafeDefaults(t *testing.T) {
 	}
 	if cfg.ReadTimeout != 15*time.Second {
 		t.Fatalf("ReadTimeout = %s, want 15s", cfg.ReadTimeout)
+	}
+}
+
+func TestLoadBuildsSupabaseJWTConfiguration(t *testing.T) {
+	t.Setenv("GO_BACKEND_SUPABASE_URL", "https://example.supabase.co/")
+	t.Setenv("GO_BACKEND_JWKS_CACHE_TTL", "30m")
+
+	cfg := Load()
+	if cfg.JWTIssuer != "https://example.supabase.co/auth/v1" {
+		t.Fatalf("JWTIssuer = %q", cfg.JWTIssuer)
+	}
+	if cfg.JWKSURL != "https://example.supabase.co/auth/v1/.well-known/jwks.json" {
+		t.Fatalf("JWKSURL = %q", cfg.JWKSURL)
+	}
+	if cfg.JWKSCacheTTL != 5*time.Minute {
+		t.Fatalf("JWKSCacheTTL = %s, want safe fallback", cfg.JWKSCacheTTL)
+	}
+}
+
+func TestValidateRejectsUnsafeProductionDatabaseURL(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.DatabaseURL = "postgresql://user:password@example.com/postgres?sslmode=disable"
+
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "require TLS") {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func TestValidateRejectsNonHTTPSSupabaseURL(t *testing.T) {
+	cfg := Load()
+	cfg.SupabaseURL = "http://example.supabase.co"
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() unexpectedly accepted an insecure Supabase URL")
+	}
+}
+
+func TestValidateRejectsSupabaseURLWithPath(t *testing.T) {
+	cfg := Load()
+	cfg.SupabaseURL = "https://example.supabase.co/auth/v1"
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() unexpectedly accepted a Supabase URL with a path")
 	}
 }
 

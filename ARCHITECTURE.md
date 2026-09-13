@@ -44,3 +44,12 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Исходный файл платной работы хранится в закрытом Storage и недоступен заказчику до статуса `completed`.
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
+
+## Go migration boundary (v1.0.3)
+
+- Production traffic and business decisions remain in Next.js/Supabase.
+- The isolated Go service can only report liveness, dependency readiness, build metadata and the result of access-token verification.
+- Go connects to PostgreSQL through a bounded pool and requires encrypted database transport in production.
+- Supabase JWTs are verified with asymmetric JWKS keys; the service never receives or exposes the JWT signing secret.
+- Request audit events contain request ID, method, route path, status, response size, authentication result and duration. Authorization headers, query strings and user identifiers are excluded.
+- No profile, chat, Points, payout, order, escrow or file-delivery route is served by Go at this stage.

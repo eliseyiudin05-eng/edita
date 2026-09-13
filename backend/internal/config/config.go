@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"log/slog"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -18,9 +20,26 @@ type Config struct {
 	WriteTimeout      time.Duration
 	IdleTimeout       time.Duration
 	ShutdownTimeout   time.Duration
+	DependencyTimeout time.Duration
+	DatabaseURL       string
+	DatabaseMaxConns  int32
+	SupabaseURL       string
+	JWTIssuer         string
+	JWKSURL           string
+	JWTAudience       string
+	JWKSCacheTTL      time.Duration
+	JWKSHTTPTimeout   time.Duration
 }
 
 func Load() Config {
+	supabaseURL := strings.TrimRight(envString("GO_BACKEND_SUPABASE_URL", ""), "/")
+	issuer := ""
+	jwksURL := ""
+	if supabaseURL != "" {
+		issuer = supabaseURL + "/auth/v1"
+		jwksURL = issuer + "/.well-known/jwks.json"
+	}
+
 	return Config{
 		Address:           envString("GO_BACKEND_ADDRESS", ":8080"),
 		Environment:       envString("GO_BACKEND_ENV", "development"),
@@ -31,7 +50,40 @@ func Load() Config {
 		WriteTimeout:      envDuration("GO_BACKEND_WRITE_TIMEOUT", 30*time.Second),
 		IdleTimeout:       envDuration("GO_BACKEND_IDLE_TIMEOUT", 60*time.Second),
 		ShutdownTimeout:   envDuration("GO_BACKEND_SHUTDOWN_TIMEOUT", 10*time.Second),
+		DependencyTimeout: envDuration("GO_BACKEND_DEPENDENCY_TIMEOUT", 3*time.Second),
+		DatabaseURL:       envString("GO_BACKEND_DATABASE_URL", ""),
+		DatabaseMaxConns:  int32(envInt64("GO_BACKEND_DATABASE_MAX_CONNS", 4, 1, 20)),
+		SupabaseURL:       supabaseURL,
+		JWTIssuer:         issuer,
+		JWKSURL:           jwksURL,
+		JWTAudience:       envString("GO_BACKEND_JWT_AUDIENCE", "authenticated"),
+		JWKSCacheTTL:      envDurationBounded("GO_BACKEND_JWKS_CACHE_TTL", 5*time.Minute, time.Minute, 10*time.Minute),
+		JWKSHTTPTimeout:   envDurationBounded("GO_BACKEND_JWKS_HTTP_TIMEOUT", 5*time.Second, time.Second, 15*time.Second),
 	}
+}
+
+func (c Config) Validate() error {
+	if c.DatabaseURL != "" {
+		databaseURL, err := url.Parse(c.DatabaseURL)
+		if err != nil || (databaseURL.Scheme != "postgres" && databaseURL.Scheme != "postgresql") || databaseURL.Host == "" {
+			return errors.New("GO_BACKEND_DATABASE_URL must be a valid PostgreSQL URL")
+		}
+		if strings.EqualFold(c.Environment, "production") {
+			sslMode := strings.ToLower(databaseURL.Query().Get("sslmode"))
+			if sslMode == "disable" || sslMode == "allow" || sslMode == "prefer" {
+				return errors.New("GO_BACKEND_DATABASE_URL must require TLS in production")
+			}
+		}
+	}
+
+	if c.SupabaseURL != "" {
+		projectURL, err := url.Parse(c.SupabaseURL)
+		if err != nil || projectURL.Scheme != "https" || projectURL.Host == "" || projectURL.User != nil || (projectURL.Path != "" && projectURL.Path != "/") || projectURL.RawQuery != "" || projectURL.Fragment != "" {
+			return errors.New("GO_BACKEND_SUPABASE_URL must be an HTTPS project URL")
+		}
+	}
+
+	return nil
 }
 
 func envString(key, fallback string) string {
@@ -51,6 +103,14 @@ func envDuration(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return parsed
+}
+
+func envDurationBounded(key string, fallback, minimum, maximum time.Duration) time.Duration {
+	value := envDuration(key, fallback)
+	if value < minimum || value > maximum {
+		return fallback
+	}
+	return value
 }
 
 func envInt64(key string, fallback, minimum, maximum int64) int64 {
