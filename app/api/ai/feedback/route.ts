@@ -35,7 +35,7 @@ export async function POST(req:NextRequest){
   if(error||!feedback)return NextResponse.json({error:"Оценка пока не сохранилась."},{status:500});
 
   let queued=false;
-  if(!helpful&&comment.length>=20){
+  if(comment.length>=20){
     const {data:previous}=await service.from("ai_messages")
       .select("content")
       .eq("conversation_id",message.conversation_id)
@@ -52,7 +52,7 @@ export async function POST(req:NextRequest){
     ].join("\n\n");
     const {error:candidateError}=await service.from("ai_knowledge_candidates").insert({
       source_feedback_id:feedback.id,
-      topic:"Улучшение ответа помощника",
+      topic:helpful?"Подтверждённый полезный ответ":"Улучшение ответа помощника",
       content:candidate,
       status:"pending"
     });

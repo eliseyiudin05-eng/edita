@@ -4,6 +4,7 @@ import Link from "next/link";
 import {usePathname,useRouter} from "next/navigation";
 import {useEffect,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
+import {curriculum,learningStartIndex} from "@/lib/curriculum";
 
 export default function LessonRouteGate({requiredSlugs,previousSlug,children}:{requiredSlugs:string[];previousSlug?:string|null;children:React.ReactNode}){
   const router=useRouter();
@@ -27,13 +28,19 @@ export default function LessonRouteGate({requiredSlugs,previousSlug,children}:{r
         return;
       }
       if(user){
+        const {data:profile}=await supabase.from("profiles").select("onboarding").eq("id",user.id).maybeSingle();
         const {data}=await supabase.from("lesson_progress")
           .select("status,lessons!inner(slug)")
           .eq("user_id",user.id)
           .eq("status","completed");
         const fromAccount=(data||[]).map((row:any)=>row.lessons?.slug).filter((slug:any)=>typeof slug==="string");
         completed=fromAccount;
+        const startIndex=learningStartIndex(profile?.onboarding?.level);
+        const currentIndex=curriculum.findIndex(item=>item.slug===pathname.split("/").pop());
+        const requiredForLevel=currentIndex>=0?curriculum.slice(startIndex,currentIndex).map(item=>item.slug):requiredSlugs;
+        if(active){setUnlocked(currentIndex<=startIndex||requiredForLevel.every(slug=>completed.includes(slug)));setChecking(false)}
         try{localStorage.setItem("kivronix_lesson_done",JSON.stringify(completed))}catch{}
+        return;
       }
 
       if(active){setUnlocked(requiredSlugs.every(slug=>completed.includes(slug)));setChecking(false)}

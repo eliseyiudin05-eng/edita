@@ -27,6 +27,25 @@ export type Lesson={
   theoryOnly?:boolean;
 };
 
+export type EditorExperienceLevel="new"|"beginner"|"intermediate"|"pro";
+
+export const learningStarts:Record<EditorExperienceLevel,{slug:string;label:string;reason:string}>={
+  new:{slug:"start-without-fear",label:"С нуля",reason:"Начни с первого объяснения и двигайся по порядку."},
+  beginner:{slug:"hook-basics",label:"Начинающий",reason:"Базовые кнопки уже знакомы — начинай с коротких роликов и удержания внимания."},
+  intermediate:{slug:"voice-music-sfx",label:"Уверенный",reason:"Начинай с качества звука, картинки и более точных инструментов."},
+  pro:{slug:"masking",label:"Работаю регулярно",reason:"Начинай с продвинутых приёмов, качества и сильных клиентских проектов."}
+};
+
+export function normalizeExperienceLevel(value:unknown):EditorExperienceLevel{
+  return value==="beginner"||value==="intermediate"||value==="pro"?value:"new";
+}
+
+export function learningStartIndex(level:unknown){
+  const start=learningStarts[normalizeExperienceLevel(level)];
+  const index=curriculum.findIndex(item=>item.slug===start.slug);
+  return index>=0?index:0;
+}
+
 const capcutSource={label:"Официальный гайд CapCut для новичков",url:"https://www.capcut.com/resource/capcut-tutorial-for-beginners"};
 const capcutDownloadSource={label:"Скачать CapCut с официального сайта",url:"https://www.capcut.com/tools/video-editor-download"};
 const vnSource={label:"Официальная страница VN в Google Play",url:"https://play.google.com/store/apps/details?id=com.frontrow.vlog"};

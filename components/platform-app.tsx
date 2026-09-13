@@ -4,7 +4,7 @@ import Link from "next/link";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 import ChallengeCenter from "@/components/challenge-center";
 import VideoReview from "@/components/video-review";
-import {curriculum,curriculumModules,curriculumStats} from "@/lib/curriculum";
+import {curriculum,curriculumModules,curriculumStats,learningStartIndex,learningStarts,normalizeExperienceLevel} from "@/lib/curriculum";
 import AiCoach from "@/components/ai-coach";
 import BrandBrain from "@/components/brand-brain";
 import ClientSimulator from "@/components/client-simulator";
@@ -23,8 +23,9 @@ import KivronixChallenges from "@/components/kivronix-challenges";
 import PrivateChats from "@/components/private-chats";
 import {futurePlans} from "@/lib/plans";
 import PayoutPanel from "@/components/payout-panel";
+import EditingInsights from "@/components/editing-insights";
 
-type Tab="home"|"academy"|"practice"|"coach"|"review"|"kivronix-challenges"|"arena"|"portfolio"|"jobs"|"messages"|"community"|"wallet"|"plans"|"profile"|"business";
+type Tab="home"|"academy"|"insights"|"practice"|"coach"|"review"|"kivronix-challenges"|"arena"|"portfolio"|"jobs"|"messages"|"community"|"wallet"|"plans"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string;ageGroup?:string};
 type Viewer={
   name:string;
@@ -42,7 +43,7 @@ type Viewer={
 };
 
 const allTabs:[Tab,string][]=[
-  ["home","Главная"],["academy","Обучение"],["practice","Практика"],["coach","Помощник"],["review","Разбор видео"],
+  ["home","Главная"],["academy","Обучение"],["insights","Лайфхаки"],["practice","Практика"],["coach","Помощник"],["review","Разбор видео"],
   ["kivronix-challenges","Конкурсы KIVRONIX"],["arena","Конкурсы компаний"],["portfolio","Мои работы"],["jobs","Работа"],["messages","Закрытые чаты"],["community","Сообщество"],["wallet","Мои итоги"],["plans","Тариф и доступ"],["profile","Профиль"],["business","Компания"]
 ];
 
@@ -54,8 +55,11 @@ export default function PlatformApp(){
  const [businessStats,setBusinessStats]=useState({challenges:0,submissions:0,jobs:0});
 
  const xp=useMemo(()=>done.reduce((sum,slug)=>sum+(curriculum.find(l=>l.slug===slug)?.xp||0),0),[done]);
+ const experienceLevel=normalizeExperienceLevel(viewer.onboarding?.level);
+ const suggestedStart=learningStarts[experienceLevel];
+ const suggestedStartIndex=learningStartIndex(experienceLevel);
  const tabs=useMemo(()=>{
-   if(viewer.role==="business") return allTabs.filter(([id])=>["home","coach","review","arena","messages","plans","profile","business"].includes(id));
+   if(viewer.role==="business") return allTabs.filter(([id])=>["home","insights","coach","review","arena","messages","plans","profile","business"].includes(id));
    if(viewer.role==="editor") return allTabs.filter(([id])=>id!=="business");
    return allTabs;
  },[viewer.role]);
@@ -184,6 +188,7 @@ export default function PlatformApp(){
      </Page>}
 
      {tab==="academy"&&<Page title="Обучение" sub="Сначала простое объяснение. Затем установка программы, картинки с нужными кнопками, маленькие задания и помощник KIVRONIX.">
+       <div className="academy-start-card"><div><div className="eyebrow">ТВОЯ СТАРТОВАЯ ТОЧКА · {suggestedStart.label.toUpperCase()}</div><h2>{curriculum[suggestedStartIndex]?.title}</h2><p>{suggestedStart.reason} Ранние уроки остаются доступными, если захочешь повторить основу.</p></div><Link className="btn btn-lime" href={"/academy/"+suggestedStart.slug}>Начать с этого урока →</Link></div>
        <div className="academy-overview">
          <Stat n={String(curriculumStats.lessons)} t="уроков"/><Stat n={String(curriculumStats.theory)} t="уроков теории"/><Stat n={String(curriculumStats.assignments)} t="заданий"/><Stat n={String(done.length)} t="пройдено"/>
        </div>
@@ -192,7 +197,7 @@ export default function PlatformApp(){
          <header><div><div className="eyebrow">СТУПЕНЬ {moduleIndex+1}</div><h2>{group.module}</h2></div><span>{group.lessons.filter(item=>done.includes(item.slug)).length} / {group.lessons.length}</span></header>
          <div className="academy-lesson-grid">{group.lessons.map(lesson=>{
            const lessonIndex=curriculum.findIndex(item=>item.slug===lesson.slug);
-           const unlocked=lessonIndex===0||curriculum.slice(0,lessonIndex).every(item=>done.includes(item.slug));
+           const unlocked=lessonIndex<=suggestedStartIndex||curriculum.slice(suggestedStartIndex,lessonIndex).every(item=>done.includes(item.slug));
            return <article className={"academy-lesson-card "+(done.includes(lesson.slug)?"done ":"")+(unlocked?"":"locked")} key={lesson.slug}>
              <div className="academy-lesson-top"><span className="num">{done.includes(lesson.slug)?"✓":unlocked?lessonIndex+1:"—"}</span><div><small>{lesson.level} · {lesson.minutes} мин</small><b>{unlocked?lesson.software:"Откроется после предыдущего урока"}</b></div></div>
              <h3>{lesson.title}</h3><p>{lesson.summary}</p>
@@ -203,9 +208,12 @@ export default function PlatformApp(){
        </section>)}</div>
      </Page>}
 
+     {tab==="insights"&&<Page title="Лайфхаки" sub="Короткие статьи, факты, профессия и идеи, которые помогают смотреть на монтаж шире."><EditingInsights openCommunity={()=>goTab("community")}/></Page>}
+
      {tab==="practice"&&<Page title="Практика" sub="Тренировка разговора с клиентом: цена, правки, сроки и договорённости."><ClientSimulator/></Page>}
 
      {tab==="coach"&&<Page title="Помощник KIVRONIX" sub="Спроси про монтаж обычными словами. Получишь короткий ответ, понятные шаги и способ проверить результат.">
+       <div className="ai-learning-note"><b>ИИ становится полезнее внутри KIVRONIX</b><span>Он учитывает твой уровень, программу, текущий урок, пройденные темы и историю вопросов. Оценки ответов попадают в очередь улучшений, а в общую базу знаний — только после проверки.</span></div>
        <AiCoach
          scopeKey="main"
          title="Помощник KIVRONIX"
