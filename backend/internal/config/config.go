@@ -32,6 +32,7 @@ type Config struct {
 	JWKSHTTPTimeout        time.Duration
 	ProfileHTTPTimeout     time.Duration
 	AcademyHTTPTimeout     time.Duration
+	SocialHTTPTimeout      time.Duration
 }
 
 func Load() Config {
@@ -65,6 +66,7 @@ func Load() Config {
 		JWKSHTTPTimeout:        envDurationBounded("GO_BACKEND_JWKS_HTTP_TIMEOUT", 5*time.Second, time.Second, 15*time.Second),
 		ProfileHTTPTimeout:     envDurationBounded("GO_BACKEND_PROFILE_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
 		AcademyHTTPTimeout:     envDurationBounded("GO_BACKEND_ACADEMY_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
+		SocialHTTPTimeout:      envDurationBounded("GO_BACKEND_SOCIAL_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
 	}
 }
 

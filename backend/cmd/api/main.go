@@ -16,10 +16,11 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/database"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/httpapi"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
 )
 
 var (
-	version = "1.0.7"
+	version = "1.0.8"
 	commit  = "local"
 )
 
@@ -64,6 +65,7 @@ func main() {
 
 	var profileReader httpapi.LearningPreferencesReader
 	var academyReader httpapi.AcademyProgressReader
+	var socialReader httpapi.SocialRankingReader
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
 			cfg.SupabaseURL,
@@ -86,6 +88,17 @@ func main() {
 			os.Exit(1)
 		}
 		academyReader = academyClient
+
+		socialClient, err := social.NewClient(
+			cfg.SupabaseURL,
+			cfg.SupabasePublishableKey,
+			&http.Client{Timeout: cfg.SocialHTTPTimeout},
+		)
+		if err != nil {
+			logger.Error("social client configuration failed", "error", err)
+			os.Exit(1)
+		}
+		socialReader = socialClient
 	}
 
 	server := &http.Server{
@@ -93,7 +106,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader,
+			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Social: socialReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
