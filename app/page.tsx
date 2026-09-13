@@ -43,7 +43,7 @@ export default async function Home(){
 
   return <main className="landing">
     <nav className="topbar shell sticky-public-nav">
-      <Link className="brand brand-explained" href="/" aria-label="KIVRONIX — обучение видеомонтажу и поиск монтажёров, перейти на главную">
+      <Link className="brand brand-explained" href="/" title="KIVRONIX — монтаж, обучение и работа" aria-label="KIVRONIX — обучение видеомонтажу и поиск монтажёров, перейти на главную">
         <span className="brand-name">KIVRONIX<b>.</b></span>
         <small>монтаж · обучение · работа</small>
       </Link>
