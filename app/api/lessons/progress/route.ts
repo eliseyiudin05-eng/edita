@@ -1,6 +1,7 @@
 import {after,NextRequest,NextResponse} from "next/server";
 import {curriculum,lessonBySlug} from "@/lib/curriculum";
 import {academyProgressShadowEnabled,compareAcademyProgressWithGo,normalizeAcademyProgress} from "@/lib/go-academy-shadow";
+import {academyProgressCanaryEnabled,recordAcademyProgressCanaryComparison,tryAcademyProgressCanary} from "@/lib/go-academy-canary";
 import {getLessonProgress,getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 
 function bearer(req:NextRequest){
@@ -14,12 +15,26 @@ export async function GET(req:NextRequest){
   const user=await getUserFromAccessToken(token);
   if(!user||!token)return NextResponse.json({error:"Нужен вход в аккаунт."},{status:401});
 
+  const canary=await tryAcademyProgressCanary(token);
+  if(canary.attempted&&canary.value){
+    after(async()=>{
+      try{
+        const {data,error}=await getLessonProgress(token,user.id);
+        const legacy=!error?normalizeAcademyProgress(data):null;
+        recordAcademyProgressCanaryComparison(canary.value!,legacy);
+      }catch{
+        recordAcademyProgressCanaryComparison(canary.value!,null);
+      }
+    });
+    return NextResponse.json(canary.value,{headers:{"Cache-Control":"no-store"}});
+  }
+
   const {data,error}=await getLessonProgress(token,user.id);
   if(error)return NextResponse.json({error:"Не удалось загрузить прогресс."},{status:503});
   const legacy=normalizeAcademyProgress(data);
   if(!legacy)return NextResponse.json({error:"Прогресс повреждён."},{status:500});
 
-  if(academyProgressShadowEnabled())after(()=>compareAcademyProgressWithGo(token,legacy));
+  if(!academyProgressCanaryEnabled()&&academyProgressShadowEnabled())after(()=>compareAcademyProgressWithGo(token,legacy));
   return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
 }
 

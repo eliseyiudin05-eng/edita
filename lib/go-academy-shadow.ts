@@ -1,10 +1,18 @@
 export type AcademyProgressResponse={completedSlugs:string[];xp:number};
 
+export type GoAcademyReadResult=
+  |{ok:true;value:AcademyProgressResponse;durationMs:number}
+  |{ok:false;outcome:string;durationMs:number};
+
 const maxProgressRows=500;
 const maxResponseBytes=256*1024;
 
 export function academyProgressShadowEnabled(){
   return process.env.GO_BACKEND_ACADEMY_SHADOW_READS_ENABLED==="true"&&Boolean(academyEndpoint());
+}
+
+export function goAcademyBackendConfigured(){
+  return Boolean(academyEndpoint());
 }
 
 export function normalizeAcademyProgress(rows:unknown):AcademyProgressResponse|null{
@@ -29,41 +37,33 @@ export function normalizeAcademyProgress(rows:unknown):AcademyProgressResponse|n
 }
 
 export async function compareAcademyProgressWithGo(token:string,legacy:AcademyProgressResponse){
+  const result=await readAcademyProgressFromGo(token,shadowTimeout());
+  const outcome=result.ok?(sameAcademyProgress(result.value,legacy)?"match":"mismatch"):result.outcome;
+  console.info("go_academy_shadow",{route:"academy_progress",outcome,duration_ms:result.durationMs});
+}
+
+export async function readAcademyProgressFromGo(token:string,timeoutMs:number):Promise<GoAcademyReadResult>{
   const started=Date.now();
-  let outcome="unavailable";
   try{
     const endpoint=academyEndpoint();
-    if(!endpoint){
-      outcome="invalid_configuration";
-      return;
-    }
+    if(!endpoint)return failed("invalid_configuration",started);
     const response=await fetch(endpoint,{
       method:"GET",
       headers:{Authorization:`Bearer ${token}`,Accept:"application/json"},
       cache:"no-store",
       redirect:"error",
-      signal:AbortSignal.timeout(shadowTimeout()),
+      signal:AbortSignal.timeout(timeoutMs),
     });
-    if(!response.ok){
-      outcome=`http_${response.status}`;
-      return;
-    }
+    if(!response.ok)return failed(`http_${response.status}`,started);
     const declaredLength=Number(response.headers.get("content-length")||"0");
-    if(Number.isFinite(declaredLength)&&declaredLength>maxResponseBytes){
-      outcome="response_too_large";
-      return;
-    }
+    if(Number.isFinite(declaredLength)&&declaredLength>maxResponseBytes)return failed("response_too_large",started);
     const raw=await response.text();
-    if(new TextEncoder().encode(raw).byteLength>maxResponseBytes){
-      outcome="response_too_large";
-      return;
-    }
-    const candidate=parseAcademyProgress(JSON.parse(raw) as unknown);
-    outcome=candidate&&sameAcademyProgress(candidate,legacy)?"match":"mismatch";
+    if(new TextEncoder().encode(raw).byteLength>maxResponseBytes)return failed("response_too_large",started);
+    const value=parseAcademyProgress(JSON.parse(raw) as unknown);
+    return value?{ok:true,value,durationMs:Date.now()-started}:failed("invalid_response",started);
   }catch(error){
-    outcome=error instanceof Error&&(error.name==="TimeoutError"||error.name==="AbortError")?"timeout":"unavailable";
-  }finally{
-    console.info("go_academy_shadow",{route:"academy_progress",outcome,duration_ms:Date.now()-started});
+    const timeout=error instanceof Error&&(error.name==="TimeoutError"||error.name==="AbortError");
+    return failed(timeout?"timeout":"unavailable",started);
   }
 }
 
@@ -96,8 +96,12 @@ function parseAcademyProgress(candidate:unknown):AcademyProgressResponse|null{
   return {completedSlugs:slugs,xp:Number(value.xp)};
 }
 
-function sameAcademyProgress(candidate:AcademyProgressResponse,legacy:AcademyProgressResponse){
+export function sameAcademyProgress(candidate:AcademyProgressResponse,legacy:AcademyProgressResponse){
   return candidate.xp===legacy.xp&&candidate.completedSlugs.length===legacy.completedSlugs.length&&candidate.completedSlugs.every((slug,index)=>slug===legacy.completedSlugs[index]);
+}
+
+function failed(outcome:string,started:number):GoAcademyReadResult{
+  return {ok:false,outcome,durationMs:Date.now()-started};
 }
 
 function validSlug(value:string){
