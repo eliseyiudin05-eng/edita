@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.12
+## Stage v1.0.13
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -24,7 +24,7 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - group profile lookups are chunked, and group creation, joining, and messages remain outside Go;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-Next.js remains the gateway and write authority. Profile, academy progress, social ranking and friend-list reads can independently compare legacy and Go responses in shadow mode, or route a bounded 1–10% read-only canary to Go. Study-group reads are shadow-only. Every migration mode is disabled by default, and no financial request is routed to Go.
+Next.js remains the gateway and write authority. Profile, academy progress, social ranking, friend-list and study-group reads can independently compare legacy and Go responses in shadow mode, or route a bounded 1–10% read-only canary to Go. Every migration mode is disabled by default, and no financial request is routed to Go.
 
 ## Run locally
 
@@ -61,4 +61,4 @@ For the social ranking stage, keep `GO_BACKEND_SOCIAL_SHADOW_READS_ENABLED=false
 
 For friend-list shadow reads, apply the participant-only friendships RLS migration, deploy Go, then set `GO_BACKEND_SOCIAL_FRIENDS_SHADOW_READS_ENABLED=true`. `GO_BACKEND_SOCIAL_FRIENDS_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. The existing Next.js response remains authoritative, and comparison logs contain no relation, participant, profile, or token data. After stable comparisons, disable shadow mode, enable `GO_BACKEND_SOCIAL_FRIENDS_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_SOCIAL_FRIENDS_CANARY_PERCENT=1`. The percentage is hard-limited to 10. Timeout, malformed/oversized response, excessive latency, or an open circuit falls back within the same request. A 20% unhealthy rate in a 10–20 result window pauses the canary locally for five minutes; a mismatch opens it immediately. The environment flag is the global kill switch. Friend search and all friendship writes remain in Next.js/Supabase in v1.0.11.
 
-For study-group shadow reads, apply the member-only group RLS migration, deploy Go, then set `GO_BACKEND_SOCIAL_GROUPS_SHADOW_READS_ENABLED=true`. `GO_BACKEND_SOCIAL_GROUPS_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. The legacy response remains authoritative. Logs contain no tokens, join codes, group/member identifiers, names, profile data, or membership state. Group creation, joining, and chat messages remain in Next.js/Supabase in v1.0.12.
+For study-group shadow reads, apply the member-only group RLS migration, deploy Go, then set `GO_BACKEND_SOCIAL_GROUPS_SHADOW_READS_ENABLED=true`. `GO_BACKEND_SOCIAL_GROUPS_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. The legacy response remains authoritative. Logs contain no tokens, join codes, group/member identifiers, names, profile data, or membership state. After stable comparisons, disable shadow mode, enable `GO_BACKEND_SOCIAL_GROUPS_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_SOCIAL_GROUPS_CANARY_PERCENT=1`. The percentage is hard-limited to 10. Timeout, malformed/oversized response, excessive latency, or an open circuit falls back within the same request. A 20% unhealthy rate in a 10–20 result window pauses the canary locally for five minutes; a mismatch opens it immediately. The environment flag is the global kill switch. Group creation, joining, and chat messages remain in Next.js/Supabase in v1.0.13.

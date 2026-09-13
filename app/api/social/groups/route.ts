@@ -1,6 +1,7 @@
 import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {compareSocialGroupsWithGo,normalizeSocialGroups,socialGroupsShadowEnabled} from "@/lib/go-social-groups-shadow";
+import {recordSocialGroupsCanaryComparison,socialGroupsCanaryEnabled,trySocialGroupsCanary} from "@/lib/go-social-groups-canary";
 
 function token(req:NextRequest){
   const h=req.headers.get("authorization");
@@ -66,9 +67,15 @@ export async function GET(req:NextRequest){
   if(!a)return NextResponse.json({error:"Нужен вход."},{status:401});
 
   try{
+    const canary=await trySocialGroupsCanary(a.token);
+    if(canary.attempted&&canary.value){
+      after(async()=>recordSocialGroupsCanaryComparison(canary.value!,await readLegacyGroups(a)));
+      return NextResponse.json(canary.value,{headers:{"Cache-Control":"no-store"}});
+    }
+
     const legacy=await readLegacyGroups(a);
     if(!legacy)return NextResponse.json({error:"Не удалось загрузить учебные группы."},{status:503});
-    if(socialGroupsShadowEnabled())after(()=>compareSocialGroupsWithGo(a.token,legacy));
+    if(!socialGroupsCanaryEnabled()&&socialGroupsShadowEnabled())after(()=>compareSocialGroupsWithGo(a.token,legacy));
     return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
   }catch{
     return NextResponse.json({error:"Не удалось загрузить учебные группы."},{status:503});

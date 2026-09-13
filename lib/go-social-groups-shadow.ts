@@ -43,6 +43,8 @@ export function socialGroupsShadowEnabled(){
   return process.env.GO_BACKEND_SOCIAL_GROUPS_SHADOW_READS_ENABLED==="true"&&Boolean(groupsEndpoint());
 }
 
+export function goSocialGroupsBackendConfigured(){return Boolean(groupsEndpoint())}
+
 export function normalizeSocialGroups(value:unknown,legacy=false):SocialGroupsResponse|null{
   if(!Array.isArray(value)||value.length>maxGroups)return null;
   const groups:SocialStudyGroup[]=[];
@@ -60,11 +62,15 @@ export function normalizeSocialGroups(value:unknown,legacy=false):SocialGroupsRe
 
 export async function compareSocialGroupsWithGo(token:string,legacy:SocialGroupsResponse){
   const result=await readSocialGroupsFromGo(token,shadowTimeout());
-  const outcome=result.ok?(JSON.stringify(result.value)===JSON.stringify(legacy)?"match":"mismatch"):result.outcome;
+  const outcome=result.ok?(sameSocialGroups(result.value,legacy)?"match":"mismatch"):result.outcome;
   console.info("go_social_groups_shadow",{route:"social_groups",outcome,duration_ms:result.durationMs});
 }
 
-async function readSocialGroupsFromGo(token:string,timeoutMs:number):Promise<GoGroupsReadResult>{
+export function sameSocialGroups(left:SocialGroupsResponse,right:SocialGroupsResponse){
+  return JSON.stringify(left)===JSON.stringify(right);
+}
+
+export async function readSocialGroupsFromGo(token:string,timeoutMs:number):Promise<GoGroupsReadResult>{
   const started=Date.now();
   try{
     const endpoint=groupsEndpoint();
