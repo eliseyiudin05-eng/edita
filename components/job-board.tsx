@@ -123,7 +123,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
       <input required placeholder="Что нужно смонтировать" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
       <textarea required placeholder="Задачи, объём, формат работы" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
       <input required type="number" min="100" placeholder="Оплата, KIVRONIX Points" value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/>
-      <p className="muted">Сумма резервируется при выборе исполнителя. После принятия работы монтажёр получает 88%, комиссия KIVRONIX — 12%.</p>
+      <p className="muted">Сумма резервируется при выборе исполнителя. После принятия работы монтажёр получает 100% указанной суммы. Комиссия между заказчиком и монтажёром — 0%; комиссия 5% берётся только при пополнении баланса.</p>
       <button className="btn btn-dark" disabled={!businessVerified}>{businessVerified?"Опубликовать":"Сначала пройти проверку"}</button>
     </form></section>}
 
