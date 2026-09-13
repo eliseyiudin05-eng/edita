@@ -65,6 +65,19 @@ export default function PlatformApp(){
  },[viewer.role]);
 
  useEffect(()=>{
+   const businessDemo=new URLSearchParams(window.location.search).get("demo")==="business";
+   if(businessDemo){
+     setViewer({
+       name:"Тестовая компания",
+       role:"business",
+       onboarding:{level:"business",goal:"hire",ageGroup:"18+"},
+       plan:"studio_plus",
+       planExpiresAt:"2099-12-31T23:59:59.000Z"
+     });
+     setBusinessStats({challenges:2,submissions:38,jobs:3});
+     setTab("business");
+     return;
+   }
    const syncTabFromHash=()=>{
      const hash=window.location.hash.replace("#","") as Tab;
      if(allTabs.some(([id])=>id===hash))setTab(hash);
@@ -153,6 +166,7 @@ export default function PlatformApp(){
  }
 
  const roleLabel=viewer.role==="business"?"Бизнес":viewer.role==="editor"?"Монтажёр":"Гость";
+ const businessDemo=typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("demo")==="business";
  const activePaidPlan=Boolean(viewer.plan&&viewer.plan!=="free"&&viewer.planExpiresAt&&new Date(viewer.planExpiresAt).getTime()>Date.now());
  const accessLabel:string=activePaidPlan?(viewer.plan==="creator_plus"?"Creator+":viewer.plan==="studio_plus"?"Studio+":viewer.plan||"платный план"):"ранний доступ";
 
@@ -177,6 +191,8 @@ export default function PlatformApp(){
        <b className="mobile">KIVRONIX.</b>
        <div className="user-pill"><ProfileAvatar src={viewer.avatarUrl} name={viewer.name} size="sm"/><span>{viewer.role?"в сети":"пример"} · {accessLabel}{viewer.role==="editor"?" · "+xp+" опыта":""}</span></div>
      </header>
+
+     {businessDemo&&<div className="demo-business-banner"><div><b>Демо кабинета бизнеса</b><span>Можно открыть все разделы и посмотреть интерфейс. Данные из демо не сохраняются.</span></div><Link className="btn btn-dark" href="/signup/business">Создать настоящий аккаунт</Link></div>}
 
      {tab==="home"&&<Page title={viewer.role?"Продолжай, "+viewer.name+".":"Добро пожаловать в KIVRONIX."} sub={viewer.role?"Открой ближайший урок и двигайся по шагам.":"Посмотри платформу. После входа помощник и учебный прогресс сохраняются."}>
        <section className="mission"><small>ТВОЙ ПУТЬ</small><h2>{done.length?"Продолжи следующий урок":"Первый ролик начинается с одной кнопки"}</h2><p>{curriculum.length} коротких уроков ведут от установки CapCut и первой склейки до цвета, звука, своих работ и общения с заказчиком.</p><button className="btn btn-lime" onClick={()=>goTab("academy")}>Продолжить обучение →</button></section>

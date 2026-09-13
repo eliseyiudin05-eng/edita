@@ -8,8 +8,10 @@ type SendEmailArgs={
 };
 
 const RESEND_API_URL="https://api.resend.com";
-const KIVRONIX_EMAIL_DOMAIN="auth.kivronix.ru";
-const DEFAULT_FROM="KIVRONIX <no-reply@auth.kivronix.ru>";
+// Keep the KIVRONIX brand in the sender name, but use the already verified
+// transactional domain until auth.kivronix.ru is verified in Resend.
+const KIVRONIX_EMAIL_DOMAIN="auth.getedita.app";
+const DEFAULT_FROM="KIVRONIX <no-reply@auth.getedita.app>";
 
 type ResendApiErrorBody={
   message?:string;

@@ -11,6 +11,10 @@ export default function AuthGate({children}:{children:React.ReactNode}){
 
   useEffect(()=>{
     let active=true;
+    if(new URLSearchParams(window.location.search).get("demo")==="business"){
+      setAllowed(true);
+      return()=>{active=false};
+    }
     const supabase=getSupabaseBrowserClient();
     supabase.auth.getUser().then(({data})=>{
       if(!active)return;
