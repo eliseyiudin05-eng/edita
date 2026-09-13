@@ -12,6 +12,7 @@ import (
 
 	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/config"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/database"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/httpapi"
@@ -20,7 +21,7 @@ import (
 )
 
 var (
-	version = "1.0.13"
+	version = "1.0.14"
 	commit  = "local"
 )
 
@@ -68,6 +69,7 @@ func main() {
 	var socialReader httpapi.SocialRankingReader
 	var socialFriendsReader httpapi.SocialFriendsReader
 	var socialGroupsReader httpapi.SocialGroupsReader
+	var businessReader httpapi.BusinessVerificationReader
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
 			cfg.SupabaseURL,
@@ -103,6 +105,17 @@ func main() {
 		socialReader = socialClient
 		socialFriendsReader = socialClient
 		socialGroupsReader = socialClient
+
+		businessClient, err := business.NewClient(
+			cfg.SupabaseURL,
+			cfg.SupabasePublishableKey,
+			&http.Client{Timeout: cfg.BusinessHTTPTimeout},
+		)
+		if err != nil {
+			logger.Error("business client configuration failed", "error", err)
+			os.Exit(1)
+		}
+		businessReader = businessClient
 	}
 
 	server := &http.Server{
@@ -110,7 +123,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader,
+			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
