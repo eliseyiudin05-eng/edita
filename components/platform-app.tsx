@@ -19,10 +19,10 @@ import GuardianVerification from "@/components/guardian-verification";
 import EditorVerification from "@/components/editor-verification";
 import ProfileEditor from "@/components/profile-editor";
 import ProfileAvatar from "@/components/profile-avatar";
-import EditaChallenges from "@/components/edita-challenges";
+import KivronixChallenges from "@/components/kivronix-challenges";
 import PrivateChats from "@/components/private-chats";
 
-type Tab="home"|"academy"|"practice"|"coach"|"review"|"edita-challenges"|"arena"|"portfolio"|"jobs"|"messages"|"community"|"wallet"|"profile"|"business";
+type Tab="home"|"academy"|"practice"|"coach"|"review"|"kivronix-challenges"|"arena"|"portfolio"|"jobs"|"messages"|"community"|"wallet"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string;ageGroup?:string};
 type Viewer={
   name:string;
@@ -34,11 +34,14 @@ type Viewer={
   guardianVerified?:boolean;
   avatarUrl?:string|null;
   schoolName?:string|null;
+  plan?:string|null;
+  planExpiresAt?:string|null;
+  referralPoints?:number;
 };
 
 const allTabs:[Tab,string][]=[
   ["home","Главная"],["academy","Обучение"],["practice","Практика"],["coach","Помощник"],["review","Разбор видео"],
-  ["edita-challenges","Конкурсы EDITA"],["arena","Конкурсы компаний"],["portfolio","Мои работы"],["jobs","Работа"],["messages","Закрытые чаты"],["community","Сообщество"],["wallet","Мои итоги"],["profile","Профиль"],["business","Компания"]
+  ["kivronix-challenges","Конкурсы KIVRONIX"],["arena","Конкурсы компаний"],["portfolio","Мои работы"],["jobs","Работа"],["messages","Закрытые чаты"],["community","Сообщество"],["wallet","Мои итоги"],["profile","Профиль"],["business","Компания"]
 ];
 
 export default function PlatformApp(){
@@ -63,9 +66,9 @@ export default function PlatformApp(){
    syncTabFromHash();
    window.addEventListener("hashchange",syncTabFromHash);
    try{
-     const raw=localStorage.getItem("edita_lesson_done");
+     const raw=localStorage.getItem("kivronix_lesson_done");
      if(raw)setDone(JSON.parse(raw));
-     const onboardingRaw=localStorage.getItem("edita_onboarding");
+     const onboardingRaw=localStorage.getItem("kivronix_onboarding");
      if(onboardingRaw)setViewer(v=>({...v,onboarding:JSON.parse(onboardingRaw)}));
    }catch{}
 
@@ -75,7 +78,7 @@ export default function PlatformApp(){
    supabase.auth.getUser().then(async({data})=>{
      if(!active||!data.user)return;
      const {data:profile}=await supabase.from("profiles")
-       .select("display_name,role,username,ai_score,onboarding,earnings_cents,guardian_verified,avatar_url,school_name")
+       .select("display_name,role,username,ai_score,onboarding,earnings_cents,guardian_verified,avatar_url,school_name,plan,plan_expires_at,referral_points")
        .eq("id",data.user.id).single();
      if(!active)return;
      const {count:winsCount}=await supabase.from("challenge_submissions")
@@ -92,7 +95,7 @@ export default function PlatformApp(){
        .map((row:any)=>row.lessons?.slug)
        .filter((slug:any)=>typeof slug==="string");
      setDone(dbDone);
-     try{localStorage.setItem("edita_lesson_done",JSON.stringify(dbDone))}catch{}
+     try{localStorage.setItem("kivronix_lesson_done",JSON.stringify(dbDone))}catch{}
      setViewer({
        name:profile?.display_name||data.user.user_metadata?.display_name||data.user.email?.split("@")[0]||"Пользователь",
        role:profile?.role==="business"?"business":"editor",
@@ -102,7 +105,10 @@ export default function PlatformApp(){
        earningsCents:Number(profile?.earnings_cents||0),
        guardianVerified:Boolean(profile?.guardian_verified),
        avatarUrl:profile?.avatar_url||null,
-       schoolName:profile?.school_name||null
+       schoolName:profile?.school_name||null,
+       plan:profile?.plan||null,
+       planExpiresAt:profile?.plan_expires_at||null,
+       referralPoints:Number(profile?.referral_points||0)
      });
      if(profile?.role==="business"){
        setTab("business");
@@ -141,11 +147,12 @@ export default function PlatformApp(){
  }
 
  const roleLabel=viewer.role==="business"?"Бизнес":viewer.role==="editor"?"Монтажёр":"Гость";
- const accessLabel="бесплатно";
+ const activePaidPlan=Boolean(viewer.plan&&viewer.plan!=="free"&&viewer.planExpiresAt&&new Date(viewer.planExpiresAt).getTime()>Date.now());
+ const accessLabel:string=activePaidPlan?(viewer.plan==="creator_plus"?"Creator+":viewer.plan==="studio_plus"?"Studio+":viewer.plan||"платный план"):"ранний доступ";
 
  return <main className="app">
    <aside className="side">
-     <Link className="brand" href="/platform#home">EDITA<b>.</b></Link>
+     <Link className="brand" href="/platform#home">KIVRONIX<b>.</b></Link>
      <nav className="nav">{tabs.map(([id,l])=><button className={tab===id?"active":""} onClick={()=>goTab(id)} key={id}>{l}</button>)}</nav>
      <div className="profile">
        <div className="side-profile-head"><ProfileAvatar src={viewer.avatarUrl} name={viewer.name} size="sm"/><b>{viewer.name}</b></div>
@@ -161,20 +168,20 @@ export default function PlatformApp(){
    <section className="main">
      <header className="head">
        <button type="button" className="app-back-button" onClick={()=>tab==="home"?window.history.back():goTab("home")}>← Назад</button>
-       <b className="mobile">EDITA.</b>
+       <b className="mobile">KIVRONIX.</b>
        <div className="user-pill"><ProfileAvatar src={viewer.avatarUrl} name={viewer.name} size="sm"/><span>{viewer.role?"в сети":"пример"} · {accessLabel}{viewer.role==="editor"?" · "+xp+" опыта":""}</span></div>
      </header>
 
-     {tab==="home"&&<Page title={viewer.role?"Продолжай, "+viewer.name+".":"Добро пожаловать в EDITA."} sub={viewer.role?"Открой ближайший урок и двигайся по шагам.":"Посмотри платформу. После входа помощник и учебный прогресс сохраняются."}>
+     {tab==="home"&&<Page title={viewer.role?"Продолжай, "+viewer.name+".":"Добро пожаловать в KIVRONIX."} sub={viewer.role?"Открой ближайший урок и двигайся по шагам.":"Посмотри платформу. После входа помощник и учебный прогресс сохраняются."}>
        <section className="mission"><small>ТВОЙ ПУТЬ</small><h2>{done.length?"Продолжи следующий урок":"Первый ролик начинается с одной кнопки"}</h2><p>{curriculum.length} коротких уроков ведут от установки CapCut и первой склейки до цвета, звука, своих работ и общения с заказчиком.</p><button className="btn btn-lime" onClick={()=>goTab("academy")}>Продолжить обучение →</button></section>
        <div className="grid">
          <Card title="Твой рост"><div className="stats"><Stat n={viewer.aiScore!=null?String(viewer.aiScore):"—"} t="оценка ролика"/><Stat n={String(done.length)} t="уроков"/><Stat n={String(wins)} t="побед"/></div></Card>
-         <Card title="Конкурс EDITA"><p className="muted">Приз 10 000 ₽: опубликуй короткий ролик, отметь EDITA и участвуй в честном рейтинге просмотров.</p><button className="btn btn-dark" onClick={()=>goTab("edita-challenges")}>Открыть конкурс</button></Card>
+         <Card title="Конкурс KIVRONIX"><p className="muted">Приз 10 000 ₽: опубликуй короткий ролик, отметь KIVRONIX и участвуй в честном рейтинге просмотров.</p><button className="btn btn-dark" onClick={()=>goTab("kivronix-challenges")}>Открыть конкурс</button></Card>
          <Card title="Твой путь"><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"свои проекты"}</p><Link className="btn btn-ghost" href="/onboarding">Изменить цель</Link></Card>
        </div>
      </Page>}
 
-     {tab==="academy"&&<Page title="Обучение" sub="Сначала простое объяснение. Затем установка программы, картинки с нужными кнопками, маленькие задания и помощник EDITA.">
+     {tab==="academy"&&<Page title="Обучение" sub="Сначала простое объяснение. Затем установка программы, картинки с нужными кнопками, маленькие задания и помощник KIVRONIX.">
        <div className="academy-overview">
          <Stat n={String(curriculumStats.lessons)} t="уроков"/><Stat n={String(curriculumStats.theory)} t="уроков теории"/><Stat n={String(curriculumStats.assignments)} t="заданий"/><Stat n={String(done.length)} t="пройдено"/>
        </div>
@@ -196,10 +203,10 @@ export default function PlatformApp(){
 
      {tab==="practice"&&<Page title="Практика" sub="Тренировка разговора с клиентом: цена, правки, сроки и договорённости."><ClientSimulator/></Page>}
 
-     {tab==="coach"&&<Page title="Помощник EDITA" sub="Спроси про монтаж обычными словами. Получишь короткий ответ, понятные шаги и способ проверить результат.">
+     {tab==="coach"&&<Page title="Помощник KIVRONIX" sub="Спроси про монтаж обычными словами. Получишь короткий ответ, понятные шаги и способ проверить результат.">
        <AiCoach
          scopeKey="main"
-         title="Помощник EDITA"
+         title="Помощник KIVRONIX"
          prompts={["Я впервые открыл CapCut. С чего начать?","Помоги сделать ролик за 30 минут","Как сделать ролик интереснее?","Объясни мой следующий урок"]}
          context={{
            level:viewer.onboarding?.level||"unknown",
@@ -207,14 +214,14 @@ export default function PlatformApp(){
            editor:viewer.onboarding?.software||"CapCut",
            goal:viewer.onboarding?.goal||"freelance",
            role:viewer.role,
-           plan:"pro",
+           plan:activePaidPlan?viewer.plan||"free":"early_access",
            completedLessons:done
          }}
        />
      </Page>}
 
-     {tab==="review"&&<Page title="Разбор видео" sub="Загрузи ролик. EDITA посмотрит отдельные кадры и простыми словами подскажет, что улучшить."><VideoReview/></Page>}
-     {tab==="edita-challenges"&&<Page title="Конкурсы EDITA" sub="Официальные конкурсы платформы: понятное задание, открытые правила, число мест и честный рейтинг."><EditaChallenges/></Page>}
+     {tab==="review"&&<Page title="Разбор видео" sub="Загрузи ролик. KIVRONIX посмотрит отдельные кадры и простыми словами подскажет, что улучшить."><VideoReview/></Page>}
+     {tab==="kivronix-challenges"&&<Page title="Конкурсы KIVRONIX" sub="Официальные конкурсы платформы: понятное задание, открытые правила, число мест и честный рейтинг."><KivronixChallenges/></Page>}
      {tab==="arena"&&<Page title="Конкурсы компаний" sub="Настоящие задания, одинаковые материалы и реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="arena"/></Page>}
 
      {tab==="portfolio"&&<Page title={viewer.role==="editor"?viewer.name:"Примеры работ"} sub="Подтверждённые навыки · настоящие работы · понятная страница">
@@ -223,27 +230,27 @@ export default function PlatformApp(){
        <div style={{marginTop:14}}>{viewer.username?<Link className="btn btn-dark" href={"/u/"+viewer.username}>Открыть страницу с работами</Link>:<Link className="btn btn-dark" href="/u/demo">Посмотреть пример</Link>}</div>
      </Page>}
 
-     {tab==="wallet"&&<Page title="Мои итоги" sub="Все уроки и функции открыты бесплатно для каждого пользователя.">
+     {tab==="wallet"&&<Page title="Мои итоги" sub="Прогресс, KIVRONIX Points и текущий режим доступа.">
        <div className="grid">
          <Card title="Заработано"><div className="wallet-number">{money(viewer.earningsCents||0)}</div><p className="muted">Доход от проектов и заданий после подключения реальных выплат.</p></Card>
-         <Card title="Полный доступ"><div className="wallet-number">Бесплатно</div><p className="muted">Обучение, помощник, разбор видео, практика и конкурсы открыты для каждого.</p><button className="btn btn-dark" onClick={()=>goTab("academy")}>Открыть обучение</button></Card>
-         <Card title="Навсегда внутри EDITA"><p className="muted">Здесь появятся результаты ваших проектов, побед и выполненных заданий.</p></Card>
+         <Card title="KIVRONIX Points"><div className="wallet-number">{Number(viewer.referralPoints||0).toLocaleString("ru-RU")} KP</div><p className="muted">Приглашай активных друзей и получай внутренние баллы. Каталог наград находится в сообществе.</p><button className="btn btn-dark" onClick={()=>goTab("community")}>Открыть награды</button></Card>
+         <Card title="Доступ"><div className="wallet-number">{accessLabel}</div><p className="muted">Оплата выключена. Будущие планы уже можно посмотреть без подключения карты.</p><Link className="btn btn-ghost" href="/pricing">Будущие тарифы</Link></Card>
        </div>
      </Page>}
 
      {tab==="profile"&&<Page title="Профиль" sub="Навыки, персональный маршрут и публичная карьерная карточка.">
        <div className="profile-grid">
          <ProfileEditor onSaved={profile=>setViewer(current=>({...current,name:profile.displayName,username:profile.username,avatarUrl:profile.avatarUrl,schoolName:profile.schoolName}))}/>
-         <Card title="Карточка монтажёра"><p><b>{viewer.name}</b></p><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"свои проекты"} · бесплатно{viewer.schoolName?" · "+viewer.schoolName:""}</p>{viewer.username&&<Link className="btn btn-dark" href={"/u/"+viewer.username}>Публичная страница ↗</Link>}</Card>
+         <Card title="Карточка монтажёра"><p><b>{viewer.name}</b></p><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"свои проекты"} · {accessLabel}{viewer.schoolName?" · "+viewer.schoolName:""}</p>{viewer.username&&<Link className="btn btn-dark" href={"/u/"+viewer.username}>Публичная страница ↗</Link>}</Card>
          <Card title="Навыки"><Skill label="Основа монтажа" value={Math.min(100,done.filter(s=>["what-is-editing","hook-basics","story-basics","retention-basics","editor-words","clean-cut"].includes(s)).length*16)}/><Skill label="Удержание зрителя" value={Math.min(100,done.filter(s=>["hook-basics","retention-basics","hook-2-seconds","subtitles","b-roll","sound"].includes(s)).length*16)}/><Skill label="Работа с клиентом" value={Math.min(100,done.filter(s=>["client-brief","pricing","portfolio"].includes(s)).length*33)}/></Card>
          <Card title="Настройки обучения"><p className="muted">Уровень: {viewer.onboarding?.level||"пока пусто"}<br/>Программа: {viewer.onboarding?.software||"пока пусто"}<br/>Цель: {viewer.onboarding?.goal||"пока пусто"}</p><Link className="btn btn-ghost" href="/onboarding">Изменить настройки</Link></Card><EditorVerification/>{viewer.onboarding?.ageGroup&&viewer.onboarding.ageGroup!=="18+"&&<GuardianVerification/>}
        </div>
      </Page>}
 
      {tab==="jobs"&&<Page title="Работа" sub="Задания и вакансии проверенных компаний собраны в одном месте."><div className="business-stack"><CampaignHub mode="editor"/><JobBoard mode="editor" ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified}/></div></Page>}
-     {tab==="messages"&&<Page title="Закрытые чаты" sub="Безопасное общение компании и монтажёра прямо внутри EDITA."><PrivateChats/></Page>}
+     {tab==="messages"&&<Page title="Закрытые чаты" sub="Безопасное общение компании и монтажёра прямо внутри KIVRONIX."><PrivateChats/></Page>}
      {tab==="community"&&<Page title="Сообщество" sub="Рейтинг, друзья, учебные группы, соревнования и приглашения с защитой личных данных."><SocialHub ageGroup={viewer.onboarding?.ageGroup}/></Page>}
-     {tab==="business"&&<Page title="Кабинет компании" sub="Сначала подтвердите компанию. После проверки можно публиковать настоящие задания и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных конкурсов"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n="Бесплатно" t="доступ к платформе"/></div><div className="business-stack"><BusinessVerification/><BusinessGrowth/><CampaignHub mode="business"/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/></div></Page>}
+     {tab==="business"&&<Page title="Кабинет компании" sub="Сначала подтвердите компанию. После проверки можно публиковать настоящие задания и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных конкурсов"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n={accessLabel} t="режим доступа"/></div><div className="business-stack"><BusinessVerification/><BusinessGrowth/><CampaignHub mode="business"/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/><Card title="Будущий план Studio+"><p className="muted">Командный кабинет и расширенные инструменты готовятся отдельно от тарифа монтажёра. Оплата выключена.</p><Link className="btn btn-ghost" href="/pricing">Посмотреть план</Link></Card></div></Page>}
    </section>
 
    <SiteTour role={viewer.role} onGo={(value)=>goTab(value as Tab)}/>

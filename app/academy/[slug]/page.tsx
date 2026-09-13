@@ -16,7 +16,7 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
 
   return <main className="lesson-shell-page">
     <nav className="lesson-topbar">
-      <Link href="/platform#academy" className="brand">EDITA<span>.</span></Link>
+      <Link href="/platform#academy" className="brand">KIVRONIX<span>.</span></Link>
       <div className="lesson-top-actions"><Link href="/platform#academy" className="btn btn-ghost">← В Академию</Link><Link href="/platform#home" className="btn btn-ghost">В кабинет</Link></div>
     </nav>
 
@@ -87,7 +87,7 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
 
         <nav className="lesson-next">
           {previous?<Link href={"/academy/"+previous.slug}><small>Предыдущий урок</small><b>← {previous.title}</b></Link>:<span/>}
-          {next?<Link href={"/academy/"+next.slug}><small>Откроется после завершения урока</small><b>{next.title} →</b></Link>:<Link href="/platform#academy"><small>Маршрут завершён</small><b>Вернуться в EDITA →</b></Link>}
+          {next?<Link href={"/academy/"+next.slug}><small>Откроется после завершения урока</small><b>{next.title} →</b></Link>:<Link href="/platform#academy"><small>Маршрут завершён</small><b>Вернуться в KIVRONIX →</b></Link>}
         </nav>
       </div>
 

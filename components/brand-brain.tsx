@@ -24,7 +24,7 @@ export default function BrandBrain({viewerName="Компания"}:{viewerName?:
     const supabase=getSupabaseBrowserClient();
     if(!supabase){
       try{
-        const raw=localStorage.getItem("edita_brand_brain");
+        const raw=localStorage.getItem("kivronix_brand_brain");
         if(raw)setForm(JSON.parse(raw));
       }catch{}
       return;
@@ -49,7 +49,7 @@ export default function BrandBrain({viewerName="Компания"}:{viewerName?:
     e.preventDefault();
     const supabase=getSupabaseBrowserClient();
     if(!supabase||!businessId){
-      localStorage.setItem("edita_brand_brain",JSON.stringify(form));
+      localStorage.setItem("kivronix_brand_brain",JSON.stringify(form));
       setMessage("Пример профиля бренда сохранён в этом браузере.");
       return;
     }

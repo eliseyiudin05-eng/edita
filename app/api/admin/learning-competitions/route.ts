@@ -68,9 +68,9 @@ export async function POST(req:NextRequest){
         service:a.service,
         editorId:ordered[index].user_id,
         businessOwnerId:a.user.id,
-        sourceKind:"edita_contest",
+        sourceKind:"kivronix_contest",
         sourceId:competition.id,
-        companyName:"Команда EDITA",
+        companyName:"Команда KIVRONIX",
         title:"Победитель конкурса: "+competition.title
       });
     }
@@ -117,9 +117,9 @@ export async function POST(req:NextRequest){
       service:a.service,
       editorId:entry.user_id,
       businessOwnerId:a.user.id,
-      sourceKind:"edita_contest",
+      sourceKind:"kivronix_contest",
       sourceId:comp.id,
-      companyName:"Команда EDITA",
+      companyName:"Команда KIVRONIX",
       title:"Победитель конкурса: "+comp.title
     });
   }

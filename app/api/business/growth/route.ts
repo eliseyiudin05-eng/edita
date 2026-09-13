@@ -57,7 +57,7 @@ export async function GET(req:NextRequest){
     }
   }
 
-  return NextResponse.json({season:"EDITA Brand League · Осень 2026",leaderboard:board.slice(0,20),mine,talent});
+  return NextResponse.json({season:"KIVRONIX Brand League · Осень 2026",leaderboard:board.slice(0,20),mine,talent});
 }
 
 export async function POST(req:NextRequest){

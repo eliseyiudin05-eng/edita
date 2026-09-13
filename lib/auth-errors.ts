@@ -11,7 +11,7 @@ export function authErrorRu(message?:string|null){
     return "Неверный email или пароль.";
   }
   if(value.includes("email not confirmed")){
-    return "Email ждёт подтверждения. Открой письмо от EDITA или отправь подтверждение ещё раз.";
+    return "Email ждёт подтверждения. Открой письмо от KIVRONIX или отправь подтверждение ещё раз.";
   }
   if(value.includes("password should be at least")){
     return "Пароль слишком короткий. Используй минимум 8 символов.";

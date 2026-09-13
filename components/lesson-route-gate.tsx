@@ -13,7 +13,7 @@ export default function LessonRouteGate({requiredSlugs,previousSlug,children}:{r
     async function check(){
       let completed:string[]=[];
       try{
-        const saved=JSON.parse(localStorage.getItem("edita_lesson_done")||"[]");
+        const saved=JSON.parse(localStorage.getItem("kivronix_lesson_done")||"[]");
         if(Array.isArray(saved))completed=saved.filter((item):item is string=>typeof item==="string");
       }catch{}
 
@@ -26,7 +26,7 @@ export default function LessonRouteGate({requiredSlugs,previousSlug,children}:{r
           .eq("status","completed");
         const fromAccount=(data||[]).map((row:any)=>row.lessons?.slug).filter((slug:any)=>typeof slug==="string");
         completed=fromAccount;
-        try{localStorage.setItem("edita_lesson_done",JSON.stringify(completed))}catch{}
+        try{localStorage.setItem("kivronix_lesson_done",JSON.stringify(completed))}catch{}
       }
 
       if(active){setUnlocked(requiredSlugs.every(slug=>completed.includes(slug)));setChecking(false)}

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import CookieNotice from "@/components/cookie-notice";
 
-const siteUrl=process.env.NEXT_PUBLIC_SITE_URL || "https://getedita.app";
-const siteDescription="Бесплатная платформа для тех, кто хочет научиться монтировать видео с нуля. Простые уроки, задания, помощник, разбор роликов, конкурсы и вакансии.";
+const siteUrl=process.env.NEXT_PUBLIC_SITE_URL || "https://kivronix.ru";
+const siteDescription="Платформа для тех, кто хочет научиться монтировать видео с нуля. Простые уроки, задания, помощник, разбор роликов, конкурсы и вакансии. Ранний доступ открыт бесплатно.";
 
 // A small inline safety net keeps the platform readable when a browser, VPN,
 // or stale cache temporarily fails to download Next.js' hashed CSS bundle.
@@ -51,32 +51,32 @@ const fallbackStyles=`
 export const metadata: Metadata = {
   metadataBase:new URL(siteUrl),
   title:{
-    default:"EDITA — бесплатное обучение видеомонтажу с нуля",
-    template:"%s · EDITA",
+    default:"KIVRONIX — обучение видеомонтажу с нуля",
+    template:"%s · KIVRONIX",
   },
   description:siteDescription,
-  applicationName:"EDITA",
-  keywords:["обучение видеомонтажу","монтаж видео с нуля","бесплатные уроки монтажа","работа видеомонтажёром","EDITA"],
-  authors:[{name:"EDITA",url:siteUrl}],
-  creator:"EDITA",
-  publisher:"EDITA",
+  applicationName:"KIVRONIX",
+  keywords:["обучение видеомонтажу","монтаж видео с нуля","бесплатные уроки монтажа","работа видеомонтажёром","KIVRONIX"],
+  authors:[{name:"KIVRONIX",url:siteUrl}],
+  creator:"KIVRONIX",
+  publisher:"KIVRONIX",
   category:"education",
   alternates:{canonical:"/"},
   manifest:"/manifest.webmanifest",
   openGraph:{
-    title:"EDITA — научись монтировать видео бесплатно",
+    title:"KIVRONIX — научись монтировать видео с нуля",
     description:siteDescription,
     url:siteUrl,
-    siteName:"EDITA",
+    siteName:"KIVRONIX",
     locale:"ru_RU",
     type:"website",
-    images:[{url:"/images/edita-search-card.png",width:1200,height:630,alt:"EDITA — монтаж с нуля бесплатно"}],
+    images:[{url:"/images/kivronix-search-card.png",width:1200,height:630,alt:"KIVRONIX — монтаж с нуля"}],
   },
   twitter:{
     card:"summary_large_image",
-    title:"EDITA — научись монтировать видео бесплатно",
+    title:"KIVRONIX — научись монтировать видео с нуля",
     description:siteDescription,
-    images:["/images/edita-search-card.png"],
+    images:["/images/kivronix-search-card.png"],
   },
   icons:{icon:"/icon.png",apple:"/apple-icon.png"},
   robots:{index:true,follow:true,googleBot:{index:true,follow:true}},
@@ -88,7 +88,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     "@graph":[
       {
         "@type":"WebSite",
-        name:"EDITA",
+        name:"KIVRONIX",
         url:siteUrl,
         description:siteDescription,
         inLanguage:"ru-RU",
@@ -96,13 +96,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       },
       {
         "@type":"EducationalOrganization",
-        name:"EDITA",
+        name:"KIVRONIX",
         url:siteUrl,
-        logo:`${siteUrl}/images/edita-logo-mark.png`,
+        logo:`${siteUrl}/images/kivronix-logo-mark.png`,
         description:"Платформа для понятного обучения видеомонтажу и первых рабочих проектов.",
       },
     ],
   };
 
-  return <html lang="ru"><body><style data-edita-fallback dangerouslySetInnerHTML={{__html:fallbackStyles}}/><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(structuredData)}}/>{children}<CookieNotice/></body></html>;
+  return <html lang="ru"><body><style data-kivronix-fallback dangerouslySetInnerHTML={{__html:fallbackStyles}}/><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(structuredData)}}/>{children}<CookieNotice/></body></html>;
 }

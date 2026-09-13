@@ -38,7 +38,7 @@ export default function BusinessVerification(){
 
   useEffect(()=>{
     try{
-      const raw=localStorage.getItem("edita_business_verification_prefill");
+      const raw=localStorage.getItem("kivronix_business_verification_prefill");
       if(raw){
         const saved=JSON.parse(raw);
         setForm(v=>({...v,...saved}));
@@ -99,7 +99,7 @@ export default function BusinessVerification(){
       if(!r.ok)throw new Error(json?.error||"Ошибка отправки заявки.");
 
       setFiles([]);
-      localStorage.removeItem("edita_business_verification_prefill");
+      localStorage.removeItem("kivronix_business_verification_prefill");
       setMessage("Заявка отправлена. Проверка проходит вручную: документы и публичные ссылки сверяются человеком.");
       await load();
     }catch(e){
@@ -124,7 +124,7 @@ export default function BusinessVerification(){
       <span className={"verification-badge "+(business?.verified?"ok":request?.status==="pending"?"pending":"")}>{status}</span>
     </div>
 
-    <p className="muted">Проверенная компания вызывает больше доверия. Для коммерческих конкурсов и вакансий EDITA сначала проверяет компанию.</p>
+    <p className="muted">Проверенная компания вызывает больше доверия. Для коммерческих конкурсов и вакансий KIVRONIX сначала проверяет компанию.</p>
 
     {business?.verified?<div className="verification-success">
       <b>Готово: {badgeName(business.verification_level)}</b>
@@ -165,7 +165,7 @@ export default function BusinessVerification(){
 
 function badgeName(level?:string){
   if(level==="popular_brand")return "Известный бренд";
-  if(level==="partner")return "Партнёр EDITA";
+  if(level==="partner")return "Партнёр KIVRONIX";
   if(level==="verified_company")return "Проверенная компания";
   return "Проверенный бизнес";
 }

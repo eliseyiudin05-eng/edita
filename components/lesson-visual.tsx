@@ -145,7 +145,7 @@ export default function LessonVisual({lesson}:{lesson:Lesson}){
   return <figure className={"lesson-visual lesson-ui-visual "+(isMobile?"mobile-ui":"desktop-ui")+" focus-"+focus} role="img" aria-label={"Простая карта экрана "+lesson.software}>
     <div className="lesson-visual-head"><span>{lesson.software}</span><b>{lesson.title}</b></div>
     <div className="lesson-ui-window">
-      <div className="lesson-ui-top"><i/><i/><i/><span>{focus==="home"?"Официальная установка":"Проект EDITA"}</span><b className="ui-export">{ui.export}</b></div>
+      <div className="lesson-ui-top"><i/><i/><i/><span>{focus==="home"?"Официальная установка":"Проект KIVRONIX"}</span><b className="ui-export">{ui.export}</b></div>
       <div className="lesson-ui-main">
         <div className="ui-media"><em>1</em><b>{ui.media}</b><span/><span/><span/></div>
         <div className="ui-preview"><em>2</em><div><span>9:16</span><b>ТВОЙ<br/>РОЛИК</b></div><small>{ui.preview}</small></div>

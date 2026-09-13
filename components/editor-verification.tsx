@@ -58,7 +58,7 @@ export default function EditorVerification(){
     <div className="verification-checks">
       <div className={state.emailVerified?"check-ok":"check-wait"}><b>{state.emailVerified?"✓":"○"} Электронная почта</b><span>{state.emailVerified?"Подтверждена":"Нужно подтвердить письмо"}</span></div>
       <div className={!minor||state.guardianVerified?"check-ok":"check-wait"}><b>{!minor||state.guardianVerified?"✓":"○"} Возрастной доступ</b><span>{!minor?"18+ указано при регистрации":state.guardianVerified?"Родитель подтверждён":"Ждём подтверждение родителя"}</span></div>
-      <div className={state.level==="skills_verified"?"check-ok":"check-wait"}><b>{state.level==="skills_verified"?"✓":"○"} Навык монтажа</b><span>{state.level==="skills_verified"?"Работа проверена EDITA":state.request?.status==="pending"?"Работа на проверке":"Можно отправить ссылку на свои работы"}</span></div>
+      <div className={state.level==="skills_verified"?"check-ok":"check-wait"}><b>{state.level==="skills_verified"?"✓":"○"} Навык монтажа</b><span>{state.level==="skills_verified"?"Работа проверена KIVRONIX":state.request?.status==="pending"?"Работа на проверке":"Можно отправить ссылку на свои работы"}</span></div>
     </div>
 
     {state.level!=="skills_verified"&&state.request?.status!=="pending"&&<form className="business-form" onSubmit={submit}>

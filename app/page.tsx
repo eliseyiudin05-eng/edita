@@ -21,7 +21,7 @@ async function getTestimonials(){
 
 const features=[
   ["Уроки по шагам",`${curriculumStats.lessons} коротких уроков: от установки программы до своих работ и общения с заказчиком.`],
-  ["Помощник EDITA","Задай вопрос обычными словами. Помощник объяснит, куда нажать и как проверить результат."],
+  ["Помощник KIVRONIX","Задай вопрос обычными словами. Помощник объяснит, куда нажать и как проверить результат."],
   ["Разбор твоего ролика","Загрузи видео и получи оценку кадров, понятный список правок и следующий шаг."],
   ["Практика с заказчиком","Потренируй цену, сроки, правки и ответы на сложные сообщения до первого заказа."],
   ["Закрытые чаты","После выбора монтажёра компания получает общий чат. Контакты, ссылки и мессенджеры остаются за его пределами."],
@@ -30,12 +30,12 @@ const features=[
 
 const faq=[
   ["Я впервые открыл программу. Я пойму?","Да. Сначала ты узнаешь самые простые вещи, затем установишь программу и соберёшь первый ролик. Каждое новое слово сразу получает понятное объяснение."],
-  ["Сколько стоит EDITA?","EDITA бесплатна. Всё обучение, помощник, разбор видео, практика, сообщество и функции компании открыты для каждого пользователя."],
+  ["Сколько стоит KIVRONIX?","Во время раннего доступа основные функции открыты бесплатно. Отдельные планы Creator+ для монтажёров и Studio+ для компаний готовятся заранее; оплата пока выключена."],
   ["Как идут уроки?","Уроки открываются по очереди. Сначала основа, затем маленькое задание и только потом следующий шаг. Такой порядок помогает спокойно закрепить навык."],
-  ["Что входит в бесплатный доступ?","Весь учебный путь, полный разбор роликов, вопросы помощнику, сохранение прогресса, свои работы, конкурсы, вакансии, сообщество и закрытые рабочие чаты."],
-  ["Как выбирают победителя конкурса?","Для конкурса EDITA команда проверяет работы и настоящие просмотры. В конкурсе компании победителя выбирает сама компания по заранее опубликованным правилам."],
+  ["Что входит в ранний доступ?","Весь учебный путь, разбор роликов, вопросы помощнику, сохранение прогресса, свои работы, конкурсы, вакансии, сообщество и закрытые рабочие чаты."],
+  ["Как выбирают победителя конкурса?","Для конкурса KIVRONIX команда проверяет работы и настоящие просмотры. В конкурсе компании победителя выбирает сама компания по заранее опубликованным правилам."],
   ["Можно пользоваться в 14–17 лет?","Учиться можно сразу. Для денежного конкурса и коммерческой работы понадобится подтверждение взрослого. Название школы скрыто по умолчанию."],
-  ["Как защищён рабочий чат?","Сообщения видят только выбранный монтажёр и компания. Телефон, электронная почта, ссылки, адреса страниц и мессенджеры остаются за пределами чата, поэтому разговор идёт внутри EDITA."]
+  ["Как защищён рабочий чат?","Сообщения видят только выбранный монтажёр и компания. Телефон, электронная почта, ссылки, адреса страниц и мессенджеры остаются за пределами чата, поэтому разговор идёт внутри KIVRONIX."]
 ];
 
 export default async function Home(){
@@ -43,9 +43,10 @@ export default async function Home(){
 
   return <main className="landing">
     <nav className="topbar shell sticky-public-nav">
-      <Link className="brand" href="/">EDITA<span>.</span></Link>
+      <Link className="brand" href="/">KIVRONIX<span>.</span></Link>
       <div className="nav-actions">
-        <a href="#free">Бесплатно</a>
+        <a href="#free">Ранний доступ</a>
+        <Link href="/pricing">Будущие тарифы</Link>
         <a href="#challenge">10 000 ₽</a>
         <a href="#inside">Что внутри</a>
         <a href="#safety">Защита</a>
@@ -59,7 +60,7 @@ export default async function Home(){
         <div>
           <div className="eyebrow">МОНТАЖ С НУЛЯ · ПРОСТЫЕ ШАГИ · РАБОТА</div>
           <h1 className="structured-title">Научись монтировать.<span>Сделай первый ролик.</span><span>Покажи, что умеешь.</span></h1>
-          <p className="hero-copy">EDITA ведёт от первой кнопки в CapCut до готового ролика, своих работ и спокойного общения с заказчиком. Всё открыто бесплатно.</p>
+          <p className="hero-copy">KIVRONIX ведёт от первой кнопки в CapCut до готового ролика, своих работ и спокойного общения с заказчиком. Ранний доступ открыт бесплатно.</p>
           <div className="hero-actions">
             <Link className="btn btn-primary" href="/signup/editor">Начать бесплатно</Link>
             <Link className="btn btn-ghost" href="/platform">Посмотреть платформу</Link>
@@ -67,32 +68,32 @@ export default async function Home(){
           <div className="simple-proof">
             <span>{curriculumStats.lessons} уроков и {curriculumStats.assignments} заданий</span>
             <span>Для подростков и взрослых</span>
-            <span>Полный доступ · бесплатно</span>
+            <span>Ранний доступ · бесплатно</span>
           </div>
         </div>
         <figure className="hero-photo">
-          <Image priority src="/images/edita-hero-community.webp" width={1586} height={992} sizes="(max-width: 900px) 100vw, 48vw" alt="Подростки и взрослый автор вместе учатся видеомонтажу в современной студии"/>
+          <Image priority src="/images/kivronix-hero-community.webp" width={1586} height={992} sizes="(max-width: 900px) 100vw, 48vw" alt="Подростки и взрослый автор вместе учатся видеомонтажу в современной студии"/>
           <figcaption>Для первого ролика, новой профессии и компании, которой нужен монтажёр.</figcaption>
         </figure>
       </div>
     </section>
 
     <section className="founder-line">
-      <div className="shell founder-line-inner"><div><span>С чего началась идея EDITA</span><strong>С денег, сэкономленных в школьном буфете, — к первому заработку на монтаже.</strong></div><p>Для старта хватит телефона, бесплатной программы и одного понятного задания.</p></div>
+      <div className="shell founder-line-inner"><div><span>С чего началась идея KIVRONIX</span><strong>С денег, сэкономленных в школьном буфете, — к первому заработку на монтаже.</strong></div><p>Для старта хватит телефона, бесплатной программы и одного понятного задания.</p></div>
     </section>
 
     <section id="free" className="section shell beta-home-section">
-      <div className="beta-home-head"><div><div className="section-kicker">ПОЛНЫЙ ДОСТУП ДЛЯ КАЖДОГО</div><h2>Вся EDITA бесплатна</h2><p>Создай обычный аккаунт и пользуйся всеми функциями. Банковская карта и код приглашения здесь лишние.</p></div><div className="zero-price"><small>ВСЕГДА</small><strong>Бесплатно</strong><span>все функции</span></div></div>
+      <div className="beta-home-head"><div><div className="section-kicker">РАННИЙ ДОСТУП ДЛЯ КАЖДОГО</div><h2>Сейчас KIVRONIX открыта бесплатно</h2><p>Создай обычный аккаунт и пользуйся основными функциями. Банковская карта пока нигде не запрашивается.</p></div><div className="zero-price"><small>СЕЙЧАС</small><strong>0 ₽</strong><span>ранний доступ</span></div></div>
       <div className="beta-plan-grid">
         <article><span>МОНТАЖЁРУ</span><h3>Учёба и полный разбор</h3><p>Все уроки, задания, помощник, разбор видео, прогресс, свои работы, конкурсы, друзья и вакансии.</p><b>Открыто сразу после входа</b></article>
-        <article className="pro"><span>КОМПАНИИ</span><h3>Поиск монтажёров</h3><p>Проверка компании, публикация заданий и вакансий, выбор участника и закрытый рабочий чат.</p><b>Доступ к платформе бесплатный</b></article>
+        <article className="pro"><span>КОМПАНИИ</span><h3>Поиск монтажёров</h3><p>Проверка компании, публикация заданий и вакансий, выбор участника и закрытый рабочий чат.</p><b>Ранний доступ открыт бесплатно</b></article>
       </div>
-      <div className="beta-home-actions"><Link className="btn btn-dark" href="/signup/editor">Я монтажёр</Link><Link className="btn btn-ghost" href="/signup/business">Я представляю компанию</Link></div>
+      <div className="beta-home-actions"><Link className="btn btn-dark" href="/signup/editor">Я монтажёр</Link><Link className="btn btn-ghost" href="/signup/business">Я представляю компанию</Link><Link className="btn btn-ghost" href="/pricing">Посмотреть будущие планы</Link></div>
     </section>
 
     <section id="challenge" className="challenge-home-band">
       <div className="shell challenge-home-grid">
-        <div><div className="section-kicker light">КОНКУРС EDITA · СЕЗОН 1</div><h2>Сними ролик про EDITA и поборись за 10 000 ₽</h2><p>Опубликуй ролик в открытой социальной сети, отметь EDITA и отправь ссылку до 12 ноября 2026 года. Три места определяются по подтверждённым просмотрам. Победители получают закрытый чат с командой EDITA.</p><div className="challenge-home-actions"><Link className="btn btn-lime" href="/platform#edita-challenges">Участвовать</Link><Link className="btn btn-light" href="/challenge-rules">Прочитать правила</Link></div></div>
+        <div><div className="section-kicker light">КОНКУРС KIVRONIX · СЕЗОН 1</div><h2>Сними ролик про KIVRONIX и поборись за 10 000 ₽</h2><p>Опубликуй ролик в открытой социальной сети, отметь KIVRONIX и отправь ссылку до 12 ноября 2026 года. Три места определяются по подтверждённым просмотрам. Победители получают закрытый чат с командой KIVRONIX.</p><div className="challenge-home-actions"><Link className="btn btn-lime" href="/platform#kivronix-challenges">Участвовать</Link><Link className="btn btn-light" href="/challenge-rules">Прочитать правила</Link></div></div>
         <div className="challenge-prize-card"><div><span>1 место</span><strong>5 000 ₽</strong></div><div><span>2 место</span><strong>3 000 ₽</strong></div><div><span>3 место</span><strong>2 000 ₽</strong></div><p>До 100 участников · новый сезон каждые 2 месяца · с 14 лет</p></div>
       </div>
     </section>
@@ -115,7 +116,7 @@ export default async function Home(){
 
     <section className="visual-band">
       <div className="shell visual-grid">
-        <figure><Image src="/images/edita-company-collaboration.webp" width={1448} height={1086} sizes="(max-width: 900px) 100vw, 50vw" alt="Молодой монтажёр показывает ролик команде компании"/></figure>
+        <figure><Image src="/images/kivronix-company-collaboration.webp" width={1448} height={1086} sizes="(max-width: 900px) 100vw, 50vw" alt="Молодой монтажёр показывает ролик команде компании"/></figure>
         <div><div className="section-kicker light">ОТ ПЕРВОЙ КНОПКИ ДО НАСТОЯЩЕГО ЗАДАНИЯ</div><h2>Каждое сложное слово получает простое объяснение</h2><p>Урок показывает смысл приёма, нужную кнопку, ожидаемый результат на экране и способ самостоятельной проверки. Помощник уточняет устройство и версию программы, когда кнопки меняют место.</p><Link className="btn btn-light" href="/signup/editor">Получить свой путь</Link></div>
       </div>
     </section>
@@ -138,7 +139,7 @@ export default async function Home(){
         <article><span>Урок</span><p>Короткое объяснение и картинка с нужной кнопкой.</p><b>Дальше</b><p>Маленькое задание закрепляет новый навык.</p></article>
         <article><span>Практика</span><p>Тренировка на понятном примере заказчика.</p><b>Дальше</b><p>Готовая работа пополняет твою личную страницу.</p></article>
         <article><span>Помощник</span><p>Помнит разговор, текущий урок и выбранную программу.</p><b>Дальше</b><p>Разбирает твой файл и ставит правки по важности.</p></article>
-        <article><span>Работа</span><p>Проверенная компания смотрит навыки и примеры работ.</p><b>Дальше</b><p>После выбора открывается закрытый чат внутри EDITA.</p></article>
+        <article><span>Работа</span><p>Проверенная компания смотрит навыки и примеры работ.</p><b>Дальше</b><p>После выбора открывается закрытый чат внутри KIVRONIX.</p></article>
       </div>
       <p className="honest-claim">Наша цель проста: дать самый понятный связанный путь от первой кнопки до первой сильной работы.</p>
     </section>
@@ -169,7 +170,7 @@ export default async function Home(){
       <div className="faq-grid">{faq.map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div>
     </section>
 
-    <section className="final-cta"><div className="shell"><div className="eyebrow">EDITA · ПОЛНОСТЬЮ БЕСПЛАТНО</div><h2>Открой первый урок и сделай первый ролик</h2><p>Создание аккаунта занимает несколько минут. Все функции уже открыты.</p><div className="hero-actions"><Link className="btn btn-lime" href="/signup/editor">Создать аккаунт</Link><Link className="btn btn-light" href="/platform">Открыть платформу</Link></div></div></section>
+    <section className="final-cta"><div className="shell"><div className="eyebrow">KIVRONIX · РАННИЙ ДОСТУП</div><h2>Открой первый урок и сделай первый ролик</h2><p>Создание аккаунта занимает несколько минут. Оплата на этапе раннего доступа выключена.</p><div className="hero-actions"><Link className="btn btn-lime" href="/signup/editor">Создать аккаунт</Link><Link className="btn btn-light" href="/platform">Открыть платформу</Link></div></div></section>
 
     <SiteFooter/>
   </main>;

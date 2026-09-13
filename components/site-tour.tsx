@@ -9,10 +9,10 @@ type Step={title:string;text:string;tab:string;button:string};
 const editorSteps:Step[]=[
   {title:"1. Главная",tab:"home",button:"Открыть главную",text:"Здесь виден твой прогресс и ближайший шаг. Начинай отсюда каждый раз."},
   {title:"2. Обучение",tab:"academy",button:"Открыть обучение",text:"Уроки идут сверху вниз. Сначала простое объяснение, затем установка программы, картинки с кнопками и маленькие задания."},
-  {title:"3. Практика",tab:"practice",button:"Открыть Практику",text:"Здесь ты тренируешь разговор с клиентом. Напиши ответ так, как написал бы реальному человеку. EDITA покажет, что можно сказать понятнее."},
+  {title:"3. Практика",tab:"practice",button:"Открыть Практику",text:"Здесь ты тренируешь разговор с клиентом. Напиши ответ так, как написал бы реальному человеку. KIVRONIX покажет, что можно сказать понятнее."},
   {title:"4. Помощник",tab:"coach",button:"Открыть помощника",text:"Это помощник по монтажу. Можно писать очень просто: «Что такое дополнительный кадр?», «Как сделать ролик интереснее?» или «Куда нажать в CapCut?»."},
-  {title:"5. Разбор видео",tab:"review",button:"Открыть разбор",text:"Сюда загружают готовое видео. EDITA смотрит кадры и простыми словами подсказывает, что улучшить. Полный разбор бесплатный."},
-  {title:"6. Конкурсы EDITA",tab:"edita-challenges",button:"Открыть конкурс",text:"Здесь собраны официальные конкурсы платформы: задание, правила, призы, число мест, отправка ссылки и рейтинг."},
+  {title:"5. Разбор видео",tab:"review",button:"Открыть разбор",text:"Сюда загружают готовое видео. KIVRONIX смотрит кадры и простыми словами подсказывает, что улучшить. Полный разбор бесплатный."},
+  {title:"6. Конкурсы KIVRONIX",tab:"kivronix-challenges",button:"Открыть конкурс",text:"Здесь собраны официальные конкурсы платформы: задание, правила, призы, число мест, отправка ссылки и рейтинг."},
   {title:"7. Конкурсы компаний",tab:"arena",button:"Открыть конкурсы",text:"Здесь появляются задания от проверенных компаний. Прочитай условия, скачай исходные файлы, сделай ролик и отправь готовое видео."},
   {title:"8. Мои работы",tab:"portfolio",button:"Открыть свои работы",text:"Добавляй сюда лучшие работы. Пять сильных роликов расскажут о навыке лучше тридцати случайных."},
   {title:"9. Работа",tab:"jobs",button:"Открыть работу",text:"Здесь компании публикуют задания и вакансии. Открой подходящий вариант и нажми «Податься»."},
@@ -36,7 +36,7 @@ export default function SiteTour({role,onGo}:{role:Role;onGo:(tab:string)=>void}
 
   useEffect(()=>{
     if(!role)return;
-    const key="edita_site_tour_v2_"+role;
+    const key="kivronix_site_tour_v2_"+role;
     if(!localStorage.getItem(key)){
       const timer=window.setTimeout(()=>setOpen(true),450);
       return()=>window.clearTimeout(timer);
@@ -44,7 +44,7 @@ export default function SiteTour({role,onGo}:{role:Role;onGo:(tab:string)=>void}
   },[role]);
 
   function finish(){
-    if(role)localStorage.setItem("edita_site_tour_v2_"+role,"done");
+    if(role)localStorage.setItem("kivronix_site_tour_v2_"+role,"done");
     setOpen(false);setIndex(0);
   }
 
@@ -55,8 +55,8 @@ export default function SiteTour({role,onGo}:{role:Role;onGo:(tab:string)=>void}
   if(!role)return null;
 
   return <>
-    <button className="tour-help" onClick={()=>{setIndex(0);setOpen(true)}}>Как пользоваться EDITA?</button>
-    {open&&<div className="tour-backdrop" role="dialog" aria-modal="true" aria-label="Обучение по EDITA">
+    <button className="tour-help" onClick={()=>{setIndex(0);setOpen(true)}}>Как пользоваться KIVRONIX?</button>
+    {open&&<div className="tour-backdrop" role="dialog" aria-modal="true" aria-label="Обучение по KIVRONIX">
       <section className="tour-card">
         <div className="tour-progress"><span style={{width:((index+1)/steps.length*100)+"%"}}/></div>
         <div className="eyebrow">ПРОСТОЙ ГИД · {index+1} ИЗ {steps.length}</div>

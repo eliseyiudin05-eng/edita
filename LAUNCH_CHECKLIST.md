@@ -1,4 +1,4 @@
-# EDITA Launch Checklist
+# KIVRONIX Launch Checklist
 
 Last reviewed: 2026-09-11
 
@@ -40,7 +40,7 @@ Possible architecture direction:
 Commercial production hosting. Hobby is personal/non-commercial only.
 
 ### 2. Domain
-Preferred current candidate: getedita.app.
+Primary domain: kivronix.ru. Redirect kivronix.com to the primary domain after both purchases are complete.
 
 ### 3. OpenAI API credits
 Start small and set a spending/recharge limit.

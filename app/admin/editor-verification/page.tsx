@@ -40,7 +40,7 @@ export default function EditorVerificationAdmin(){
   }
 
   return <main className="legal-page"><div className="legal-shell">
-    <Link href="/platform" className="brand">EDITA<span>.</span></Link>
+    <Link href="/platform" className="brand">KIVRONIX<span>.</span></Link>
     <div className="eyebrow">ADMIN · МОНТАЖЁРЫ</div>
     <h1>Проверка навыка монтажёра</h1>
     <p>Здесь проверяется качество и принадлежность работы монтажёру. Документы компании относятся к другому разделу.</p>

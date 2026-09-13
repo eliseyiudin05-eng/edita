@@ -9,7 +9,7 @@ import {findPrivateChatBlockReason,privateChatBlockMessage} from "@/lib/private-
 type Conversation={
   id:string;
   side:"editor"|"company";
-  source_kind:"campaign"|"challenge"|"job"|"edita_contest";
+  source_kind:"campaign"|"challenge"|"job"|"kivronix_contest";
   source_id:string;
   otherName:string;
   otherUsername?:string|null;
@@ -50,10 +50,10 @@ export default function PrivateChats(){
     let preferred="";
     let preferredSource="";
     try{
-      preferred=sessionStorage.getItem("edita_open_conversation")||"";
-      preferredSource=sessionStorage.getItem("edita_open_chat_source")||"";
-      sessionStorage.removeItem("edita_open_conversation");
-      sessionStorage.removeItem("edita_open_chat_source");
+      preferred=sessionStorage.getItem("kivronix_open_conversation")||"";
+      preferredSource=sessionStorage.getItem("kivronix_open_chat_source")||"";
+      sessionStorage.removeItem("kivronix_open_conversation");
+      sessionStorage.removeItem("kivronix_open_chat_source");
     }catch{}
     const sourceMatch=preferredSource?next.find(item=>item.source_kind+":"+item.source_id===preferredSource)?.id||"":"";
     setViewerId(data.viewerId||"");
@@ -129,7 +129,7 @@ export default function PrivateChats(){
     <section className="private-chat-thread">
       {current?<>
         <header><div><div className="private-chat-title"><span className="private-chat-shield">◆</span><div><h3>{current.otherName}</h3><p>{current.title}</p></div></div></div><span className="private-chat-badge">Закрытый чат</span></header>
-        <div className="private-chat-safety"><b>Сообщения видят только компания и монтажёр.</b><span>Телефоны, электронная почта, ссылки, адреса страниц и названия мессенджеров остаются за пределами чата. Общайтесь внутри EDITA.</span></div>
+        <div className="private-chat-safety"><b>Сообщения видят только компания и монтажёр.</b><span>Телефоны, электронная почта, ссылки, адреса страниц и названия мессенджеров остаются за пределами чата. Общайтесь внутри KIVRONIX.</span></div>
         <div className="private-chat-messages" aria-live="polite">
           {messages.length===0?<div className="private-chat-start"><span>👋</span><b>Можно начинать</b><p>Обсудите задачу, срок, готовый результат и правки простыми словами.</p></div>:messages.map(item=><article className={item.sender_id===viewerId?"mine":"theirs"} key={item.id}><p>{item.body}</p><time>{messageTime(item.created_at)}</time></article>)}
           <div ref={endRef}/>
@@ -148,7 +148,7 @@ function sourceLabel(value:Conversation["source_kind"]){
   if(value==="campaign")return "Работа с компанией";
   if(value==="challenge")return "Конкурс компании";
   if(value==="job")return "Вакансия";
-  return "Конкурс EDITA";
+  return "Конкурс KIVRONIX";
 }
 
 function shortDate(value:string){

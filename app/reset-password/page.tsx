@@ -26,6 +26,6 @@ export default function ResetPassword(){
       <button className="btn btn-dark" disabled={loading}>{loading?"Сохраняем…":"Сохранить пароль"}</button>
     </form>
     {message&&<div className="auth-msg">{message}</div>}
-    <div className="auth-footer"><Link href="/login">Войти в EDITA</Link></div>
+    <div className="auth-footer"><Link href="/login">Войти в KIVRONIX</Link></div>
   </section></main>
 }

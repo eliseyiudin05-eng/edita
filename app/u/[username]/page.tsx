@@ -40,7 +40,7 @@ export default async function PublicPortfolio({params}:{params:Promise<{username
   }
 
   if(!profile&&username==="demo"){
-    profile={display_name:"Учебный монтажёр EDITA",username:"demo",level:5,ai_score:82,skills:["Короткие ролики","CapCut","Видео с экспертом"]};
+    profile={display_name:"Учебный монтажёр KIVRONIX",username:"demo",level:5,ai_score:82,skills:["Короткие ролики","CapCut","Видео с экспертом"]};
     items=[
       {id:"1",title:"VOLT · Реклама спортзала",video_url:"",tags:["реклама","короткий ролик"],ai_score:91},
       {id:"2",title:"Финансовый эксперт",video_url:"",tags:["видео с экспертом"],ai_score:86},
@@ -52,7 +52,7 @@ export default async function PublicPortfolio({params}:{params:Promise<{username
 
   return <main className="public-portfolio">
     <div className="portfolio-shell">
-      <nav className="pricing-nav"><Link href="/" className="brand">EDITA<span>.</span></Link><Link href="/signup">Создать свой профиль</Link></nav>
+      <nav className="pricing-nav"><Link href="/" className="brand">KIVRONIX<span>.</span></Link><Link href="/signup">Создать свой профиль</Link></nav>
       <div className="portfolio-hero">
         <div className="portfolio-person"><ProfileAvatar src={profile.avatar_url} name={profile.display_name} size="lg"/><div><div className="eyebrow">ПРОФИЛЬ МОНТАЖЁРА</div><h1>{profile.display_name}</h1><p>@{profile.username}{profile.school_name?" · "+profile.school_name:""}</p></div></div>
         <div className="portfolio-score"><strong>{profile.ai_score||"—"}</strong><span>Оценка навыка</span></div>
@@ -60,7 +60,7 @@ export default async function PublicPortfolio({params}:{params:Promise<{username
       <div className="portfolio-tags">{(profile.skills||[]).map((s:string)=><span className="tag" key={s}>{s}</span>)}</div>
       <section className="portfolio-work-grid">
         {items.length?items.map(item=><article className="portfolio-work" key={item.id}>
-          <div className="work-preview">{item.display_url&&isDirectVideo(item.display_url)?<video controls preload="metadata" src={item.display_url}/>:<span>РАБОТА EDITA</span>}</div>
+          <div className="work-preview">{item.display_url&&isDirectVideo(item.display_url)?<video controls preload="metadata" src={item.display_url}/>:<span>РАБОТА KIVRONIX</span>}</div>
           <h2>{item.title}</h2>
           <div className="work-meta"><span>{(item.tags||[]).join(" · ")}</span>{item.ai_score!=null&&<b>Оценка {item.ai_score}</b>}</div>{item.display_url&&!isDirectVideo(item.display_url)&&<a className="work-link" href={item.display_url} target="_blank" rel="noreferrer">Открыть работу ↗</a>}
         </article>):<div className="legal-card"><p>Портфолио пока пустое.</p></div>}

@@ -15,7 +15,7 @@ export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}
     let active=true;
     async function load(){
       try{
-        const saved=JSON.parse(localStorage.getItem("edita_lesson_done")||"[]");
+        const saved=JSON.parse(localStorage.getItem("kivronix_lesson_done")||"[]");
         if(Array.isArray(saved)&&saved.includes(slug)&&active)setDone(true);
       }catch{}
       const supabase=getSupabaseBrowserClient();
@@ -50,12 +50,12 @@ export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}
         void fetch("/api/referral/qualify",{method:"POST",headers:{Authorization:"Bearer "+session.access_token}}).catch(()=>{});
       }
 
-      const saved=JSON.parse(localStorage.getItem("edita_lesson_done")||"[]");
+      const saved=JSON.parse(localStorage.getItem("kivronix_lesson_done")||"[]");
       const values=Array.isArray(saved)?saved.filter((item):item is string=>typeof item==="string"):[];
-      localStorage.setItem("edita_lesson_done",JSON.stringify(Array.from(new Set([...values,slug]))));
+      localStorage.setItem("kivronix_lesson_done",JSON.stringify(Array.from(new Set([...values,slug]))));
       setDone(true);
       setNotice(theoryOnly?"Урок завершён. Следующий урок открыт.":"Задание принято. Следующий урок открыт.");
-      window.dispatchEvent(new CustomEvent("edita:lesson-completed",{detail:{slug}}));
+      window.dispatchEvent(new CustomEvent("kivronix:lesson-completed",{detail:{slug}}));
     }catch(error){
       setNotice(error instanceof Error?error.message:"Ошибка сохранения задания.");
     }finally{setSaving(false)}

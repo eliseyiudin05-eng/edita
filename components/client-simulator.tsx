@@ -37,7 +37,7 @@ export default function ClientSimulator(){
             return;
           }
         }
-        const saved=JSON.parse(localStorage.getItem("edita_practice_simulator_v1")||"null");
+        const saved=JSON.parse(localStorage.getItem("kivronix_practice_simulator_v1")||"null");
         if(active&&saved){
           if(typeof saved.scenario==="string")setScenario(saved.scenario);
           if(Array.isArray(saved.messages)&&saved.messages.length)setMessages(saved.messages);
@@ -52,7 +52,7 @@ export default function ClientSimulator(){
   useEffect(()=>{
     if(!ready)return;
     const snapshot={scenario,messages:messages.slice(-50),result};
-    try{localStorage.setItem("edita_practice_simulator_v1",JSON.stringify(snapshot))}catch{}
+    try{localStorage.setItem("kivronix_practice_simulator_v1",JSON.stringify(snapshot))}catch{}
     if(storageMode!=="account")return;
     const timer=window.setTimeout(async()=>{
       try{

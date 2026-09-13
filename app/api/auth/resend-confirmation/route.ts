@@ -9,7 +9,7 @@ export async function POST(req:NextRequest){
   const email=String(body?.email||"").trim().toLowerCase();
   if(!email.includes("@"))return NextResponse.json({error:"Проверь электронную почту."},{status:400});
 
-  const site=process.env.NEXT_PUBLIC_SITE_URL||"https://getedita.app";
+  const site=process.env.NEXT_PUBLIC_SITE_URL||new URL(req.url).origin;
   const {data,error}=await service.auth.admin.generateLink({
     type:"magiclink",
     email,
@@ -25,14 +25,14 @@ export async function POST(req:NextRequest){
   try{
     await sendTransactionalEmail({
       to:email,
-      subject:"Подтверди электронную почту в EDITA",
+      subject:"Подтверди электронную почту в KIVRONIX",
       html:authEmailHtml(
         "Подтверди электронную почту",
-        "Нажми кнопку ниже. После подтверждения откроется твой аккаунт EDITA.",
+        "Нажми кнопку ниже. После подтверждения откроется твой аккаунт KIVRONIX.",
         "Подтвердить и войти",
         link
       ),
-      text:"Подтверди электронную почту EDITA: "+link
+      text:"Подтверди электронную почту KIVRONIX: "+link
     });
   }catch{
     return NextResponse.json({error:"Ошибка отправки письма. Попробуй позже."},{status:503});

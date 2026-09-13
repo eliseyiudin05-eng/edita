@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="KIVRONIX — монтаж с нуля">
+  <rect width="1200" height="630" fill="#f5f5f2"/>
+  <circle cx="1080" cy="94" r="190" fill="#d8ff3e" opacity=".7"/>
+  <circle cx="1104" cy="562" r="270" fill="#5c4bd5" opacity=".12"/>
+  <rect x="92" y="128" width="294" height="294" rx="76" fill="#171816"/>
+  <rect x="154" y="176" width="40" height="198" rx="20" fill="#f5f5f2"/>
+  <path d="m192 274 84-98h53l-88 98 92 100h-55l-86-95Z" fill="#d8ff3e"/>
+  <path d="m225 245 51 29-51 30Z" fill="#171816"/>
+  <text x="446" y="260" fill="#171816" font-family="Inter,Arial,sans-serif" font-size="88" font-weight="900" letter-spacing="-4">KIVRONIX.</text>
+  <text x="452" y="337" fill="#5f625b" font-family="Inter,Arial,sans-serif" font-size="42" font-weight="600">Монтаж с нуля</text>
+  <text x="452" y="396" fill="#797b75" font-family="Inter,Arial,sans-serif" font-size="30">Уроки · практика · работа</text>
+</svg>

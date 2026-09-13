@@ -9,7 +9,7 @@ const obviousOffTopicPattern=/(казино|ставк[аи]|букмекер|п
 export async function moderateGroupMessage(raw:string):Promise<ModerationResult>{
   const text=raw.trim();
   if(abusivePattern.test(text))return {allowed:false,reason:"abuse",message:"Система остановила сообщение с оскорблением или грубой бранью."};
-  if(emailPattern.test(text)||phonePattern.test(text))return {allowed:false,reason:"personal_info",message:"Телефон и email оставьте за пределами группы. Общайтесь внутри EDITA."};
+  if(emailPattern.test(text)||phonePattern.test(text))return {allowed:false,reason:"personal_info",message:"Телефон и email оставьте за пределами группы. Общайтесь внутри KIVRONIX."};
   if(obviousOffTopicPattern.test(text)&&!editingTopicPattern.test(text))return {allowed:false,reason:"off_topic",message:"Это учебный чат про видео и совместные проекты. Переформулируй сообщение по теме монтажа."};
   if(!process.env.OPENAI_API_KEY)return {allowed:true};
 
@@ -45,8 +45,8 @@ export async function createGroupAiReply(question:string,recent:string[]){
       headers:{"Content-Type":"application/json",Authorization:`Bearer ${process.env.OPENAI_API_KEY}`},
       body:JSON.stringify({
         model:process.env.OPENAI_MODEL||"gpt-5.6-luna",
-        instructions:"Ты помощник EDITA в безопасной учебной группе по видеомонтажу для людей 14+. Отвечай по монтажу, съёмке, роликам, своим работам и совместным проектам. Сохраняй общение внутри платформы. Дай прямой ответ, 2–5 коротких шагов и один способ проверить результат. Поддерживай новичка. Говори о доходе и просмотрах только как о возможных результатах. Сохраняй личные данные в тайне. Используй спокойные утвердительные фразы.",
-        input:"Недавний контекст группы:\n"+recent.slice(-8).join("\n")+"\n\nВопрос к помощнику EDITA:\n"+question.slice(0,1400),
+        instructions:"Ты помощник KIVRONIX в безопасной учебной группе по видеомонтажу для людей 14+. Отвечай по монтажу, съёмке, роликам, своим работам и совместным проектам. Сохраняй общение внутри платформы. Дай прямой ответ, 2–5 коротких шагов и один способ проверить результат. Поддерживай новичка. Говори о доходе и просмотрах только как о возможных результатах. Сохраняй личные данные в тайне. Используй спокойные утвердительные фразы.",
+        input:"Недавний контекст группы:\n"+recent.slice(-8).join("\n")+"\n\nВопрос к помощнику KIVRONIX:\n"+question.slice(0,1400),
         max_output_tokens:700
       }),
       signal:AbortSignal.timeout(20000)

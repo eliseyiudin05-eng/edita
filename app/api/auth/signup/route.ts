@@ -26,7 +26,7 @@ export async function POST(req:NextRequest){
     return NextResponse.json({error:"Для бизнес-аккаунта нужно название компании и возраст 18+."},{status:400});
   }
 
-  const site=process.env.NEXT_PUBLIC_SITE_URL||"https://getedita.app";
+  const site=process.env.NEXT_PUBLIC_SITE_URL||new URL(req.url).origin;
   const metadata={
     role,
     display_name:displayName,
@@ -85,14 +85,14 @@ export async function POST(req:NextRequest){
   try{
     await sendTransactionalEmail({
       to:email,
-      subject:"Подтверди электронную почту в EDITA",
+      subject:"Подтверди электронную почту в KIVRONIX",
       html:authEmailHtml(
         "Подтверди электронную почту",
-        "Нажми кнопку ниже, чтобы подтвердить адрес и открыть свой аккаунт EDITA.",
+        "Нажми кнопку ниже, чтобы подтвердить адрес и открыть свой аккаунт KIVRONIX.",
         "Подтвердить почту",
         link
       ),
-      text:"Подтверди электронную почту EDITA: "+link
+      text:"Подтверди электронную почту KIVRONIX: "+link
     });
   }catch(e){
     if(createdUserId){
@@ -102,7 +102,7 @@ export async function POST(req:NextRequest){
     const code=e instanceof Error?e.message:"EMAIL_SEND_FAILED";
     return NextResponse.json({
       error:code==="RESEND_NOT_CONFIGURED"
-        ?"Почтовый сервис EDITA ждёт настройки."
+        ?"Почтовый сервис KIVRONIX ждёт настройки."
         :code==="RESEND_INVALID_KEY_FORMAT"
           ?"Ключ почтового сервиса настроен неверно."
         :"Ошибка отправки письма. Попробуй позже."

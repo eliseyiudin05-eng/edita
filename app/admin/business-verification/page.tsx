@@ -46,7 +46,7 @@ export default function BusinessVerificationAdmin(){
   }
 
   return <main className="legal-page"><div className="legal-shell">
-    <Link href="/platform" className="brand">EDITA<span>.</span></Link>
+    <Link href="/platform" className="brand">KIVRONIX<span>.</span></Link>
     <div className="eyebrow">ADMIN · BUSINESS VERIFICATION</div>
     <h1>Проверка компаний</h1>
     <p>Документы закрыты от обычных пользователей. Ссылки ниже временные и нужны только для ручной проверки.</p>

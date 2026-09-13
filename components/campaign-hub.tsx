@@ -67,7 +67,7 @@ export default function CampaignHub({mode}:{mode:"editor"|"business"}){
         contentTypes:form.contentTypes.split(",").map(v=>v.trim()).filter(Boolean)
       });
       setForm({title:"",goal:"",budgetText:"",creatorSlots:"3",requirements:"",contentTypes:"Короткие ролики, отзывы"});
-      setMessage("Проект опубликован. Теперь монтажёры могут откликаться внутри EDITA.");
+      setMessage("Проект опубликован. Теперь монтажёры могут откликаться внутри KIVRONIX.");
       await load();
     }catch(e){setMessage(e instanceof Error?e.message:"Ошибка.");}
     finally{setBusy(false)}
@@ -88,7 +88,7 @@ export default function CampaignHub({mode}:{mode:"editor"|"business"}){
     setBusy(true);setMessage("");
     try{
       const result=await call({action:"application_status",applicationId:id,status});
-      if(result.conversationId)try{sessionStorage.setItem("edita_open_conversation",result.conversationId)}catch{}
+      if(result.conversationId)try{sessionStorage.setItem("kivronix_open_conversation",result.conversationId)}catch{}
       setMessage(status==="accepted"?"Монтажёр принят. Закрытый чат уже открыт.":"Статус обновлён.");
       await load();
     }catch(e){setMessage(e instanceof Error?e.message:"Ошибка.");}
@@ -118,7 +118,7 @@ export default function CampaignHub({mode}:{mode:"editor"|"business"}){
 
     <section className="card">
       <div className="eyebrow">{mode==="business"?"МОИ ПРОЕКТЫ":"ПРОЕКТЫ ПРОВЕРЕННЫХ КОМПАНИЙ"}</div>
-      <h3>{mode==="business"?"Монтажёры и отклики":"Отклик отправляется прямо из EDITA"}</h3>
+      <h3>{mode==="business"?"Монтажёры и отклики":"Отклик отправляется прямо из KIVRONIX"}</h3>
       <div className="business-stack">
         {campaigns.length===0&&<p className="muted">Открытые проекты появятся здесь.</p>}
         {campaigns.map((raw:any)=><article className="campaign-card" key={raw.id}>
@@ -179,5 +179,5 @@ function statusRu(status?:string){
 }
 
 function rememberChat(kind:string,id:string){
-  try{sessionStorage.setItem("edita_open_chat_source",kind+":"+id)}catch{}
+  try{sessionStorage.setItem("kivronix_open_chat_source",kind+":"+id)}catch{}
 }

@@ -59,7 +59,7 @@ export default function LearningCompetitionsAdmin(){
   const prizeCompetitions=Array.from(new Map(entries.filter(entry=>entry.competition?.competition_kind==="prize"&&entry.competition?.id).map(entry=>[entry.competition!.id!,entry.competition!])).values());
 
   return <main className="legal-page"><div className="legal-shell">
-    <Link className="brand" href="/platform">EDITA<span>.</span></Link>
+    <Link className="brand" href="/platform">KIVRONIX<span>.</span></Link>
     <div className="eyebrow">ADMIN · УЧЕБНЫЕ СОРЕВНОВАНИЯ</div>
     <h1>Проверка работ</h1>
     <p>Победителей определяет рейтинг вручную проверенных просмотров. Затем система фиксирует первые три места.</p>

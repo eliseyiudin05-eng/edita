@@ -34,7 +34,7 @@ export default function EditorSignup(){
     if(!acceptTerms||!acceptPersonalData){setMessage("Нужно принять условия и отдельно согласиться на обработку персональных данных.");return;}
     setLoading(true);setMessage("");
     const onboarding={role:"editor",ageGroup,software,level,goal,schoolName:schoolName.trim()||undefined};
-    localStorage.setItem("edita_onboarding",JSON.stringify(onboarding));
+    localStorage.setItem("kivronix_onboarding",JSON.stringify(onboarding));
     const r=await fetch("/api/auth/signup",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
@@ -52,7 +52,7 @@ export default function EditorSignup(){
     }
     setLoading(false);
     setCreatedEmail(email.trim().toLowerCase());setCooldown(60);
-    setMessage("Готово. Письмо отправлено через почтовый сервис EDITA. Проверь Входящие и Спам.");
+    setMessage("Готово. Письмо отправлено через почтовый сервис KIVRONIX. Проверь Входящие и Спам.");
   }
 
   async function resend(){
@@ -68,7 +68,7 @@ export default function EditorSignup(){
   return <main className="auth-wrap"><section className="auth-card auth-card-wide">
     <div className="eyebrow">РЕГИСТРАЦИЯ МОНТАЖЁРА</div>
     <h1>Создай профиль монтажёра</h1>
-    <p>Никаких данных компании. Только то, что помогает настроить обучение и безопасный доступ.</p>{typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("ref")&&<div className="auth-msg"><b>Тебя пригласил друг.</b> После подтверждения электронной почты и первых 3 уроков вы оба получите бонусы внутри EDITA.</div>}
+    <p>Никаких данных компании. Только то, что помогает настроить обучение и безопасный доступ.</p>{typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("ref")&&<div className="auth-msg"><b>Тебя пригласил друг.</b> После подтверждения электронной почты и первых 3 уроков вы оба получите бонусы внутри KIVRONIX.</div>}
 
     <form className="auth-form" onSubmit={submit}>
       <input required placeholder="Как тебя зовут" value={name} onChange={e=>setName(e.target.value)}/>

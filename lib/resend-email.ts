@@ -8,8 +8,8 @@ type SendEmailArgs={
 };
 
 const RESEND_API_URL="https://api.resend.com";
-const EDITA_EMAIL_DOMAIN="auth.getedita.app";
-const DEFAULT_FROM="EDITA <no-reply@auth.getedita.app>";
+const KIVRONIX_EMAIL_DOMAIN="auth.kivronix.ru";
+const DEFAULT_FROM="KIVRONIX <no-reply@auth.kivronix.ru>";
 const RESEND_TEST_FROM="onboarding@resend.dev";
 
 type ResendApiErrorBody={
@@ -65,13 +65,13 @@ export function getResendConfig(){
   const key=cleanResendKey(process.env.RESEND_API_KEY);
   const requestedFrom=cleanEnv(process.env.RESEND_FROM_EMAIL);
   const requestedDomain=requestedFrom?senderDomain(requestedFrom):null;
-  const senderAdjusted=Boolean(requestedFrom&&requestedDomain!==EDITA_EMAIL_DOMAIN);
+  const senderAdjusted=Boolean(requestedFrom&&requestedDomain!==KIVRONIX_EMAIL_DOMAIN);
 
   return {
     key:key||null,
     keyFormatValid:key.startsWith("re_"),
     from:requestedFrom&&!senderAdjusted?requestedFrom:DEFAULT_FROM,
-    domain:EDITA_EMAIL_DOMAIN,
+    domain:KIVRONIX_EMAIL_DOMAIN,
     requestedDomain,
     senderAdjusted,
   };
@@ -194,13 +194,13 @@ export function authEmailHtml(title:string,body:string,button:string,url:string)
   const safeUrl=url.replace(/"/g,"%22");
   return `<!doctype html><html><body style="margin:0;background:#f4f4ef;font-family:Arial,sans-serif;color:#151613">
   <div style="max-width:560px;margin:0 auto;padding:40px 20px">
-    <div style="font-size:26px;font-weight:900;margin-bottom:30px">EDITA<span style="color:#b8ef35">.</span></div>
+    <div style="font-size:26px;font-weight:900;margin-bottom:30px">KIVRONIX<span style="color:#b8ef35">.</span></div>
     <div style="background:white;border:1px solid #dedfd6;border-radius:18px;padding:28px">
       <h1 style="font-size:28px;line-height:1.1;margin:0 0 16px">${title}</h1>
       <p style="font-size:16px;line-height:1.6;color:#565851">${body}</p>
       <a href="${safeUrl}" style="display:inline-block;margin-top:12px;background:#151613;color:white;text-decoration:none;padding:13px 18px;border-radius:12px;font-weight:700">${button}</a>
       <p style="font-size:12px;line-height:1.5;color:#7a7c75;margin-top:24px">Письмо пришло по чужой ошибке? Просто закрой его. Сохраняй ссылку из письма в тайне.</p>
     </div>
-    <p style="font-size:12px;color:#7a7c75;margin-top:16px">EDITA · getedita.app</p>
+    <p style="font-size:12px;color:#7a7c75;margin-top:16px">KIVRONIX · kivronix.ru</p>
   </div></body></html>`;
 }

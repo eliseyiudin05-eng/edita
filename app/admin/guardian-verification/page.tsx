@@ -45,10 +45,10 @@ export default function GuardianAdmin(){
   }
 
   return <main className="legal-page"><div className="legal-shell">
-    <Link href="/platform" className="brand">EDITA<span>.</span></Link>
+    <Link href="/platform" className="brand">KIVRONIX<span>.</span></Link>
     <div className="eyebrow">ADMIN · БЕЗОПАСНОСТЬ</div>
     <h1>Подтверждение родителей</h1>
-    <p>Это начальная ручная проверка. Для публичной работы паспорт и проверку личности родителя следует передать специальному сервису, а в EDITA хранить только итог.</p>
+    <p>Это начальная ручная проверка. Для публичной работы паспорт и проверку личности родителя следует передать специальному сервису, а в KIVRONIX хранить только итог.</p>
     {message&&<div className="auth-msg">{message}</div>}
     <div className="business-stack">
       {rows.map(row=><section className="legal-card" key={row.id}>

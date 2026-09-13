@@ -21,16 +21,16 @@ export default function StatusPage(){
   },[]);
 
   return <main className="legal-page"><div className="legal-shell">
-    <Link href="/" className="brand">EDITA<span>.</span></Link>
+    <Link href="/" className="brand">KIVRONIX<span>.</span></Link>
     <div className="eyebrow">РАБОТА СЕРВИСОВ</div>
-    <h1>Состояние EDITA</h1>
+    <h1>Состояние KIVRONIX</h1>
     <p>Здесь видна готовность главных частей платформы. Секретные ключи всегда скрыты.</p>
 
     {!data?<section className="legal-card"><p>Проверяем сервисы…</p></section>:<div className="status-grid">
       <Service title="Помощник" ok={Boolean(ai?.connected)} text={ai?.connected?"Готов отвечать на вопросы":"Связь с помощником ждёт настройки"}/>
       <Service title="Аккаунты и данные" ok={data.services.supabase.configured&&data.services.supabase.serverWrites} text={data.services.supabase.configured&&data.services.supabase.serverWrites?"Вход и сохранение данных работают":"Подключение базы ждёт настройки"}/>
       <Service title="Письма" ok={Boolean(mail?.connected&&mail?.verified)} text={mail?.connected&&mail?.verified?"Письма подтверждения отправляются":"Отправка писем ждёт настройки"}/>
-      <Service title="Доступ" ok text="Все функции открыты бесплатно"/>
+      <Service title="Доступ" ok text="Ранний доступ открыт бесплатно; списания выключены"/>
     </div>}
 
     <div className="legal-actions"><Link className="btn btn-dark" href="/platform">Открыть платформу</Link><Link className="btn btn-ghost" href="/">На главную</Link></div>

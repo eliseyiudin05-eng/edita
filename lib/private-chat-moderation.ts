@@ -25,5 +25,5 @@ export function findPrivateChatBlockReason(value:string):PrivateChatBlockReason|
 }
 
 export function privateChatBlockMessage(){
-  return "Контакты и ссылки остаются за пределами чата. Напишите сообщение о работе внутри EDITA.";
+  return "Контакты и ссылки остаются за пределами чата. Напишите сообщение о работе внутри KIVRONIX.";
 }

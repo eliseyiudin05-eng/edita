@@ -64,7 +64,7 @@ export default function PortfolioPanel(){
 
     <section className="portfolio-work-grid portfolio-live-grid">
       {items.length?items.map(item=><article className="portfolio-work" key={item.id}>
-        <div className="work-preview">{item.display_url&&isDirectVideo(item.display_url)?<video controls preload="metadata" src={item.display_url}/>:<span>РАБОТА EDITA</span>}</div>
+        <div className="work-preview">{item.display_url&&isDirectVideo(item.display_url)?<video controls preload="metadata" src={item.display_url}/>:<span>РАБОТА KIVRONIX</span>}</div>
         <h2>{item.title}</h2>
         <div className="work-meta"><span>{item.tags.join(" · ")}</span>{item.ai_score!=null&&<b>Оценка {item.ai_score}</b>}</div>
         {item.display_url&&!isDirectVideo(item.display_url)&&<a className="work-link" href={item.display_url} target="_blank" rel="noreferrer">Открыть работу ↗</a>}

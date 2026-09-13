@@ -55,14 +55,14 @@ export default function OnboardingPage(){
     });
     setSaving(false);
     if(r.ok){
-      localStorage.setItem("edita_onboarding",JSON.stringify(state));
+      localStorage.setItem("kivronix_onboarding",JSON.stringify(state));
       window.location.href="/platform";
     }
   }
 
   if(role==="business"){
     return <main className="onboarding-page"><section className="onboarding-card">
-      <Link href="/" className="brand">EDITA<span>.</span></Link>
+      <Link href="/" className="brand">KIVRONIX<span>.</span></Link>
       <div className="eyebrow">БИЗНЕС-АККАУНТ</div>
       <h1>Здесь нет настроек обучения</h1>
       <p className="muted">У бизнеса свой путь: профиль бренда, проверка компании, задания и вакансии.</p>
@@ -71,7 +71,7 @@ export default function OnboardingPage(){
   }
 
   return <main className="onboarding-page"><section className="onboarding-card">
-    <Link href="/" className="brand">EDITA<span>.</span></Link>
+    <Link href="/" className="brand">KIVRONIX<span>.</span></Link>
     <div className="onboarding-progress"><span style={{width:progress+"%"}}/></div>
 
     {step===0&&<>

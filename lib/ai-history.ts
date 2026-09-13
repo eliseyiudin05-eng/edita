@@ -25,7 +25,7 @@ export async function getOrCreateConversation(
   const {data,error}=await service.from("ai_conversations").insert({
     user_id:userId,
     scope_key:scope,
-    title:String(title||"Помощник EDITA").slice(0,120),
+    title:String(title||"Помощник KIVRONIX").slice(0,120),
     lesson_slug:lessonSlug?String(lessonSlug).slice(0,120):null
   }).select("id,scope_key,title,lesson_slug,updated_at").single();
   if(error)throw error;
@@ -57,14 +57,15 @@ export async function saveConversationMessage(
   metadata:Record<string,unknown>={}
 ){
   const safeContent=String(content).trim().slice(0,12000);
-  if(!safeContent)return;
-  const {error}=await service.from("ai_messages").insert({
+  if(!safeContent)return null;
+  const {data,error}=await service.from("ai_messages").insert({
     conversation_id:conversationId,
     user_id:userId,
     role,
     content:safeContent,
     metadata
-  });
+  }).select("id,created_at").single();
   if(error)throw error;
   await service.from("ai_conversations").update({updated_at:new Date().toISOString()}).eq("id",conversationId).eq("user_id",userId);
+  return data;
 }

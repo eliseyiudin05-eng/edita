@@ -45,7 +45,7 @@ export default function CreatorsPage(){
     });
     setLoading(false);
     if(error){setMessage("Ошибка отправки заявки: "+error.message);return;}
-    setMessage("Заявка в команду EDITA отправлена. Сначала мы согласуем условия и оплату, затем начнётся работа.");
+    setMessage("Заявка в команду KIVRONIX отправлена. Сначала мы согласуем условия и оплату, затем начнётся работа.");
     setJoin({displayName:"",email:"",socialUrl:"",portfolioUrl:"",preferredFormat:"",desiredRate:"",note:""});
   }
 
@@ -69,14 +69,14 @@ export default function CreatorsPage(){
 
   return <main className="landing">
     <nav className="topbar shell">
-      <Link className="brand" href="/">EDITA<span>.</span></Link>
+      <Link className="brand" href="/">KIVRONIX<span>.</span></Link>
       <div className="nav-actions"><Link href="/signup/editor">Я монтажёр</Link><Link href="/creators">Для авторов</Link><Link href="/login">Войти</Link></div>
     </nav>
 
     <section className="hero shell creator-hero">
-      <div className="eyebrow">КОМАНДА АВТОРОВ EDITA</div>
-      <h1>Снимай про EDITA.<br/><span>Получай оплачиваемые задания.</span></h1>
-      <p className="hero-copy">Мы собираем постоянную команду монтажёров и авторов для настоящих задач о платформе EDITA. Условия и оплата согласуются до начала работы.</p>
+      <div className="eyebrow">КОМАНДА АВТОРОВ KIVRONIX</div>
+      <h1>Снимай про KIVRONIX.<br/><span>Получай оплачиваемые задания.</span></h1>
+      <p className="hero-copy">Мы собираем постоянную команду монтажёров и авторов для настоящих задач о платформе KIVRONIX. Условия и оплата согласуются до начала работы.</p>
       <div className="simple-proof"><span>✓ Оплата согласуется заранее</span><span>✓ Можно работать регулярно</span><span>✓ Права на ролик переходят только по договорённости</span></div>
     </section>
 
@@ -92,10 +92,10 @@ export default function CreatorsPage(){
 
     <section className="section shell">
       <div className="section-kicker">ОФИЦИАЛЬНЫЕ ЗАДАНИЯ</div>
-      <h2>Настоящие задачи EDITA</h2>
+      <h2>Настоящие задачи KIVRONIX</h2>
       <div className="business-stack">
         {briefs.map(brief=><article className="legal-card creator-brief" key={brief.id}>
-          <div className="verification-head"><div><div className="eyebrow">EDITA · ОФИЦИАЛЬНОЕ ЗАДАНИЕ</div><h2>{brief.title}</h2></div><span className="verification-badge ok">Открыто</span></div>
+          <div className="verification-head"><div><div className="eyebrow">KIVRONIX · ОФИЦИАЛЬНОЕ ЗАДАНИЕ</div><h2>{brief.title}</h2></div><span className="verification-badge ok">Открыто</span></div>
           <p>{brief.short_description}</p>
           <div className="challenge-meta"><span>{brief.format}</span><span>{brief.duration_text||"Длительность указана в задании"}</span></div>
           <div className="creator-brief-text">{brief.brief.split("\n").map((line,i)=><p key={i}>{line||" "}</p>)}</div>
@@ -114,7 +114,7 @@ export default function CreatorsPage(){
 
     <section className="section shell">
       <div className="section-kicker">ПОСТОЯННАЯ КОМАНДА</div>
-      <h2>Подать заявку в команду EDITA</h2>
+      <h2>Подать заявку в команду KIVRONIX</h2>
       <p className="section-lead">Подходит монтажёрам, блогерам и авторам коротких видео. Новичок тоже может попасть в команду с живыми и понятными работами.</p>
       <form className="legal-card business-form" onSubmit={joinProgram}>
         <input required placeholder="Как тебя зовут" value={join.displayName} onChange={e=>setJoin({...join,displayName:e.target.value})}/>

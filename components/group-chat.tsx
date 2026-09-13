@@ -79,10 +79,10 @@ export default function GroupChat({groupId,groupName}:{groupId:string;groupName:
       <div><div className="eyebrow">БЕЗОПАСНЫЙ УЧЕБНЫЙ ЧАТ</div><h3>{groupName}</h3></div>
       <span>Защита сообщений</span>
     </header>
-    <p className="muted">Обсуждайте монтаж и общий проект вежливо. В чате остаются сообщения по теме и без личных контактов. Напиши <b>@edita</b>, <b>/ai</b> или поставь «?», чтобы позвать помощника.</p>
+    <p className="muted">Обсуждайте монтаж и общий проект вежливо. В чате остаются сообщения по теме и без личных контактов. Напиши <b>@kivronix</b>, <b>/ai</b> или поставь «?», чтобы позвать помощника.</p>
     <div className="group-chat-feed" ref={feedRef} aria-live="polite">
       {loading?<div className="ai-thinking">Загружаю сообщения…</div>:null}
-      {!loading&&!messages.length?<div className="group-chat-empty"><b>Начните с простого вопроса</b><span>Например: «@edita, как всей группе снять один ролик?»</span></div>:null}
+      {!loading&&!messages.length?<div className="group-chat-empty"><b>Начните с простого вопроса</b><span>Например: «@kivronix, как всей группе снять один ролик?»</span></div>:null}
       {messages.map(message=><article className={`group-message ${message.senderKind}`} key={message.id}>
         <div><b>{message.author}</b><time>{new Date(message.createdAt).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}</time></div>
         <p>{message.content}</p>

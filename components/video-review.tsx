@@ -89,7 +89,7 @@ export default function VideoReview() {
         <div className="eyebrow">РАЗБОР ВИДЕО · БЕСПЛАТНО</div>
         <h2>Загрузи ролик и получи понятные советы</h2>
         <p className="muted">
-          EDITA выбирает несколько кадров прямо в браузере. Помощник получает
+          KIVRONIX выбирает несколько кадров прямо в браузере. Помощник получает
           только эти кадры, время и текст задания. Полный видеофайл остаётся на
           твоём устройстве.
         </p>
@@ -144,7 +144,7 @@ export default function VideoReview() {
                 <span>/100</span>
               </div>
               <div>
-                <div className="eyebrow">ОЦЕНКА EDITA</div>
+                <div className="eyebrow">ОЦЕНКА KIVRONIX</div>
                 <h2>{scoreLabel(review.overall_score)}</h2>
                 <p>{review.summary}</p>
               </div>

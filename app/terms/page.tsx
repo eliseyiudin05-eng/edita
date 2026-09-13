@@ -2,9 +2,9 @@ import Link from "next/link";
 
 export default function TermsPage(){
   return <main className="legal-page"><div className="legal-shell">
-    <Link href="/" className="brand">EDITA<span>.</span></Link>
+    <Link href="/" className="brand">KIVRONIX<span>.</span></Link>
     <div className="eyebrow">ПРАВИЛА СЕРВИСА</div>
-    <h1>Условия использования EDITA</h1>
+    <h1>Условия использования KIVRONIX</h1>
     <p>Учись честно, береги личные данные и загружай материалы, которые ты вправе использовать.</p>
 
     <section className="legal-card"><h2>Аккаунт</h2><p>Пользователь отвечает за правильность данных аккаунта и сохранность пароля. Используйте свои имя и данные компании.</p></section>
@@ -13,14 +13,14 @@ export default function TermsPage(){
 
     <section className="legal-card"><h2>Загруженные материалы</h2><p>Загружай видео, музыку и изображения с разрешённым правом использования. Права автора остаются у автора и переходят другой стороне только по отдельному соглашению.</p></section>
 
-    <section className="legal-card"><h2>Конкурсы и вакансии</h2><p>Настоящие конкурсы и вакансии публикуют проверенные компании. Помощник может разобрать работу, а победителя и кандидата выбирает человек.</p><p>Для денежного конкурса EDITA действуют отдельные <Link href="/challenge-rules"><u>правила</u></Link>. Боты, купленные просмотры и чужие работы ведут к исключению.</p></section>
+    <section className="legal-card"><h2>Конкурсы и вакансии</h2><p>Настоящие конкурсы и вакансии публикуют проверенные компании. Помощник может разобрать работу, а победителя и кандидата выбирает человек.</p><p>Для денежного конкурса KIVRONIX действуют отдельные <Link href="/challenge-rules"><u>правила</u></Link>. Боты, купленные просмотры и чужие работы ведут к исключению.</p></section>
 
-    <section className="legal-card"><h2>Закрытый рабочий чат</h2><p>Чат открывается после выбора монтажёра или победителя. Телефоны, электронная почта, ссылки, адреса страниц и названия мессенджеров остаются за пределами чата. Все рабочие сообщения остаются внутри EDITA.</p></section>
+    <section className="legal-card"><h2>Закрытый рабочий чат</h2><p>Чат открывается после выбора монтажёра или победителя. Телефоны, электронная почта, ссылки, адреса страниц и названия мессенджеров остаются за пределами чата. Все рабочие сообщения остаются внутри KIVRONIX.</p></section>
 
     <section className="legal-card"><h2>Пользователи младше 18 лет</h2><p>Обучение доступно сразу. Денежный конкурс и коммерческая работа открываются после подтверждения родителя или другого законного представителя.</p></section>
 
-    <section className="legal-card"><h2>Безопасность</h2><p>EDITA вправе ограничить доступ при мошенничестве, обходе проверки, нарушении чужих прав, опасных материалах или угрозе безопасности сервиса.</p></section>
+    <section className="legal-card"><h2>Безопасность</h2><p>KIVRONIX вправе ограничить доступ при мошенничестве, обходе проверки, нарушении чужих прав, опасных материалах или угрозе безопасности сервиса.</p></section>
 
-    <div className="legal-actions"><Link className="btn btn-dark" href="/offer">Бесплатный доступ</Link><Link className="btn btn-ghost" href="/privacy">Персональные данные</Link><Link className="btn btn-ghost" href="/arena-rules">Конкурсы компаний</Link></div>
+    <div className="legal-actions"><Link className="btn btn-dark" href="/offer">Условия доступа</Link><Link className="btn btn-ghost" href="/privacy">Персональные данные</Link><Link className="btn btn-ghost" href="/arena-rules">Конкурсы компаний</Link></div>
   </div></main>
 }

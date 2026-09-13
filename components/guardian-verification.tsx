@@ -49,14 +49,14 @@ export default function GuardianVerification(){
   }
 
   if(!data?.needed)return null;
-  if(data.verified)return <section className="card"><div className="eyebrow">БЕЗОПАСНОСТЬ</div><h3>Родитель подтверждён ✓</h3><p className="muted">Коммерческие функции доступны с учётом остальных правил EDITA.</p></section>;
+  if(data.verified)return <section className="card"><div className="eyebrow">БЕЗОПАСНОСТЬ</div><h3>Родитель подтверждён ✓</h3><p className="muted">Коммерческие функции доступны с учётом остальных правил KIVRONIX.</p></section>;
 
   if(data.request?.status==="pending")return <section className="card"><div className="eyebrow">БЕЗОПАСНОСТЬ</div><h3>Ждём подтверждение родителя</h3><p className="muted">Заявка уже отправлена. Уроки и помощник доступны. Вакансии, оплачиваемая работа и конкурсы компаний откроются после подтверждения.</p></section>;
 
   return <section className="card">
     <div className="eyebrow">БЕЗОПАСНОСТЬ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ ДО 18 ЛЕТ</div>
     <h3>Подтверждение родителя</h3>
-    <p className="muted">Паспорт ребёнка остаётся за пределами этой формы. Заявка проверяется вручную, а EDITA хранит только итог проверки взрослого.</p>
+    <p className="muted">Паспорт ребёнка остаётся за пределами этой формы. Заявка проверяется вручную, а KIVRONIX хранит только итог проверки взрослого.</p>
     <form className="business-form" onSubmit={submit}>
       <input required placeholder="Имя и фамилия родителя" value={form.guardianName} onChange={e=>setForm({...form,guardianName:e.target.value})}/>
       <input required type="email" placeholder="Электронная почта родителя" value={form.guardianEmail} onChange={e=>setForm({...form,guardianEmail:e.target.value})}/>

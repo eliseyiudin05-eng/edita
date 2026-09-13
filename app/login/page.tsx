@@ -27,8 +27,8 @@ export default function LoginPage(){
   return <main className="auth-wrap">
     <section className="auth-card">
       <div className="eyebrow">ВХОД</div>
-      <h1>Войти в EDITA</h1>
-      <p>Вернись к обучению, заданиям, работе и помощнику EDITA.</p>
+      <h1>Войти в KIVRONIX</h1>
+      <p>Вернись к обучению, заданиям, работе и помощнику KIVRONIX.</p>
       <form className="auth-form" onSubmit={submit}>
         <input required type="email" placeholder="Электронная почта" value={email} onChange={e=>setEmail(e.target.value)} />
         <input required type="password" placeholder="Пароль" value={password} onChange={e=>setPassword(e.target.value)} />

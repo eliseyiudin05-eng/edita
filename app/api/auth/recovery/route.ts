@@ -10,7 +10,7 @@ export async function POST(req:NextRequest){
   const email=String(body?.email||"").trim().toLowerCase();
   if(!email.includes("@"))return NextResponse.json({ok:true});
 
-  const site=process.env.NEXT_PUBLIC_SITE_URL||"https://getedita.app";
+  const site=process.env.NEXT_PUBLIC_SITE_URL||new URL(req.url).origin;
   const {data,error}=await service.auth.admin.generateLink({
     type:"recovery",
     email,
@@ -26,14 +26,14 @@ export async function POST(req:NextRequest){
   try{
     await sendTransactionalEmail({
       to:email,
-      subject:"Новый пароль для EDITA",
+      subject:"Новый пароль для KIVRONIX",
       html:authEmailHtml(
         "Создай новый пароль",
         "Мы получили запрос на смену пароля. Нажми кнопку ниже. Ссылка одноразовая.",
         "Создать новый пароль",
         link
       ),
-      text:"Ссылка для смены пароля EDITA: "+link
+      text:"Ссылка для смены пароля KIVRONIX: "+link
     });
   }catch{
     return NextResponse.json({error:"Почта временно недоступна. Попробуй чуть позже."},{status:503});

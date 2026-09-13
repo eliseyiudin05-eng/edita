@@ -34,10 +34,10 @@ export async function POST(req:NextRequest){
       headers:{"Content-Type":"application/json",Authorization:"Bearer "+process.env.OPENAI_API_KEY},
       body:JSON.stringify({
         model:process.env.OPENAI_MODEL||"gpt-5.6-luna",
-        instructions:"Ты помощник EDITA для компании. Преврати черновик в очень понятное задание для монтажёра. Пиши простыми русскими словами. Каждый английский термин сразу объясняй. Используй только данные компании. Критерии формулируй так, чтобы человек мог легко проверить выполнение. Пиши спокойными утвердительными фразами.",
+        instructions:"Ты помощник KIVRONIX для компании. Преврати черновик в очень понятное задание для монтажёра. Пиши простыми русскими словами. Каждый английский термин сразу объясняй. Используй только данные компании. Критерии формулируй так, чтобы человек мог легко проверить выполнение. Пиши спокойными утвердительными фразами.",
         input:"Данные компании: "+JSON.stringify(brandContext||{})+"\n\nЧерновик задания:\n"+brief,
         max_output_tokens:1200,
-        text:{format:{type:"json_schema",name:"edita_brief",strict:true,schema}}
+        text:{format:{type:"json_schema",name:"kivronix_brief",strict:true,schema}}
       })
     });
     if(!r.ok){const detail=await r.text();console.error("AI brief OpenAI error",r.status,detail);return NextResponse.json({demo:true,degraded:true,result:demo(brief),upstreamStatus:r.status});}

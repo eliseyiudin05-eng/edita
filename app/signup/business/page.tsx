@@ -37,8 +37,8 @@ export default function BusinessSignup(){
 
     setLoading(true);setMessage("");
     const onboarding={role:"business",ageGroup:"18+",goal:"hire",level:"business",software:""};
-    localStorage.setItem("edita_onboarding",JSON.stringify(onboarding));
-    localStorage.setItem("edita_business_verification_prefill",JSON.stringify({legalName,inn,registrationNumber,websiteUrl:website,socialUrl:social}));
+    localStorage.setItem("kivronix_onboarding",JSON.stringify(onboarding));
+    localStorage.setItem("kivronix_business_verification_prefill",JSON.stringify({legalName,inn,registrationNumber,websiteUrl:website,socialUrl:social}));
     const r=await fetch("/api/auth/signup",{
       method:"POST",
       headers:{"Content-Type":"application/json"},

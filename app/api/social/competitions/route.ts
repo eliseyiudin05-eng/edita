@@ -3,7 +3,7 @@ import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supa
 
 function token(req:NextRequest){const h=req.headers.get("authorization");return h?.startsWith("Bearer ")?h.slice(7):null}
 
-async function ensureNextEditaSeason(service:any){
+async function ensureNextKivronixSeason(service:any){
   const {data:first}=await service.from("learning_competitions")
     .select("slug,title,description,task,audience,points_reward,starts_at,ends_at,competition_kind,prize_pool_cents,prize_split_cents,max_entries,selection_metric,requires_public_post,social_tag,season_number,recurs_every_months")
     .eq("competition_kind","prize")
@@ -20,8 +20,8 @@ async function ensureNextEditaSeason(service:any){
     const endsAt=new Date(startsAt);
     endsAt.setUTCMonth(endsAt.getUTCMonth()+months);
     const {data:next}=await service.from("learning_competitions").upsert({
-      slug:`edita-reels-season-${season}`,
-      title:`Сними ролик про EDITA · Сезон ${season}`,
+      slug:`kivronix-reels-season-${season}`,
+      title:`Сними ролик про KIVRONIX · Сезон ${season}`,
       description:latest.description,
       task:latest.task,
       audience:latest.audience,
@@ -48,7 +48,7 @@ export async function GET(req:NextRequest){
   const user=await getUserFromAccessToken(token(req));
   const service=getSupabaseServiceClient();
   if(!user||!service)return NextResponse.json({error:"Нужен вход."},{status:401});
-  await ensureNextEditaSeason(service);
+  await ensureNextKivronixSeason(service);
   const {data:profile}=await service.from("profiles").select("onboarding,guardian_verified").eq("id",user.id).maybeSingle();
   const adult=(profile?.onboarding?.ageGroup||"18+")==="18+";
   const {data:comps,error}=await service.from("learning_competitions")
@@ -96,7 +96,7 @@ export async function POST(req:NextRequest){
   ]);
   if(!comp||comp.status!=="open"||(comp.ends_at&&new Date(comp.ends_at).getTime()<Date.now()))return NextResponse.json({error:"Соревнование уже закрыто."},{status:400});
   const adult=(profile?.onboarding?.ageGroup||"18+")==="18+";
-  if(comp.competition_kind==="prize"&&profile?.onboarding?.ageGroup==="under14")return NextResponse.json({error:"Денежный конкурс EDITA доступен участникам с 14 лет."},{status:403});
+  if(comp.competition_kind==="prize"&&profile?.onboarding?.ageGroup==="under14")return NextResponse.json({error:"Денежный конкурс KIVRONIX доступен участникам с 14 лет."},{status:403});
   if((comp.audience==="adult"&&!adult)||(comp.audience==="youth"&&adult))return NextResponse.json({error:"Это соревнование для другой возрастной категории."},{status:403});
   if(comp.competition_kind==="prize"&&!adult&&!profile?.guardian_verified)return NextResponse.json({error:"Для участия в денежном конкурсе до 18 лет нужно подтверждение законного представителя."},{status:403});
   if(comp.requires_public_post&&!/^https:\/\//i.test(workUrl))return NextResponse.json({error:"Для конкурса нужна публичная HTTPS-ссылка на опубликованный ролик."},{status:400});

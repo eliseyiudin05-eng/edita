@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { EDITA_SITE_URL, getSupabasePublicConfig } from "@/lib/public-config";
+import { KIVRONIX_SITE_URL, getSupabasePublicConfig } from "@/lib/public-config";
 
 // ENV_SYNC_BUILD: force a fresh production deployment from main.
 
@@ -9,7 +9,7 @@ export async function GET() {
     ok:true,
     environment:process.env.VERCEL_ENV||process.env.NODE_ENV||"unknown",
     commit:(process.env.VERCEL_GIT_COMMIT_SHA||"local").slice(0,7),
-    siteUrl:process.env.NEXT_PUBLIC_SITE_URL||EDITA_SITE_URL,
+    siteUrl:process.env.NEXT_PUBLIC_SITE_URL||KIVRONIX_SITE_URL,
     services:{
       openai:{
         configured:Boolean(process.env.OPENAI_API_KEY),
@@ -21,7 +21,8 @@ export async function GET() {
       },
       email:{
         configured:Boolean(process.env.RESEND_API_KEY),
-        from:process.env.RESEND_FROM_EMAIL||"EDITA <no-reply@auth.getedita.app>",
+        provider:"Resend",
+        senderBrand:"KIVRONIX",
       },
     },
   });

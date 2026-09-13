@@ -1,22 +1,22 @@
 import {NextResponse} from "next/server";
 import {getResendServiceStatus} from "@/lib/resend-email";
 
-const domain="auth.getedita.app";
+const domain="auth.kivronix.ru";
 const expected={
   dkim:{
-    name:"resend._domainkey.auth.getedita.app",
+    name:"resend._domainkey.auth.kivronix.ru",
     value:"p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDXHmHRZdSl6kJr4g3iwEJP+PZsUpOBGTTCyT4jkL+d9v6mIqx0NoH0QJGFFLQsF6eeGGBWt2Unz06N0IeOzKQGeMGzDVlBqG013ZrAbZPY+va5YSNBvkl6DwJnD6yKx5TKJwtRSWGvjY2SbJaVohKcNQjNvK41Wd7zjEgZpCSeXQIDAQAB"
   },
   spf:{
-    name:"send.auth.getedita.app",
+    name:"send.auth.kivronix.ru",
     value:"v=spf1 include:amazonses.com ~all"
   },
   mx:{
-    name:"send.auth.getedita.app",
+    name:"send.auth.kivronix.ru",
     value:"feedback-smtp.eu-west-1.amazonses.com"
   },
   cname:{
-    name:"rsend.auth.getedita.app",
+    name:"rsend.auth.kivronix.ru",
     value:"send.forge.rmta.net"
   }
 };

@@ -10,7 +10,8 @@ type FriendRel={id:string;status:string;direction:"incoming"|"outgoing";other:Ra
 type GroupMember={user_id:string;member_role:string;profile:RankRow|null};
 type Group={id:string;name:string;owner_id:string;age_scope:string;join_code:string;members:GroupMember[]};
 type Competition={id:string;title:string;description:string;task:string;audience:string;points_reward:number;ends_at?:string|null;competition_kind?:string;prize_pool_cents?:number;prize_split_cents?:number[];max_entries?:number;selection_metric?:string;requires_public_post?:boolean;social_tag?:string;season_number?:number;recurs_every_months?:number;entry_count?:number;age_eligible?:boolean;guardian_required?:boolean;leaders?:Array<{user_id:string;verified_views:number;place?:number|null;profile?:RankRow|null}>;entry?:{id:string;status:string;judge_score?:number|null;work_url:string;verified_views?:number;place?:number|null;prize_cents?:number}|null};
-type Referral={code:string|null;points:number;qualified:number;pending:number};
+type ReferralReward={id:string;name:string;cost:number;description:string};
+type Referral={code:string|null;points:number;qualified:number;pending:number;rewards:ReferralReward[];redemptions:Array<{id:string;points_spent:number;reward:string;created_at:string}>;redemptionEnabled:boolean};
 type BusinessRating={id:string;name:string;verification_level:string;reviews:number;rating:number|null;eligible:boolean;existing:boolean};
 
 export default function SocialHub({ageGroup}:{ageGroup?:string}){
@@ -131,6 +132,14 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     catch{setMessage("Твоя ссылка: "+link)}
   }
 
+  async function redeemReward(reward:string){
+    const h=await headers();
+    const response=await fetch("/api/social/referrals",{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({reward})});
+    const data=await response.json();
+    setMessage(response.ok?"Награда подключена.":data?.error||"Обмен пока не завершился.");
+    if(response.ok)await load();
+  }
+
   return <div className="social-hub">
     <div className="social-tabs">
       <button className={view==="rating"?"active":""} onClick={()=>setView("rating")}>Рейтинг</button>
@@ -147,7 +156,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     {view==="rating"&&<div className="social-columns">
       <section className="card">
         <div className="eyebrow">ОБЩИЙ РЕЙТИНГ</div>
-        <h3>Монтажёры EDITA</h3>
+        <h3>Монтажёры KIVRONIX</h3>
         <p className="muted">Очки складываются из пройденных уроков, оценки роликов и полезной активности. Электронная почта, возраст и доход всегда скрыты.</p>
         <div className="mini-ranking">
           {ranking.slice(0,20).map((row,i)=><div className="mini-rank-row profile-rank-row" key={row.id}><b>#{i+1}</b><ProfileAvatar src={row.avatar_url} name={row.display_name} size="sm"/><span><strong>{row.display_name||"Монтажёр"}</strong><small>@{row.username||"editor"}{row.school_name?" · "+row.school_name:""}</small></span><em>{row.rating_points||0}</em></div>)}
@@ -222,13 +231,13 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     </div>}
 
     {view==="competitions"&&<div className="competition-grid">
-      <div className="card featured-competition official-challenge-link"><div><div className="eyebrow">ОФИЦИАЛЬНЫЕ КОНКУРСЫ</div><h3>Конкурсы EDITA находятся в отдельном разделе</h3><p className="muted">Там есть призовой фонд 10 000 ₽, правила, отправка ролика и рейтинг подтверждённых просмотров.</p></div><a className="btn btn-dark" href="/platform#edita-challenges">Открыть конкурсы EDITA</a></div>
+      <div className="card featured-competition official-challenge-link"><div><div className="eyebrow">ОФИЦИАЛЬНЫЕ КОНКУРСЫ</div><h3>Конкурсы KIVRONIX находятся в отдельном разделе</h3><p className="muted">Там есть призовой фонд 10 000 ₽, правила, отправка ролика и рейтинг подтверждённых просмотров.</p></div><a className="btn btn-dark" href="/platform#kivronix-challenges">Открыть конкурсы KIVRONIX</a></div>
       {learningCompetitions.map(c=><article className="card competition-card" key={c.id}>
-        <div className="verification-head"><div><div className="eyebrow">{c.competition_kind==="prize"?"ПРИЗОВОЙ КОНКУРС EDITA":c.audience==="youth"?"ДО 18 ЛЕТ":"УЧЕБНОЕ СОРЕВНОВАНИЕ"}</div><h3>{c.title}</h3></div><span className="verification-badge ok">{c.competition_kind==="prize"?money(c.prize_pool_cents||0):"+"+c.points_reward+" опыта"}</span></div>
+        <div className="verification-head"><div><div className="eyebrow">{c.competition_kind==="prize"?"ПРИЗОВОЙ КОНКУРС KIVRONIX":c.audience==="youth"?"ДО 18 ЛЕТ":"УЧЕБНОЕ СОРЕВНОВАНИЕ"}</div><h3>{c.title}</h3></div><span className="verification-badge ok">{c.competition_kind==="prize"?money(c.prize_pool_cents||0):"+"+c.points_reward+" опыта"}</span></div>
         <p>{c.description}</p>
         <div className="lesson-example"><b>Задание</b><span>{c.task}</span></div>
         {c.competition_kind==="prize"?<div className="competition-terms-grid"><span><b>1 место</b>{money(c.prize_split_cents?.[0]||0)}</span><span><b>2 место</b>{money(c.prize_split_cents?.[1]||0)}</span><span><b>3 место</b>{money(c.prize_split_cents?.[2]||0)}</span><span><b>Лимит</b>{c.entry_count||0} / {c.max_entries||100}</span></div>:null}
-        {c.competition_kind==="prize"?<div className="competition-rules-short"><b>Главные условия</b><span>Опубликовать ролик в открытой социальной сети</span><span>Отметить {c.social_tag||"EDITA"}</span><span>Три победителя определяются по подтверждённому числу просмотров</span><span>Участвуют свои материалы и честные просмотры</span><a href="/challenge-rules">Полные правила конкурса →</a></div>:null}
+        {c.competition_kind==="prize"?<div className="competition-rules-short"><b>Главные условия</b><span>Опубликовать ролик в открытой социальной сети</span><span>Отметить {c.social_tag||"KIVRONIX"}</span><span>Три победителя определяются по подтверждённому числу просмотров</span><span>Участвуют свои материалы и честные просмотры</span><a href="/challenge-rules">Полные правила конкурса →</a></div>:null}
         {c.ends_at&&<p className="muted">Приём работ до {new Date(c.ends_at).toLocaleDateString("ru-RU")} · новый сезон каждые {c.recurs_every_months||2} месяца</p>}
         {c.guardian_required?<div className="minor-safety-note"><b>Нужно подтверждение взрослого</b><span>До 18 лет участие в денежном конкурсе доступно после подтверждения законного представителя в профиле.</span></div>:null}
         {c.age_eligible===false?<div className="minor-safety-note"><b>Конкурс доступен с 14 лет</b><span>Уроки и обычные учебные соревнования остаются доступны.</span></div>:null}
@@ -280,11 +289,19 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
       <div className="referral-stats">
         <div><strong>{referral?.qualified||0}</strong><span>активных друзей</span></div>
         <div><strong>{referral?.pending||0}</strong><span>ещё начинают</span></div>
-        <div><strong>{referral?.points||0}</strong><span>баллов EDITA</span></div>
+        <div><strong>{referral?.points||0}</strong><span>KIVRONIX Points</span></div>
       </div>
-      <div className="lesson-example"><b>За каждого активного друга</b><span>Тебе: +150 опыта и +100 баллов EDITA. Другу: +50 опыта после подтверждения электронной почты и первых трёх завершённых уроков.</span></div>
-      <div className="auth-msg"><b>Баллы показывают твой вклад в сообщество.</b> Все функции EDITA уже открыты бесплатно, поэтому баллы нужны только для достижений и рейтинга.</div>
-      <p className="muted">Это внутренняя награда платформы. Денежная выплата отсутствует, а поддельные и повторные аккаунты остаются без баллов.</p>
+      <div className="lesson-example"><b>За каждого активного друга</b><span>Тебе: +500 KIVRONIX Points и +150 опыта. Другу: +250 KIVRONIX Points и +50 опыта после подтверждения почты и первых трёх уроков.</span></div>
+      <div className="referral-rewards">
+        <div><div className="eyebrow">КАТАЛОГ НАГРАД</div><h4>Обменять KIVRONIX Points</h4></div>
+        {(referral?.rewards||[]).map(reward=><article key={reward.id}>
+          <div><b>{reward.name}</b><span>{reward.description}</span></div>
+          <strong>{reward.cost} KP</strong>
+          <button className="btn btn-dark" type="button" disabled={!referral?.redemptionEnabled||(referral?.points||0)<reward.cost} onClick={()=>void redeemReward(reward.id)}>{referral?.redemptionEnabled?"Обменять":"Скоро"}</button>
+        </article>)}
+      </div>
+      <div className="auth-msg"><b>Баллы уже накапливаются.</b> Обмен на Creator+ включится после финальной проверки платных планов; до этого списание невозможно.</div>
+      <p className="muted">KIVRONIX Points — внутренняя награда, а не деньги. Поддельные и повторные аккаунты награды не получают.</p>
     </section>}
   </div>
 }

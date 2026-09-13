@@ -12,6 +12,8 @@ type Challenge={
   title:string;
   brief:string;
   prize_cents:number;
+  prize_points:number;
+  custom_prize:string|null;
   ends_at:string|null;
   status:string;
   source_assets:string[];
@@ -30,9 +32,9 @@ type Submission={
 };
 
 const demoChallenges:Challenge[]=[
-  {id:"demo-coffee",brand:"ПРИМЕР · NORTH COFFEE",title:"Утренний ролик о кофе",brief:"Собери вертикальный ролик длиной 20–30 секунд. Покажи атмосферу утра, продукт крупно и закончи понятным предложением для зрителя. Голос и звуки должны быть громче музыки.",prize_cents:0,ends_at:new Date(Date.now()+3*86400000).toISOString(),status:"open",source_assets:[]},
-  {id:"demo-fitness",brand:"ПРИМЕР · VOLT FITNESS",title:"Реклама нового зала",brief:"Собери ролик длиной 30 секунд. Начни с яркого кадра, покажи три главных преимущества и добавь подходящие звуки. Используй переходы только там, где они помогают истории.",prize_cents:0,ends_at:new Date(Date.now()+5*86400000).toISOString(),status:"open",source_assets:[]},
-  {id:"demo-motion",brand:"ПРИМЕР · MOTION LAB",title:"Короткий ролик с экспертом",brief:"Сделай вертикальный ролик длиной до 35 секунд: чистая речь, крупные субтитры и дополнительные кадры по смыслу.",prize_cents:0,ends_at:new Date(Date.now()+2*86400000).toISOString(),status:"open",source_assets:[]},
+  {id:"demo-coffee",brand:"ПРИМЕР · NORTH COFFEE",title:"Утренний ролик о кофе",brief:"Собери вертикальный ролик длиной 20–30 секунд. Покажи атмосферу утра, продукт крупно и закончи понятным предложением для зрителя. Голос и звуки должны быть громче музыки.",prize_cents:150000,prize_points:250,custom_prize:"Набор кофе и встреча с командой",ends_at:new Date(Date.now()+3*86400000).toISOString(),status:"open",source_assets:[]},
+  {id:"demo-fitness",brand:"ПРИМЕР · VOLT FITNESS",title:"Реклама нового зала",brief:"Собери ролик длиной 30 секунд. Начни с яркого кадра, покажи три главных преимущества и добавь подходящие звуки. Используй переходы только там, где они помогают истории.",prize_cents:0,prize_points:400,custom_prize:null,ends_at:new Date(Date.now()+5*86400000).toISOString(),status:"open",source_assets:[]},
+  {id:"demo-motion",brand:"ПРИМЕР · MOTION LAB",title:"Короткий ролик с экспертом",brief:"Сделай вертикальный ролик длиной до 35 секунд: чистая речь, крупные субтитры и дополнительные кадры по смыслу.",prize_cents:0,prize_points:0,custom_prize:"Годовая лицензия на набор шаблонов",ends_at:new Date(Date.now()+2*86400000).toISOString(),status:"open",source_assets:[]},
 ];
 
 export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerified,mode}:{role:Role;viewerName:string;ageGroup?:string;guardianVerified?:boolean;mode:"arena"|"business"}){
@@ -46,7 +48,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
   const [brandContext,setBrandContext]=useState<Record<string,string>>({});
   const [businessId,setBusinessId]=useState<string|null>(null);
   const [businessVerified,setBusinessVerified]=useState(false);
-  const [form,setForm]=useState({brand:"",title:"",brief:"",sourceUrl:"",prize:"10000",deadline:""});
+  const [form,setForm]=useState({brand:"",title:"",brief:"",sourceUrl:"",prize:"",prizePoints:"",customPrize:"",deadline:""});
 
   const selected=useMemo(()=>challenges.find(c=>c.id===selectedId)||challenges[0],[challenges,selectedId]);
 
@@ -78,7 +80,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
     }
 
     const {data,error}=await supabase.from("challenges")
-      .select("id,business_id,title,brief,prize_cents,ends_at,status,source_assets")
+      .select("id,business_id,title,brief,prize_cents,prize_points,custom_prize,ends_at,status,source_assets")
       .eq("status","open").order("created_at",{ascending:false});
 
     if(!error&&data?.length){
@@ -90,12 +92,14 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
       const mapped:Challenge[]=data.map((row:any)=>({
         id:row.id,
         business_id:row.business_id,
-        brand:businessMap[row.business_id]?.name||"EDITA BUSINESS",
+        brand:businessMap[row.business_id]?.name||"KIVRONIX BUSINESS",
         brand_verified:Boolean(businessMap[row.business_id]?.verified),
         verification_level:businessMap[row.business_id]?.verification_level||"basic",
         title:row.title,
         brief:row.brief,
         prize_cents:Number(row.prize_cents||0),
+        prize_points:Number(row.prize_points||0),
+        custom_prize:row.custom_prize||null,
         ends_at:row.ends_at,
         status:row.status,
         source_assets:Array.isArray(row.source_assets)?row.source_assets.filter((v:any)=>typeof v==="string"):[],
@@ -192,7 +196,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
     }
 
     try{
-      setMessage("Работа отправлена. Помощник EDITA делает первый разбор…");
+      setMessage("Работа отправлена. Помощник KIVRONIX делает первый разбор…");
       const review=await runAutoReview(currentFile,selected.brief,selected.id);
       const {error:reviewError}=await supabase.from("challenge_submissions")
         .update({ai_score:review.overall_score,ai_feedback:review}).eq("id",submission.id);
@@ -257,12 +261,19 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
       setMessage("Сначала пройдите проверку компании выше. Публикация откроется после подтверждения.");
       return;
     }
+    const cashRub=Math.max(0,Math.floor(Number(form.prize||0)));
+    const points=Math.max(0,Math.floor(Number(form.prizePoints||0)));
+    const customPrize=form.customPrize.trim();
+    if(!cashRub&&!points&&!customPrize){
+      setMessage("Добавьте хотя бы одну награду: деньги, KIVRONIX Points или свой приз.");
+      return;
+    }
     setLoading(true);setMessage("");
     const sourceAssets=form.sourceUrl.trim()?[form.sourceUrl.trim()]:[];
     const supabase=getSupabaseBrowserClient();
 
     if(!supabase||!businessId){
-      const demo:Challenge={id:"local-"+Date.now(),business_id:"demo",brand:form.brand||viewerName,title:form.title,brief:form.brief,prize_cents:Number(form.prize||0)*100,ends_at:form.deadline?new Date(form.deadline).toISOString():null,status:"open",source_assets:sourceAssets};
+      const demo:Challenge={id:"local-"+Date.now(),business_id:"demo",brand:form.brand||viewerName,title:form.title,brief:form.brief,prize_cents:cashRub*100,prize_points:points,custom_prize:customPrize||null,ends_at:form.deadline?new Date(form.deadline).toISOString():null,status:"open",source_assets:sourceAssets};
       setChallenges(c=>[demo,...c]);setSelectedId(demo.id);setMessage("Пример задания создан только в браузере.");
       setLoading(false);return;
     }
@@ -271,15 +282,17 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
 
     const {data,error}=await supabase.from("challenges").insert({
       business_id:businessId,title:form.title,brief:form.brief,status:"open",
-      prize_cents:Number(form.prize||0)*100,
+      prize_cents:cashRub*100,
+      prize_points:points,
+      custom_prize:customPrize||null,
       ends_at:form.deadline?new Date(form.deadline).toISOString():null,
       source_assets:sourceAssets
-    }).select("id,business_id,title,brief,prize_cents,ends_at,status,source_assets").single();
+    }).select("id,business_id,title,brief,prize_cents,prize_points,custom_prize,ends_at,status,source_assets").single();
 
     if(error){setMessage(error.message);setLoading(false);return;}
     const item:Challenge={...(data as any),brand:form.brand||viewerName,source_assets:(data as any).source_assets||[]};
     setChallenges(c=>[item,...c]);setSelectedId(item.id);setMessage("Конкурс опубликован.");
-    setForm({brand:form.brand,title:"",brief:"",sourceUrl:"",prize:"10000",deadline:""});setLoading(false);
+    setForm({brand:form.brand,title:"",brief:"",sourceUrl:"",prize:"",prizePoints:"",customPrize:"",deadline:""});setLoading(false);
   }
 
   async function setSubmissionStatus(id:string,status:"shortlisted"|"winner"){
@@ -307,7 +320,7 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
             body:JSON.stringify({action:"open_challenge_winner",submissionId:id})
           });
           const chatResult=await response.json().catch(()=>({}));
-          if(response.ok&&chatResult?.conversationId)try{sessionStorage.setItem("edita_open_conversation",chatResult.conversationId)}catch{}
+          if(response.ok&&chatResult?.conversationId)try{sessionStorage.setItem("kivronix_open_conversation",chatResult.conversationId)}catch{}
           setMessage(response.ok
             ?"Победитель выбран. Работа добавлена в его профиль, закрытый чат открыт."
             :"Победитель выбран. Ошибка открытия чата: "+(chatResult?.error||"попробуйте ещё раз"));
@@ -328,7 +341,14 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
           <input required placeholder="Название конкурса" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
           <textarea required placeholder="Опишите длительность, формат, обязательные детали и ограничения" value={form.brief} onChange={e=>setForm({...form,brief:e.target.value})}/><button type="button" className="btn btn-ghost" onClick={improveBrief} disabled={loadingBrief}>{loadingBrief?"Помощник улучшает…":"✨ Сделать задание понятнее"}</button>
           <input type="url" placeholder="Ссылка на исходные файлы и примеры" value={form.sourceUrl} onChange={e=>setForm({...form,sourceUrl:e.target.value})}/>
-          <div className="split-fields"><input required min="0" type="number" placeholder="Приз, ₽" value={form.prize} onChange={e=>setForm({...form,prize:e.target.value})}/><input type="datetime-local" value={form.deadline} onChange={e=>setForm({...form,deadline:e.target.value})}/></div>
+          <div className="challenge-reward-builder">
+            <b>Награда победителю</b>
+            <p className="muted">Можно выбрать один вариант или совместить несколько.</p>
+            <div className="split-fields"><input min="0" max="100000000" type="number" placeholder="Денежный приз, ₽" value={form.prize} onChange={e=>setForm({...form,prize:e.target.value})}/><input min="0" max="5000" type="number" placeholder="KIVRONIX Points · до 5 000" value={form.prizePoints} onChange={e=>setForm({...form,prizePoints:e.target.value})}/></div>
+            <input maxLength={500} placeholder="Свой приз: техника, лицензия, встреча…" value={form.customPrize} onChange={e=>setForm({...form,customPrize:e.target.value})}/>
+          </div>
+          <label className="field-label">Срок приёма работ<input type="datetime-local" value={form.deadline} onChange={e=>setForm({...form,deadline:e.target.value})}/></label>
+          <p className="field-hint">Денежный и собственный приз предоставляет компания. KIVRONIX Points начисляются победителю автоматически. Условия должны быть конкретными и выполнимыми.</p>
           <button className="btn btn-lime" disabled={loading||!businessVerified}>{loading?"Публикуем...":businessVerified?"Опубликовать конкурс":"Сначала пройти проверку"}</button>
         </form>
         {message&&<div className="auth-msg">{message}</div>}
@@ -356,14 +376,19 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
     <section className="challenge-list">
       {challenges.map(c=><button key={c.id} className={"challenge-row "+(selected?.id===c.id?"active":"")} onClick={()=>{setSelectedId(c.id);setMessage("")}}>
         <div><span className="eyebrow">{c.brand}</span>{c.brand_verified&&<span className="tag verification-mini">{badgeName(c.verification_level)}</span>}<h3>{c.title}</h3></div>
-        <div><b>{money(c.prize_cents)}</b><span className="muted">{deadline(c.ends_at)}</span></div>
+        <div><b>{rewardSummary(c)}</b><span className="muted">{deadline(c.ends_at)}</span></div>
       </button>)}
     </section>
 
     {selected&&<section className="card challenge-detail">
       <div className="eyebrow">ЗАДАНИЕ ОТ КОМПАНИИ</div>
       <h2>{selected.title}</h2>
-      <div className="challenge-meta"><span>{selected.brand}</span>{selected.brand_verified&&<span className="tag verification-mini">{badgeName(selected.verification_level)}</span>}<b>{money(selected.prize_cents)}</b><span>{deadline(selected.ends_at)}</span></div>
+      <div className="challenge-meta"><span>{selected.brand}</span>{selected.brand_verified&&<span className="tag verification-mini">{badgeName(selected.verification_level)}</span>}<b>{rewardSummary(selected)}</b><span>{deadline(selected.ends_at)}</span></div>
+      <div className="challenge-rewards">
+        {selected.prize_cents>0?<span><b>{money(selected.prize_cents)}</b> денежный приз</span>:null}
+        {selected.prize_points>0?<span><b>{selected.prize_points.toLocaleString("ru-RU")}</b> KIVRONIX Points</span>:null}
+        {selected.custom_prize?<span><b>Приз компании</b> {selected.custom_prize}</span>:null}
+      </div>
       <p>{selected.brief}</p>
       {selected.source_assets.length>0&&<div className="source-assets"><b>Исходники:</b>{selected.source_assets.map((url,i)=><a key={i} href={url} target="_blank" rel="noreferrer">Открыть материалы ↗</a>)}</div>}
       {role==="editor"&&ageGroup&&ageGroup!=="18+"&&!guardianVerified&&<div className="minor-safety-note"><b>Безопасный режим</b><span>Подтверждение взрослого откроет отправку коммерческой работы.</span></div>}<div className="brief-checklist"><b>Перед отправкой проверь:</b><span>✓ формат 9:16</span><span>✓ понятное начало</span><span>✓ голос слышно поверх музыки</span><span>✓ работа соответствует заданию</span></div>
@@ -377,15 +402,22 @@ export default function ChallengeCenter({role,viewerName,ageGroup,guardianVerifi
 }
 
 function money(cents:number){return new Intl.NumberFormat("ru-RU").format(Math.round(cents/100))+" ₽"}
+function rewardSummary(challenge:Challenge){
+  const rewards=[];
+  if(challenge.prize_cents>0)rewards.push(money(challenge.prize_cents));
+  if(challenge.prize_points>0)rewards.push(challenge.prize_points.toLocaleString("ru-RU")+" KP");
+  if(challenge.custom_prize)rewards.push("приз компании");
+  return rewards.join(" + ")||"Награда";
+}
 function deadline(value:string|null){if(!value)return"Срок открыт";const ms=new Date(value).getTime()-Date.now();const days=Math.max(0,Math.ceil(ms/86400000));return days===0?"Сегодня":days+" дн."}
 
 function rememberChat(kind:string,id:string){
-  try{sessionStorage.setItem("edita_open_chat_source",kind+":"+id)}catch{}
+  try{sessionStorage.setItem("kivronix_open_chat_source",kind+":"+id)}catch{}
 }
 
 
 function badgeName(level?:string){
   if(level==="popular_brand")return "★ Известный бренд";
-  if(level==="partner")return "★ Партнёр EDITA";
+  if(level==="partner")return "★ Партнёр KIVRONIX";
   return "✓ Проверенная компания";
 }

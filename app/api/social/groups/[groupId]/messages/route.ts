@@ -38,7 +38,7 @@ async function messages(service:any,groupId:string){
     senderKind:row.sender_kind,
     content:row.content,
     createdAt:row.created_at,
-    author:row.sender_kind==="ai"?"Помощник EDITA":profileMap[row.author_id]?.display_name||"Участник",
+    author:row.sender_kind==="ai"?"Помощник KIVRONIX":profileMap[row.author_id]?.display_name||"Участник",
     username:profileMap[row.author_id]?.username||null
   }));
 }
@@ -97,7 +97,7 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{groupId:str
   });
   if(insertError)return NextResponse.json({error:"Ошибка отправки сообщения."},{status:503});
 
-  const asksAi=/^\s*\/ai\b/i.test(content)||/@edita\b/i.test(content)||content.includes("?");
+  const asksAi=/^\s*\/ai\b/i.test(content)||/@kivronix\b/i.test(content)||content.includes("?");
   if(asksAi){
     const {data:recent}=await granted.service.from("group_messages")
       .select("sender_kind,content")
@@ -105,8 +105,8 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{groupId:str
       .eq("status","published")
       .order("created_at",{ascending:false})
       .limit(8);
-    const context=(recent||[]).reverse().map((item:any)=>(item.sender_kind==="ai"?"Помощник EDITA: ":"Участник: ")+item.content);
-    const cleanQuestion=content.replace(/^\s*\/ai\s*/i,"").replace(/@edita\b/ig,"").trim();
+    const context=(recent||[]).reverse().map((item:any)=>(item.sender_kind==="ai"?"Помощник KIVRONIX: ":"Участник: ")+item.content);
+    const cleanQuestion=content.replace(/^\s*\/ai\s*/i,"").replace(/@kivronix\b/ig,"").trim();
     const reply=await createGroupAiReply(cleanQuestion||content,context);
     await granted.service.from("group_messages").insert({
       group_id:groupId,

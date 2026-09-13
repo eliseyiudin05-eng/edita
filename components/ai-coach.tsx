@@ -30,8 +30,8 @@ type AiCoachProps={
 
 const defaultWelcome="Привет! Спроси обычными словами. Я объясню коротко, покажу шаги и скажу, как проверить результат.";
 
-export default function AiCoach({scopeKey,title="Помощник EDITA",welcome=defaultWelcome,prompts=[],context={},compact=false}:AiCoachProps){
-  const localKey=useMemo(()=>"edita_ai_chat_v1:"+scopeKey,[scopeKey]);
+export default function AiCoach({scopeKey,title="Помощник KIVRONIX",welcome=defaultWelcome,prompts=[],context={},compact=false}:AiCoachProps){
+  const localKey=useMemo(()=>"kivronix_ai_chat_v1:"+scopeKey,[scopeKey]);
   const [messages,setMessages]=useState<AiChatMessage[]>([{from:"ai",text:welcome}]);
   const [input,setInput]=useState("");
   const [loading,setLoading]=useState(false);
@@ -39,6 +39,8 @@ export default function AiCoach({scopeKey,title="Помощник EDITA",welcome
   const [storageMode,setStorageMode]=useState<"account"|"browser">("browser");
   const [notice,setNotice]=useState("");
   const [file,setFile]=useState<File|null>(null);
+  const [feedback,setFeedback]=useState<Record<string,"helpful"|"needs_work">>({});
+  const [feedbackDraft,setFeedbackDraft]=useState<{id:string;comment:string}|null>(null);
   const feedRef=useRef<HTMLDivElement>(null);
   const textareaRef=useRef<HTMLTextAreaElement>(null);
   const fileRef=useRef<HTMLInputElement>(null);
@@ -113,7 +115,7 @@ export default function AiCoach({scopeKey,title="Помощник EDITA",welcome
       });
       const data=await response.json();
       const reply=data.reply||"Ответ пока пуст. Попробуй ещё раз чуть позже.";
-      setMessages(current=>[...current,{from:"ai",text:reply}]);
+      setMessages(current=>[...current,{id:data.messageId||undefined,from:"ai",text:reply}]);
       if(data.saved)setStorageMode("account");
       setFile(null);
       if(fileRef.current)fileRef.current.value="";
@@ -140,6 +142,24 @@ export default function AiCoach({scopeKey,title="Помощник EDITA",welcome
     }catch{setNotice("Ошибка очистки истории.")}
   }
 
+  async function submitFeedback(messageId:string,helpful:boolean,comment=""){
+    try{
+      const supabase=getSupabaseBrowserClient();
+      const {data:{session}}=await supabase.auth.getSession();
+      if(!session?.access_token){setNotice("Оценка ответа сохраняется после входа в аккаунт.");return;}
+      const response=await fetch("/api/ai/feedback",{
+        method:"POST",
+        headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},
+        body:JSON.stringify({messageId,helpful,comment})
+      });
+      const data=await response.json();
+      if(!response.ok)throw new Error(data?.error||"Оценка пока не сохранилась.");
+      setFeedback(current=>({...current,[messageId]:helpful?"helpful":"needs_work"}));
+      setFeedbackDraft(null);
+      setNotice(helpful?"Спасибо — оценка сохранена.":data.queued?"Спасибо. Предложение отправлено администратору на проверку.":"Спасибо — оценка сохранена.");
+    }catch(error){setNotice(error instanceof Error?error.message:"Оценка пока не сохранилась.")}
+  }
+
   return <section className={"ai-coach "+(compact?"compact":"")} aria-label={title}>
     <div className="ai-coach-head">
       <div><span className="ai-orb" aria-hidden="true">✦</span><div><b>{title}</b><small>{storageMode==="account"?"Диалог сохраняется в аккаунте":"Диалог сохраняется в этом браузере"}</small></div></div>
@@ -147,8 +167,12 @@ export default function AiCoach({scopeKey,title="Помощник EDITA",welcome
     </div>
     <div className="ai-feed" aria-live="polite" ref={feedRef}>
       {historyLoading?<div className="ai-thinking">Загружаю диалог…</div>:messages.map((message,index)=><article className={"ai-message "+message.from} key={message.id||index}>
-        <span>{message.from==="ai"?"Помощник EDITA":"Ты"}</span>
+        <span>{message.from==="ai"?"Помощник KIVRONIX":"Ты"}</span>
         <AiMessageText text={message.text}/>
+        {message.from==="ai"&&message.id?<div className="ai-feedback">
+          {feedback[message.id]?<small>{feedback[message.id]==="helpful"?"Отмечено как полезное":"Отправлено на улучшение"}</small>:<><span>Этот ответ помог?</span><button type="button" onClick={()=>void submitFeedback(message.id!,true)}>Да</button><button type="button" onClick={()=>setFeedbackDraft({id:message.id!,comment:""})}>Нужно улучшить</button></>}
+          {feedbackDraft?.id===message.id?<div className="ai-feedback-draft"><textarea value={feedbackDraft.comment} maxLength={1000} placeholder="Что было непонятно или неверно? От 20 символов — и отзыв попадёт в очередь улучшений." onChange={event=>setFeedbackDraft({id:message.id!,comment:event.target.value})}/><div><button type="button" className="btn btn-dark" disabled={feedbackDraft.comment.trim().length<20} onClick={()=>void submitFeedback(message.id!,false,feedbackDraft.comment)}>Отправить на проверку</button><button type="button" className="btn btn-ghost" onClick={()=>setFeedbackDraft(null)}>Отмена</button></div></div>:null}
+        </div>:null}
       </article>)}
       {loading?<div className="ai-thinking">Разбираю вопрос и готовлю шаги…</div>:null}
     </div>

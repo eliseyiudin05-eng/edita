@@ -14,7 +14,7 @@ export async function GET(req:NextRequest){
 
   try{
     const scope=normalizeAiScope(req.nextUrl.searchParams.get("scope"));
-    const title=String(req.nextUrl.searchParams.get("title")||"Помощник EDITA").slice(0,120);
+    const title=String(req.nextUrl.searchParams.get("title")||"Помощник KIVRONIX").slice(0,120);
     const lessonSlug=scope.startsWith("lesson:")?scope.slice(7):null;
     const conversation=await getOrCreateConversation(service,user.id,scope,title,lessonSlug);
     const messages=await readConversationMessages(service,user.id,conversation.id);

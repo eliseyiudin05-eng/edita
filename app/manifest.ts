@@ -2,9 +2,9 @@ import type {MetadataRoute} from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name:"EDITA — монтаж с нуля",
-    short_name:"EDITA",
-    description:"Бесплатные уроки видеомонтажа, задания, помощник, разбор роликов и путь к первой работе.",
+    name:"KIVRONIX — монтаж с нуля",
+    short_name:"KIVRONIX",
+    description:"Уроки видеомонтажа, задания, помощник, разбор роликов и путь к первой работе. Ранний доступ открыт бесплатно.",
     start_url:"/",
     display:"standalone",
     background_color:"#f5f5f2",

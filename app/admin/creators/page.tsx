@@ -49,10 +49,10 @@ export default function CreatorsAdmin(){
   }
 
   return <main className="legal-page"><div className="legal-shell">
-    <Link href="/platform" className="brand">EDITA<span>.</span></Link>
-    <div className="eyebrow">АДМИН · МОНТАЖЁРЫ EDITA</div>
+    <Link href="/platform" className="brand">KIVRONIX<span>.</span></Link>
+    <div className="eyebrow">АДМИН · МОНТАЖЁРЫ KIVRONIX</div>
     <h1>Команда монтажёров</h1>
-    <p>Здесь заявки в постоянную команду и отклики на официальные задания EDITA.</p>
+    <p>Здесь заявки в постоянную команду и отклики на официальные задания KIVRONIX.</p>
     {message&&<div className="auth-msg">{message}</div>}
 
     <h2>Заявки в постоянную команду</h2>
@@ -73,7 +73,7 @@ export default function CreatorsAdmin(){
     <div className="business-stack">
       {interest.length===0&&<div className="auth-msg">Откликов пока нет.</div>}
       {interest.map(i=><section className="legal-card" key={i.id}>
-        <div className="verification-head"><div><div className="eyebrow">ОТКЛИК НА ЗАДАНИЕ</div><h2>{i.creator_briefs?.title||"Задание EDITA"}</h2></div><span className="verification-badge">{i.status}</span></div>
+        <div className="verification-head"><div><div className="eyebrow">ОТКЛИК НА ЗАДАНИЕ</div><h2>{i.creator_briefs?.title||"Задание KIVRONIX"}</h2></div><span className="verification-badge">{i.status}</span></div>
         <p><b>Электронная почта:</b> {i.email}</p>
         {i.social_url&&<p><a href={i.social_url} target="_blank" rel="noreferrer"><u>Профиль ↗</u></a></p>}
         {i.message&&<p>{i.message}</p>}

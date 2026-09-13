@@ -93,7 +93,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
       body:JSON.stringify({action:"accept_job_application",jobId,editorId})
     });
     const data=await response.json().catch(()=>({}));
-    if(response.ok&&data?.conversationId)try{sessionStorage.setItem("edita_open_conversation",data.conversationId)}catch{}
+    if(response.ok&&data?.conversationId)try{sessionStorage.setItem("kivronix_open_conversation",data.conversationId)}catch{}
     setMessage(response.ok?"Монтажёр выбран. Закрытый чат уже открыт.":data?.error||"Ошибка выбора монтажёра.");
     if(response.ok)await load();
     setBusyKey("");
@@ -146,7 +146,7 @@ function budget(job:Job){
 
 function badgeName(level?:string){
   if(level==="popular_brand")return "★ Известный бренд";
-  if(level==="partner")return "★ Партнёр EDITA";
+  if(level==="partner")return "★ Партнёр KIVRONIX";
   return "✓ Проверенная компания";
 }
 
@@ -158,5 +158,5 @@ function applicationStatus(status:string){
 }
 
 function rememberChat(kind:string,id:string){
-  try{sessionStorage.setItem("edita_open_chat_source",kind+":"+id)}catch{}
+  try{sessionStorage.setItem("kivronix_open_chat_source",kind+":"+id)}catch{}
 }
