@@ -43,7 +43,10 @@ export default async function Home(){
 
   return <main className="landing">
     <nav className="topbar shell sticky-public-nav">
-      <Link className="brand" href="/">KIVRONIX<span>.</span></Link>
+      <Link className="brand brand-explained" href="/" aria-label="KIVRONIX — обучение видеомонтажу и поиск монтажёров, перейти на главную">
+        <span className="brand-name">KIVRONIX<b>.</b></span>
+        <small>монтаж · обучение · работа</small>
+      </Link>
       <div className="nav-actions">
         <a href="#free">Ранний доступ</a>
         <Link href="/pricing">Будущие тарифы</Link>
@@ -58,12 +61,12 @@ export default async function Home(){
     <section className="hero shell hero-new">
       <div className="hero-grid">
         <div>
-          <div className="eyebrow">МОНТАЖ С НУЛЯ · ПРОСТЫЕ ШАГИ · РАБОТА</div>
-          <h1 className="structured-title">Научись монтировать.<span>Сделай первый ролик.</span><span>Покажи, что умеешь.</span></h1>
-          <p className="hero-copy">KIVRONIX ведёт от первой кнопки в CapCut до готового ролика, своих работ и спокойного общения с заказчиком. Ранний доступ открыт бесплатно.</p>
+          <div className="eyebrow">ВИДЕОМОНТАЖ ПОНЯТНЫМ ЯЗЫКОМ</div>
+          <h1 className="structured-title">Учись монтировать.<span>Или найди монтажёра.</span></h1>
+          <p className="hero-copy"><strong>KIVRONIX — платформа, где каждый может научиться видеомонтажу или найти монтажёра для своей компании.</strong> Новичок проходит простые уроки и собирает первые работы. Компания смотрит готовые ролики, публикует задание и выбирает исполнителя.</p>
           <div className="hero-actions">
-            <Link className="btn btn-primary" href="/signup/editor">Начать бесплатно</Link>
-            <Link className="btn btn-ghost" href="/platform">Посмотреть платформу</Link>
+            <Link className="btn btn-primary" href="/signup/editor">Хочу научиться монтажу</Link>
+            <Link className="btn btn-ghost" href="/signup/business">Найти монтажёра</Link>
           </div>
           <div className="simple-proof">
             <span>{curriculumStats.lessons} уроков и {curriculumStats.assignments} заданий</span>
@@ -73,13 +76,13 @@ export default async function Home(){
         </div>
         <figure className="hero-photo">
           <Image priority src="/images/kivronix-hero-community.webp" width={1586} height={992} sizes="(max-width: 900px) 100vw, 48vw" alt="Подростки и взрослый автор вместе учатся видеомонтажу в современной студии"/>
-          <figcaption>Для первого ролика, новой профессии и компании, которой нужен монтажёр.</figcaption>
+          <figcaption>Учись на простых заданиях, показывай работы и находи реальные проекты.</figcaption>
         </figure>
       </div>
     </section>
 
     <section className="founder-line">
-      <div className="shell founder-line-inner"><div><span>С чего началась идея KIVRONIX</span><strong>С денег, сэкономленных в школьном буфете, — к первому заработку на монтаже.</strong></div><p>Для старта хватит телефона, бесплатной программы и одного понятного задания.</p></div>
+      <div className="shell founder-line-inner"><div><span>Что можно сделать в KIVRONIX</span><strong>Освоить монтаж с нуля, собрать свои работы и перейти к настоящим заданиям.</strong></div><p>Для старта хватит телефона, бесплатной программы и одного понятного урока.</p></div>
     </section>
 
     <section id="free" className="section shell beta-home-section">
@@ -93,7 +96,7 @@ export default async function Home(){
 
     <section id="challenge" className="challenge-home-band">
       <div className="shell challenge-home-grid">
-        <div><div className="section-kicker light">КОНКУРС KIVRONIX · СЕЗОН 1</div><h2>Сними ролик про KIVRONIX и поборись за 10 000 ₽</h2><p>Опубликуй ролик в открытой социальной сети, отметь KIVRONIX и отправь ссылку до 12 ноября 2026 года. Три места определяются по подтверждённым просмотрам. Победители получают закрытый чат с командой KIVRONIX.</p><div className="challenge-home-actions"><Link className="btn btn-lime" href="/platform#kivronix-challenges">Участвовать</Link><Link className="btn btn-light" href="/challenge-rules">Прочитать правила</Link></div></div>
+        <div><div className="section-kicker light">КОНКУРС KIVRONIX · СЕЗОН 1</div><h2>Сделай ролик и выиграй часть из 10 000 ₽</h2><p>Опубликуй ролик, отметь KIVRONIX и отправь ссылку до 12 ноября 2026 года. Мы проверим просмотры и определим три места. Денежный приз появится в разделе «Мои итоги», откуда победитель сможет запросить вывод.</p><div className="challenge-home-actions"><Link className="btn btn-lime" href="/platform#kivronix-challenges">Участвовать</Link><Link className="btn btn-light" href="/challenge-rules">Прочитать правила</Link></div></div>
         <div className="challenge-prize-card"><div><span>1 место</span><strong>5 000 ₽</strong></div><div><span>2 место</span><strong>3 000 ₽</strong></div><div><span>3 место</span><strong>2 000 ₽</strong></div><p>До 100 участников · новый сезон каждые 2 месяца · с 14 лет</p></div>
       </div>
     </section>
