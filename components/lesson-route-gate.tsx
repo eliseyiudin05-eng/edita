@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import {usePathname,useRouter} from "next/navigation";
 import {useEffect,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 
 export default function LessonRouteGate({requiredSlugs,previousSlug,children}:{requiredSlugs:string[];previousSlug?:string|null;children:React.ReactNode}){
+  const router=useRouter();
+  const pathname=usePathname();
   const [checking,setChecking]=useState(true);
-  const [unlocked,setUnlocked]=useState(requiredSlugs.length===0);
+  const [unlocked,setUnlocked]=useState(false);
 
   useEffect(()=>{
     let active=true;
@@ -19,6 +22,10 @@ export default function LessonRouteGate({requiredSlugs,previousSlug,children}:{r
 
       const supabase=getSupabaseBrowserClient();
       const {data:{user}}=await supabase.auth.getUser();
+      if(!user){
+        router.replace("/login?from="+encodeURIComponent(pathname));
+        return;
+      }
       if(user){
         const {data}=await supabase.from("lesson_progress")
           .select("status,lessons!inner(slug)")
@@ -33,9 +40,9 @@ export default function LessonRouteGate({requiredSlugs,previousSlug,children}:{r
     }
     void check();
     return()=>{active=false};
-  },[requiredSlugs]);
+  },[pathname,requiredSlugs,router]);
 
-  if(checking)return <div className="lesson-gate-card"><b>Проверяем прогресс…</b></div>;
+  if(checking)return <div className="lesson-gate-card"><b>Проверяем вход и прогресс…</b></div>;
   if(!unlocked)return <div className="lesson-gate-card locked"><div className="eyebrow">УРОК ПОКА ЗАКРЫТ</div><h2>Сначала заверши предыдущий урок</h2><p>Уроки открываются по порядку: основа всегда идёт раньше сложных инструментов.</p><div>{previousSlug?<Link className="btn btn-dark" href={"/academy/"+previousSlug}>Вернуться к предыдущему уроку</Link>:null}<Link className="btn btn-ghost" href="/platform#academy">Открыть маршрут</Link></div></div>;
   return <>{children}</>;
 }
