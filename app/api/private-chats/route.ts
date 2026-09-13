@@ -53,7 +53,7 @@ export async function GET(req:NextRequest){
 
   const editorIds=[...new Set((conversations||[]).map((item:any)=>item.editor_id))];
   const conversationIds=(conversations||[]).map((item:any)=>item.id);
-  const {data:orders}=conversationIds.length?await auth.service.from("work_orders").select("id,conversation_id,gross_points,editor_points,platform_fee_points,status").in("conversation_id",conversationIds):{data:[] as any[]};
+  const {data:orders}=conversationIds.length?await auth.service.from("work_orders").select("id,conversation_id,gross_points,editor_points,platform_fee_points,status,work_order_deliverables(preview_name,original_name,submitted_at)").in("conversation_id",conversationIds):{data:[] as any[]};
   const orderMap=Object.fromEntries((orders||[]).map((item:any)=>[item.conversation_id,item]));
   const {data:editors}=editorIds.length
     ?await auth.service.from("public_profiles").select("id,display_name,username,avatar_url").in("id",editorIds)
@@ -184,6 +184,62 @@ export async function POST(req:NextRequest){
     const {error}=await auth.service.rpc("complete_work_order",{p_customer:auth.user.id,p_order:orderId});
     if(error)return NextResponse.json({error:"Не удалось завершить работу. Проверьте, что вы заказчик и работа ещё активна."},{status:409});
     return NextResponse.json({ok:true});
+  }
+
+  if(action==="refund_work"){
+    const orderId=String(body?.workOrderId||"");
+    const {error}=await auth.service.rpc("refund_work_order",{p_customer:auth.user.id,p_order:orderId});
+    if(error)return NextResponse.json({error:"Возврат недоступен: возможно, заказ уже завершён или отменён."},{status:409});
+    return NextResponse.json({ok:true});
+  }
+
+  if(action==="submit_work"){
+    const orderId=String(body?.workOrderId||"");
+    const previewPath=String(body?.previewPath||"");
+    const originalPath=String(body?.originalPath||"");
+    const previewName=String(body?.previewName||"").trim().slice(0,160);
+    const originalName=String(body?.originalName||"").trim().slice(0,160);
+    const {data:order}=await auth.service.from("work_orders")
+      .select("id,conversation_id,editor_id,status")
+      .eq("id",orderId)
+      .maybeSingle();
+    if(!order||order.editor_id!==auth.user.id)return NextResponse.json({error:"Передать результат может только выбранный монтажёр."},{status:403});
+    if(!["funded","submitted"].includes(order.status))return NextResponse.json({error:"Этот заказ уже завершён или отменён."},{status:409});
+    const prefix=`${order.conversation_id}/delivery/${order.id}`;
+    if(!previewName||!originalName
+      ||!previewPath.startsWith(`${prefix}/preview/${auth.user.id}/`)
+      ||!originalPath.startsWith(`${prefix}/original/${auth.user.id}/`)){
+      return NextResponse.json({error:"Некорректные файлы результата."},{status:400});
+    }
+    const {error}=await auth.service.rpc("submit_work_order",{
+      p_editor:auth.user.id,
+      p_order:order.id,
+      p_preview_path:previewPath,
+      p_original_path:originalPath,
+      p_preview_name:previewName,
+      p_original_name:originalName
+    });
+    if(error)return NextResponse.json({error:"Не удалось передать работу. Проверьте, что оба файла загрузились."},{status:409});
+    await auth.service.from("private_conversations").update({last_message_at:new Date().toISOString()}).eq("id",order.conversation_id);
+    return NextResponse.json({ok:true});
+  }
+
+  if(action==="open_delivery"){
+    const orderId=String(body?.workOrderId||"");
+    const kind=body?.kind==="original"?"original":"preview";
+    const {data:order}=await auth.service.from("work_orders")
+      .select("id,customer_id,editor_id,status,work_order_deliverables(preview_path,original_path)")
+      .eq("id",orderId)
+      .maybeSingle();
+    if(!order||![order.customer_id,order.editor_id].includes(auth.user.id))return NextResponse.json({error:"Доступ к файлу закрыт."},{status:403});
+    const delivery=Array.isArray(order.work_order_deliverables)?order.work_order_deliverables[0]:order.work_order_deliverables;
+    if(!delivery)return NextResponse.json({error:"Монтажёр ещё не передал результат."},{status:404});
+    if(kind==="preview"&&!['submitted','completed'].includes(order.status))return NextResponse.json({error:"Превью ещё недоступно."},{status:409});
+    if(kind==="original"&&auth.user.id!==order.editor_id&&order.status!=="completed")return NextResponse.json({error:"Оригинал откроется после принятия и оплаты работы."},{status:403});
+    const path=kind==="original"?delivery.original_path:delivery.preview_path;
+    const {data,error}=await auth.service.storage.from("work-files").createSignedUrl(path,60);
+    if(error||!data?.signedUrl)return NextResponse.json({error:"Не удалось открыть файл."},{status:500});
+    return NextResponse.json({url:data.signedUrl,expiresIn:60});
   }
 
   return NextResponse.json({error:"Выберите действие."},{status:400});

@@ -14,6 +14,7 @@ Production domains: `kivronix.ru` (primary) and `kivronix.com` (redirect to prim
 - AI Coach: серверный `/api/ai` через OpenAI Responses API; без ключа автоматически работает demo fallback.
 - Первая PostgreSQL/Supabase схема для профилей, обучения, конкурсов, заявок, портфолио и бизнеса.
 - Mobile layout.
+- Безопасная сделка для Jobs: резерв Points, защищённое превью, закрытый оригинал, подтверждение оплаты и возврат до принятия работы.
 
 ## Запуск
 
@@ -54,7 +55,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 ## Следующие milestone
 
 1. Supabase Auth + onboarding по роли.
-2. Загрузка видео/исходников в Storage.
+2. Проверка защищённой выдачи видео/исходников в production Storage.
 3. Реальный lifecycle Challenge: brief → submit → shortlist → winner.
 4. AI video review: извлечение кадров/аудио + структурированный scorecard.
 5. Публичные portfolio URLs `/u/[username]`.

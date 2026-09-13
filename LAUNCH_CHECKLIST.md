@@ -12,9 +12,12 @@ Last reviewed: 2026-09-11
 - [x] AI auto-score for Arena submissions
 - [x] Editor / Business roles in UI
 - [x] Supabase schema and RLS draft
+- [x] Protected work-delivery flow implemented in code: preview, locked original, atomic completion/refund
 - [ ] Production database selected and provisioned
 - [ ] Production authentication tested end-to-end
 - [ ] Production object/video storage tested end-to-end
+- [ ] Apply and verify `protected_work_delivery` migration in the production Supabase project
+- [ ] Confirm watermarked preview requirements and file-size limits with pilot editors
 - [ ] Custom SMTP configured and verified
 - [ ] Production payment provider integrated
 - [ ] Custom domain connected

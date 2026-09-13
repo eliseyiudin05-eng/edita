@@ -18,7 +18,14 @@ type Conversation={
   title:string;
   status:"active"|"closed";
   last_message_at:string;
-  workOrder?:{id:string;gross_points:number;editor_points:number;platform_fee_points:number;status:string}|null;
+  workOrder?:{
+    id:string;
+    gross_points:number;
+    editor_points:number;
+    platform_fee_points:number;
+    status:"funded"|"submitted"|"completed"|"disputed"|"cancelled";
+    work_order_deliverables?:{preview_name:string;original_name:string;submitted_at:string}|Array<{preview_name:string;original_name:string;submitted_at:string}>|null;
+  }|null;
 };
 
 type Message={id:string;conversation_id:string;sender_id:string;body:string;created_at:string};
@@ -33,6 +40,9 @@ export default function PrivateChats(){
   const [notice,setNotice]=useState("");
   const [sending,setSending]=useState(false);
   const [uploading,setUploading]=useState(false);
+  const [submittingWork,setSubmittingWork]=useState(false);
+  const [previewFile,setPreviewFile]=useState<File|null>(null);
+  const [originalFile,setOriginalFile]=useState<File|null>(null);
   const endRef=useRef<HTMLDivElement|null>(null);
 
   async function token(){
@@ -117,7 +127,7 @@ export default function PrivateChats(){
     if(!selectedId||!viewerId||uploading)return;
     setUploading(true);setNotice("");
     const safe=file.name.replace(/[^a-zA-Z0-9а-яА-Я._-]/g,"_").slice(-120);
-    const path=selectedId+"/"+viewerId+"/"+crypto.randomUUID()+"-"+safe;
+    const path=selectedId+"/attachments/"+viewerId+"/"+crypto.randomUUID()+"-"+safe;
     const supabase=getSupabaseBrowserClient();
     const {error}=await supabase.storage.from("work-files").upload(path,file,{upsert:false,contentType:file.type||"application/octet-stream"});
     if(error){setNotice("Не удалось загрузить файл: "+error.message);setUploading(false);return;}
@@ -135,9 +145,49 @@ export default function PrivateChats(){
   }
 
   async function completeWork(){
-    if(!current?.workOrder||!window.confirm("Подтвердить, что работа принята? После этого Points будут переведены монтажёру."))return;
+    if(!current?.workOrder||current.workOrder.status!=="submitted"||!window.confirm("Работа вас устраивает? После подтверждения Points сразу перейдут монтажёру, а вам откроется оригинал для скачивания."))return;
     const access=await token();const r=await fetch("/api/private-chats",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+access},body:JSON.stringify({action:"complete_work",workOrderId:current.workOrder.id})});
-    const data=await r.json().catch(()=>({}));setNotice(r.ok?"Работа принята. Оплата перечислена монтажёру.":data.error||"Не удалось завершить работу.");if(r.ok)await loadConversations();
+    const data=await r.json().catch(()=>({}));setNotice(r.ok?"Работа принята. Оплата отправлена монтажёру, оригинал открыт для скачивания.":data.error||"Не удалось завершить работу.");if(r.ok)await loadConversations();
+  }
+
+  async function refundWork(){
+    if(!current?.workOrder||!["funded","submitted"].includes(current.workOrder.status)||!window.confirm("Отменить заказ и вернуть все зарезервированные Points на ваш баланс? Доступ к оригиналу останется закрыт."))return;
+    const access=await token();
+    const r=await fetch("/api/private-chats",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+access},body:JSON.stringify({action:"refund_work",workOrderId:current.workOrder.id})});
+    const data=await r.json().catch(()=>({}));
+    setNotice(r.ok?"Заказ отменён. Все зарезервированные Points возвращены на баланс.":data.error||"Не удалось оформить возврат.");
+    if(r.ok)await loadConversations();
+  }
+
+  async function openDelivery(kind:"preview"|"original"){
+    if(!current?.workOrder)return;
+    const access=await token();
+    const r=await fetch("/api/private-chats",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+access},body:JSON.stringify({action:"open_delivery",workOrderId:current.workOrder.id,kind})});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok||!data.url){setNotice(data.error||"Не удалось открыть файл.");return;}
+    window.open(data.url,"_blank","noopener,noreferrer");
+  }
+
+  async function submitWork(){
+    if(!current?.workOrder||!previewFile||!originalFile||submittingWork)return;
+    setSubmittingWork(true);setNotice("");
+    const supabase=getSupabaseBrowserClient();
+    const base=`${current.id}/delivery/${current.workOrder.id}`;
+    const previewSafe=previewFile.name.replace(/[^a-zA-Z0-9а-яА-Я._-]/g,"_").slice(-120);
+    const originalSafe=originalFile.name.replace(/[^a-zA-Z0-9а-яА-Я._-]/g,"_").slice(-120);
+    const previewPath=`${base}/preview/${viewerId}/${crypto.randomUUID()}-${previewSafe}`;
+    const originalPath=`${base}/original/${viewerId}/${crypto.randomUUID()}-${originalSafe}`;
+    const previewUpload=await supabase.storage.from("work-files").upload(previewPath,previewFile,{upsert:false,contentType:previewFile.type});
+    if(previewUpload.error){setNotice("Не удалось загрузить превью: "+previewUpload.error.message);setSubmittingWork(false);return;}
+    const originalUpload=await supabase.storage.from("work-files").upload(originalPath,originalFile,{upsert:false,contentType:originalFile.type||"application/octet-stream"});
+    if(originalUpload.error){setNotice("Превью загружено, но оригинал не загрузился: "+originalUpload.error.message);setSubmittingWork(false);return;}
+    const access=await token();
+    const r=await fetch("/api/private-chats",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+access},body:JSON.stringify({action:"submit_work",workOrderId:current.workOrder.id,previewPath,originalPath,previewName:previewFile.name,originalName:originalFile.name})});
+    const data=await r.json().catch(()=>({}));
+    setSubmittingWork(false);
+    if(!r.ok){setNotice(data.error||"Не удалось передать работу.");return;}
+    setPreviewFile(null);setOriginalFile(null);setNotice("Работа передана на просмотр. Оригинал защищён до подтверждения оплаты.");
+    await loadConversations();
   }
 
   if(signedIn===null)return <div className="card"><p className="muted">Открываем закрытые чаты…</p></div>;
@@ -159,7 +209,20 @@ export default function PrivateChats(){
       {current?<>
         <header><div><div className="private-chat-title"><span className="private-chat-shield">◆</span><div><h3>{current.otherName}</h3><p>{current.title}</p></div></div></div><span className="private-chat-badge">Закрытый чат</span></header>
         <div className="private-chat-safety"><b>Сообщения видят только компания и монтажёр.</b><span>Телефоны, электронная почта, ссылки, адреса страниц и названия мессенджеров остаются за пределами чата. Общайтесь внутри KIVRONIX.</span></div>
-        {current.workOrder&&<div className="auth-msg"><b>Оплата защищена: {current.workOrder.gross_points.toLocaleString("ru-RU")} KP</b><br/>{current.workOrder.status==="completed"?"Работа завершена и оплачена.":current.side==="company"?<>Points находятся в резерве. Монтажёр получит всю указанную сумму. Примите работу только после проверки файлов.<br/><button className="btn btn-dark" type="button" onClick={completeWork}>Принять работу и оплатить</button></>:"После принятия работы ты получишь "+current.workOrder.gross_points.toLocaleString("ru-RU")+" KP. Комиссия между тобой и заказчиком — 0%."}</div>}
+        {current.workOrder?<WorkOrderPanel
+          order={current.workOrder}
+          side={current.side}
+          previewFile={previewFile}
+          originalFile={originalFile}
+          submitting={submittingWork}
+          onPreviewFile={setPreviewFile}
+          onOriginalFile={setOriginalFile}
+          onSubmit={submitWork}
+          onOpenPreview={()=>openDelivery("preview")}
+          onOpenOriginal={()=>openDelivery("original")}
+          onComplete={completeWork}
+          onRefund={refundWork}
+        />:null}
         <div className="private-chat-messages" aria-live="polite">
           {messages.length===0?<div className="private-chat-start"><span>👋</span><b>Можно начинать</b><p>Обсудите задачу, срок, готовый результат и правки простыми словами.</p></div>:messages.map(item=><article className={item.sender_id===viewerId?"mine":"theirs"} key={item.id}>{item.body.startsWith("KIVRONIX_FILE:")?<button className="mini-btn" type="button" onClick={()=>openWorkFile(item.body)}>📎 {item.body.split("|").pop()||"Файл работы"}</button>:<p>{item.body}</p>}<time>{messageTime(item.created_at)}</time></article>)}
           <div ref={endRef}/>
@@ -172,6 +235,52 @@ export default function PrivateChats(){
       </>:<div className="private-chat-zero large"><span>🔒</span><b>Выберите чат</b><p>Здесь будет ваш разговор о работе.</p></div>}
     </section>
   </div>;
+}
+
+function WorkOrderPanel(props:{
+  order:NonNullable<Conversation["workOrder"]>;
+  side:"editor"|"company";
+  previewFile:File|null;
+  originalFile:File|null;
+  submitting:boolean;
+  onPreviewFile:(file:File|null)=>void;
+  onOriginalFile:(file:File|null)=>void;
+  onSubmit:()=>void;
+  onOpenPreview:()=>void;
+  onOpenOriginal:()=>void;
+  onComplete:()=>void;
+  onRefund:()=>void;
+}){
+  const {order,side}=props;
+  const delivery=Array.isArray(order.work_order_deliverables)?order.work_order_deliverables[0]:order.work_order_deliverables;
+  const active=["funded","submitted"].includes(order.status);
+  return <div className="work-escrow-card">
+    <div className="work-escrow-head"><div><span>БЕЗОПАСНАЯ СДЕЛКА</span><b>{order.gross_points.toLocaleString("ru-RU")} KP защищены платформой</b></div><strong>{statusLabel(order.status)}</strong></div>
+    {order.status==="completed"?<div className="delivery-actions"><p>Заказчик принял работу, оплата отправлена монтажёру. Оригинал доступен участникам сделки.</p><button className="btn btn-dark" type="button" onClick={props.onOpenOriginal}>Скачать оригинал</button></div>:order.status==="cancelled"?<p>Заказ отменён. Зарезервированные Points возвращены заказчику, оригинал остался закрыт.</p>:side==="editor"?<>
+      <p>{order.status==="submitted"?"Заказчик уже видит защищённое превью. До принятия работы оригинал ему недоступен.":"Загрузите два файла: безопасное превью с водяным знаком и исходный оригинал без ограничений."}</p>
+      {active?<div className="delivery-upload-grid">
+        <label><span>1. Превью для проверки</span><small>Видео или изображение с водяным знаком KIVRONIX</small><input type="file" accept="video/mp4,video/quicktime,video/webm,image/jpeg,image/png" onChange={e=>props.onPreviewFile(e.target.files?.[0]||null)}/><em>{props.previewFile?.name||delivery?.preview_name||"Файл не выбран"}</em></label>
+        <label><span>2. Оригинал для выдачи</span><small>Откроется заказчику только после оплаты</small><input type="file" accept="video/mp4,video/quicktime,video/webm,application/zip,image/jpeg,image/png" onChange={e=>props.onOriginalFile(e.target.files?.[0]||null)}/><em>{props.originalFile?.name||delivery?.original_name||"Файл не выбран"}</em></label>
+        <button className="btn btn-dark" type="button" disabled={!props.previewFile||!props.originalFile||props.submitting} onClick={props.onSubmit}>{props.submitting?"Защищаем файлы…":delivery?"Заменить результат":"Отправить на просмотр"}</button>
+        {delivery?<button className="btn btn-ghost" type="button" onClick={props.onOpenPreview}>Открыть превью</button>:null}
+      </div>:null}
+    </>:<>
+      <p>{order.status==="submitted"?"Монтажёр передал работу. Проверьте превью: оригинал нельзя скачать, пока вы не подтвердите оплату.":"Points находятся в резерве и не переданы монтажёру. Ждём, когда он загрузит результат."}</p>
+      <div className="delivery-actions">
+        {order.status==="submitted"?<button className="btn btn-ghost" type="button" onClick={props.onOpenPreview}>Посмотреть защищённое превью</button>:null}
+        {order.status==="submitted"?<button className="btn btn-dark" type="button" onClick={props.onComplete}>Всё нравится — оплатить и скачать</button>:null}
+        {active?<button className="mini-btn danger" type="button" onClick={props.onRefund}>Отменить и вернуть Points</button>:null}
+      </div>
+    </>}
+  </div>;
+}
+
+function statusLabel(status:NonNullable<Conversation["workOrder"]>["status"]){
+  if(status==="funded")return "Деньги в резерве";
+  if(status==="submitted")return "Режим просмотра";
+  if(status==="completed")return "Оплачено";
+  if(status==="cancelled")return "Возврат выполнен";
+  return "Спор";
 }
 
 function sourceLabel(value:Conversation["source_kind"]){
