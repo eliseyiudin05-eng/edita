@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -23,6 +24,8 @@ var (
 const (
 	maxRankingRows   = 50
 	maxFriendRows    = 200
+	maxGroupRows     = 20
+	maxGroupMembers  = 500
 	maxResponseBytes = 256 * 1024
 )
 
@@ -51,6 +54,28 @@ type FriendProfile struct {
 	AIScore      *int64  `json:"ai_score"`
 	AvatarURL    *string `json:"avatar_url"`
 	SchoolName   *string `json:"school_name"`
+}
+
+type Groups struct {
+	Groups []StudyGroup `json:"groups"`
+}
+
+type StudyGroup struct {
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`
+	Description *string       `json:"description"`
+	AgeScope    string        `json:"age_scope"`
+	JoinCode    string        `json:"join_code"`
+	MaxMembers  int64         `json:"max_members"`
+	CreatedAt   string        `json:"created_at"`
+	Members     []GroupMember `json:"members"`
+}
+
+type GroupMember struct {
+	UserID     string         `json:"user_id"`
+	MemberRole string         `json:"member_role"`
+	JoinedAt   string         `json:"joined_at"`
+	Profile    *FriendProfile `json:"profile"`
 }
 
 type RankRow struct {
@@ -87,9 +112,29 @@ type friendshipRow struct {
 	CreatedAt   string `json:"created_at"`
 }
 
+type membershipRow struct {
+	GroupID    string `json:"group_id"`
+	UserID     string `json:"user_id"`
+	MemberRole string `json:"member_role"`
+	JoinedAt   string `json:"joined_at"`
+}
+
+type groupRow struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	OwnerID     string  `json:"owner_id"`
+	AgeScope    string  `json:"age_scope"`
+	JoinCode    string  `json:"join_code"`
+	MaxMembers  int64   `json:"max_members"`
+	CreatedAt   string  `json:"created_at"`
+}
+
 type Client struct {
 	rankingEndpoint string
 	friendsEndpoint string
+	groupsEndpoint  string
+	membersEndpoint string
 	publishableKey  string
 	httpClient      *http.Client
 }
@@ -115,9 +160,146 @@ func NewClient(projectURL, publishableKey string, httpClient *http.Client) (*Cli
 	return &Client{
 		rankingEndpoint: projectURL + "/rest/v1/public_profiles",
 		friendsEndpoint: projectURL + "/rest/v1/friendships",
+		groupsEndpoint:  projectURL + "/rest/v1/study_groups",
+		membersEndpoint: projectURL + "/rest/v1/study_group_members",
 		publishableKey:  publishableKey,
 		httpClient:      &client,
 	}, nil
+}
+
+func (c *Client) GetGroups(ctx context.Context, accessToken, subject string) (Groups, error) {
+	subject = strings.ToLower(strings.TrimSpace(subject))
+	if c == nil || strings.TrimSpace(accessToken) == "" || !uuidPattern.MatchString(subject) {
+		return Groups{}, ErrUnavailable
+	}
+
+	ownQuery := url.Values{}
+	ownQuery.Set("select", "group_id,user_id,member_role,joined_at")
+	ownQuery.Set("user_id", "eq."+subject)
+	ownQuery.Set("order", "joined_at.desc,group_id.asc")
+	ownQuery.Set("limit", "20")
+	var ownMemberships []membershipRow
+	if err := c.getJSON(ctx, c.membersEndpoint+"?"+ownQuery.Encode(), accessToken, &ownMemberships); err != nil || len(ownMemberships) > maxGroupRows {
+		return Groups{}, ErrUnavailable
+	}
+	groupIDs := make([]string, 0, len(ownMemberships))
+	groupSet := make(map[string]bool, len(ownMemberships))
+	for _, membership := range ownMemberships {
+		if !validMembershipRow(membership) || strings.ToLower(membership.UserID) != subject {
+			return Groups{}, ErrUnavailable
+		}
+		groupID := strings.ToLower(membership.GroupID)
+		if groupSet[groupID] {
+			return Groups{}, ErrUnavailable
+		}
+		groupSet[groupID] = true
+		groupIDs = append(groupIDs, groupID)
+	}
+	if len(groupIDs) == 0 {
+		return Groups{Groups: []StudyGroup{}}, nil
+	}
+
+	groupQuery := url.Values{}
+	groupQuery.Set("select", "id,name,description,owner_id,age_scope,join_code,max_members,created_at")
+	groupQuery.Set("id", "in.("+strings.Join(groupIDs, ",")+")")
+	groupQuery.Set("limit", "20")
+	var groupRows []groupRow
+	if err := c.getJSON(ctx, c.groupsEndpoint+"?"+groupQuery.Encode(), accessToken, &groupRows); err != nil || len(groupRows) != len(groupIDs) {
+		return Groups{}, ErrUnavailable
+	}
+
+	membersQuery := url.Values{}
+	membersQuery.Set("select", "group_id,user_id,member_role,joined_at")
+	membersQuery.Set("group_id", "in.("+strings.Join(groupIDs, ",")+")")
+	membersQuery.Set("limit", "500")
+	var memberRows []membershipRow
+	if err := c.getJSON(ctx, c.membersEndpoint+"?"+membersQuery.Encode(), accessToken, &memberRows); err != nil || len(memberRows) > maxGroupMembers {
+		return Groups{}, ErrUnavailable
+	}
+
+	memberIDs := make([]string, 0, len(memberRows))
+	memberSet := make(map[string]bool, len(memberRows))
+	for _, membership := range memberRows {
+		if !validMembershipRow(membership) || !groupSet[strings.ToLower(membership.GroupID)] {
+			return Groups{}, ErrUnavailable
+		}
+		userID := strings.ToLower(membership.UserID)
+		if !memberSet[userID] {
+			memberSet[userID] = true
+			memberIDs = append(memberIDs, userID)
+		}
+	}
+
+	profiles := make(map[string]profileRow, len(memberIDs))
+	for start := 0; start < len(memberIDs); start += 50 {
+		end := min(start+50, len(memberIDs))
+		profileQuery := url.Values{}
+		profileQuery.Set("select", "id,username,display_name,level,xp,rating_points,ai_score,avatar_url,school_name,skills")
+		profileQuery.Set("id", "in.("+strings.Join(memberIDs[start:end], ",")+")")
+		profileQuery.Set("limit", "50")
+		var profileRows []profileRow
+		if err := c.getJSON(ctx, c.rankingEndpoint+"?"+profileQuery.Encode(), accessToken, &profileRows); err != nil || len(profileRows) > 50 {
+			return Groups{}, ErrUnavailable
+		}
+		for _, row := range profileRows {
+			userID := strings.ToLower(row.ID)
+			if !validRow(row) || !memberSet[userID] {
+				return Groups{}, ErrUnavailable
+			}
+			profiles[userID] = row
+		}
+	}
+
+	membersByGroup := make(map[string][]GroupMember, len(groupRows))
+	for _, membership := range memberRows {
+		userID := strings.ToLower(membership.UserID)
+		var profile *FriendProfile
+		if row, ok := profiles[userID]; ok {
+			profile = &FriendProfile{
+				Username: row.Username, DisplayName: row.DisplayName, Level: row.Level, XP: row.XP,
+				RatingPoints: row.RatingPoints, AIScore: row.AIScore, AvatarURL: row.AvatarURL, SchoolName: row.SchoolName,
+			}
+		}
+		groupID := strings.ToLower(membership.GroupID)
+		membersByGroup[groupID] = append(membersByGroup[groupID], GroupMember{
+			UserID: userID, MemberRole: membership.MemberRole, JoinedAt: membership.JoinedAt, Profile: profile,
+		})
+	}
+
+	groups := make([]StudyGroup, 0, len(groupRows))
+	for _, row := range groupRows {
+		if !validGroupRow(row) || !groupSet[strings.ToLower(row.ID)] {
+			return Groups{}, ErrUnavailable
+		}
+		members := membersByGroup[strings.ToLower(row.ID)]
+		if members == nil {
+			members = []GroupMember{}
+		}
+		sort.Slice(members, func(i, j int) bool {
+			left, right := int64(-1), int64(-1)
+			if members[i].Profile != nil {
+				left = members[i].Profile.RatingPoints
+			}
+			if members[j].Profile != nil {
+				right = members[j].Profile.RatingPoints
+			}
+			if left == right {
+				return members[i].UserID < members[j].UserID
+			}
+			return left > right
+		})
+		groups = append(groups, StudyGroup{
+			ID: row.ID, Name: row.Name, Description: row.Description, AgeScope: row.AgeScope,
+			JoinCode: row.JoinCode, MaxMembers: row.MaxMembers, CreatedAt: row.CreatedAt, Members: members,
+		})
+	}
+	sort.Slice(groups, func(i, j int) bool {
+		if groups[i].CreatedAt == groups[j].CreatedAt {
+			return groups[i].ID < groups[j].ID
+		}
+		return groups[i].CreatedAt > groups[j].CreatedAt
+	})
+	return Groups{Groups: groups}, nil
 }
 
 func (c *Client) GetRanking(ctx context.Context, accessToken, subject string) (Ranking, error) {
@@ -280,6 +462,37 @@ func validFriendshipRow(row friendshipRow, subject string) bool {
 		return false
 	}
 	if row.Status != "pending" && row.Status != "accepted" && row.Status != "declined" {
+		return false
+	}
+	_, err := time.Parse(time.RFC3339Nano, row.CreatedAt)
+	return err == nil
+}
+
+func validMembershipRow(row membershipRow) bool {
+	if !uuidPattern.MatchString(strings.ToLower(row.GroupID)) || !uuidPattern.MatchString(strings.ToLower(row.UserID)) {
+		return false
+	}
+	if row.MemberRole != "owner" && row.MemberRole != "member" && row.MemberRole != "moderator" {
+		return false
+	}
+	_, err := time.Parse(time.RFC3339Nano, row.JoinedAt)
+	return err == nil
+}
+
+func validGroupRow(row groupRow) bool {
+	if !uuidPattern.MatchString(strings.ToLower(row.ID)) || !uuidPattern.MatchString(strings.ToLower(row.OwnerID)) {
+		return false
+	}
+	if !utf8.ValidString(row.Name) || utf8.RuneCountInString(row.Name) < 2 || utf8.RuneCountInString(row.Name) > 80 || !validOptional(row.Description, 300) {
+		return false
+	}
+	if row.AgeScope != "under14" && row.AgeScope != "14-17" && row.AgeScope != "18+" {
+		return false
+	}
+	if !utf8.ValidString(row.JoinCode) || utf8.RuneCountInString(row.JoinCode) < 4 || utf8.RuneCountInString(row.JoinCode) > 32 || strings.ContainsAny(row.JoinCode, "\r\n\t ") {
+		return false
+	}
+	if row.MaxMembers < 1 || row.MaxMembers > 100 {
 		return false
 	}
 	_, err := time.Parse(time.RFC3339Nano, row.CreatedAt)

@@ -23,7 +23,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.11",
+		Version:      "1.0.12",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -57,7 +57,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.11"`) {
+	if !strings.Contains(body, `"version":"1.0.12"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -108,6 +108,19 @@ type fakeSocialFriendsReader struct {
 	err     error
 	token   string
 	subject string
+}
+
+type fakeSocialGroupsReader struct {
+	result  social.Groups
+	err     error
+	token   string
+	subject string
+}
+
+func (reader *fakeSocialGroupsReader) GetGroups(_ context.Context, token, subject string) (social.Groups, error) {
+	reader.token = token
+	reader.subject = subject
+	return reader.result, reader.err
 }
 
 func (reader *fakeSocialFriendsReader) GetFriendships(_ context.Context, token, subject string) (social.Friendships, error) {
@@ -278,6 +291,35 @@ func TestSocialFriendshipsRequiresAuthAndForwardsOnlyVerifiedToken(t *testing.T)
 	}
 	if strings.Contains(response.Body.String(), "private-user-id") || strings.Contains(response.Body.String(), "requester_id") || strings.Contains(response.Body.String(), "addressee_id") {
 		t.Fatalf("response exposes participant identity: %s", response.Body.String())
+	}
+}
+
+func TestSocialGroupsRequiresAuthAndForwardsOnlyVerifiedToken(t *testing.T) {
+	reader := &fakeSocialGroupsReader{result: social.Groups{Groups: []social.StudyGroup{{
+		ID: "323e4567-e89b-12d3-a456-426614174002", Name: "Editors", AgeScope: "18+", JoinCode: "ABC123", MaxMembers: 10, CreatedAt: "2026-09-13T22:00:00Z", Members: []social.GroupMember{},
+	}}}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "private-user-id", Role: "authenticated"}},
+		SocialGroups:      reader,
+		DependencyTimeout: time.Second,
+	})
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/v1/social/groups", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d", unauthorized.Code)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/social/groups?user_id=other", nil)
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "private-user-id" {
+		t.Fatalf("unexpected response or reader token: status=%d token=%q subject=%q body=%s", response.Code, reader.token, reader.subject, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "private-user-id") || strings.Contains(response.Body.String(), "owner_id") {
+		t.Fatalf("response exposes verified owner identity: %s", response.Body.String())
 	}
 }
 

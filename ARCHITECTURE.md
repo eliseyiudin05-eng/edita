@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.11)
+## Go migration boundary (v1.0.12)
 
 - Production writes and business decisions remain in Next.js/Supabase.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
@@ -68,6 +68,8 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - The relationship ID is retained because the authenticated participant needs it for accept, decline, or cancel actions. Friend search and every friendship mutation remain in the existing Next.js route.
 - Friend-list reads may serve a separately controlled 1–10% canary. Failures, excessive latency, malformed output, or an open circuit fall back to the existing Next.js/Supabase read in the same request.
 - Friend-list shadow and canary modes are mutually exclusive. A dedicated five-minute circuit breaker and an environment kill switch provide automatic and global rollback.
+- Study-group reads add a separate disabled-by-default shadow contract. Go derives the allowed group set only from the verified JWT subject and participant-only RLS.
+- Group output is capped at 20 groups, 500 members and 256 KiB; profile lookups are chunked. Group creation, joining and messages remain in the existing Next.js/Supabase routes.
 - The Go profile endpoint derives identity only from a locally verified access token, forwards that token to the Supabase Data API and filters on the same subject; the existing profile RLS policy remains active.
 - The profile response omits user identity and every unrelated profile/onboarding field.
 - Go connects to PostgreSQL through a bounded pool and requires encrypted database transport in production.

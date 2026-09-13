@@ -130,3 +130,57 @@ func TestGetFriendshipsRejectsRelationOutsideVerifiedSubject(t *testing.T) {
 		t.Fatalf("error = %v, want ErrUnavailable", err)
 	}
 }
+
+func TestGetGroupsUsesVerifiedMembershipAndBoundedQueries(t *testing.T) {
+	const viewer = "123e4567-e89b-12d3-a456-426614174000"
+	const other = "223e4567-e89b-12d3-a456-426614174001"
+	const group = "323e4567-e89b-12d3-a456-426614174002"
+	requests := 0
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		if request.Header.Get("Authorization") != "Bearer access-token" || request.Header.Get("apikey") != "sb_publishable_test" {
+			t.Fatal("authentication headers missing")
+		}
+		var body string
+		switch {
+		case request.URL.Path == "/rest/v1/study_group_members" && request.URL.Query().Get("user_id") != "":
+			if request.URL.Query().Get("user_id") != "eq."+viewer || request.URL.Query().Get("limit") != "20" {
+				t.Fatalf("own membership query is not bounded: %s", request.URL.String())
+			}
+			body = `[{"group_id":"` + group + `","user_id":"` + viewer + `","member_role":"owner","joined_at":"2026-09-13T22:00:00Z"}]`
+		case request.URL.Path == "/rest/v1/study_groups":
+			if request.URL.Query().Get("id") != "in.("+group+")" || request.URL.Query().Get("limit") != "20" {
+				t.Fatalf("group query is not bounded: %s", request.URL.String())
+			}
+			body = `[{"id":"` + group + `","name":"Editors","description":"Practice","owner_id":"` + viewer + `","age_scope":"18+","join_code":"ABC123","max_members":10,"created_at":"2026-09-13T22:00:00Z"}]`
+		case request.URL.Path == "/rest/v1/study_group_members":
+			if request.URL.Query().Get("group_id") != "in.("+group+")" || request.URL.Query().Get("limit") != "500" {
+				t.Fatalf("member query is not bounded: %s", request.URL.String())
+			}
+			body = `[{"group_id":"` + group + `","user_id":"` + viewer + `","member_role":"owner","joined_at":"2026-09-13T22:00:00Z"},{"group_id":"` + group + `","user_id":"` + other + `","member_role":"member","joined_at":"2026-09-13T22:01:00Z"}]`
+		case request.URL.Path == "/rest/v1/public_profiles":
+			if request.URL.Query().Get("limit") != "50" {
+				t.Fatalf("profile query is not chunked: %s", request.URL.String())
+			}
+			body = `[{"id":"` + viewer + `","username":"viewer-one","display_name":"Viewer","level":2,"xp":300,"rating_points":800,"ai_score":80,"avatar_url":null,"school_name":null,"skills":[]},{"id":"` + other + `","username":"editor-one","display_name":"Editor","level":3,"xp":500,"rating_points":1200,"ai_score":90,"avatar_url":null,"school_name":null,"skills":[]}]`
+		default:
+			t.Fatalf("unexpected URL: %s", request.URL.String())
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := client.GetGroups(context.Background(), "access-token", viewer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requests != 4 || len(got.Groups) != 1 || len(got.Groups[0].Members) != 2 || got.Groups[0].Members[0].UserID != other || got.Groups[0].JoinCode != "ABC123" {
+		t.Fatalf("unexpected groups: %+v", got)
+	}
+	payload, err := json.Marshal(got)
+	if err != nil || strings.Contains(string(payload), "owner_id") {
+		t.Fatalf("groups expose owner identity: %s", payload)
+	}
+}
