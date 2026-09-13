@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	version = "1.0.10"
+	version = "1.0.11"
 	commit  = "local"
 )
 

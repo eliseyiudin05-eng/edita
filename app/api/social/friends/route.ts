@@ -1,6 +1,7 @@
 import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {compareSocialFriendsWithGo,normalizeSocialFriends,socialFriendsShadowEnabled} from "@/lib/go-social-friends-shadow";
+import {recordSocialFriendsCanaryComparison,socialFriendsCanaryEnabled,trySocialFriendsCanary} from "@/lib/go-social-friends-canary";
 
 function token(req:NextRequest){
   const h=req.headers.get("authorization");
@@ -13,6 +14,27 @@ async function auth(req:NextRequest){
   return user&&service&&accessToken?{user,service,token:accessToken}:null;
 }
 function ageBand(profile:any){return profile?.onboarding?.ageGroup||"18+"}
+
+async function readLegacyFriends(a:NonNullable<Awaited<ReturnType<typeof auth>>>){
+  const {data:rels,error}=await a.service.from("friendships")
+    .select("id,requester_id,addressee_id,status,created_at")
+    .or("requester_id.eq."+a.user.id+",addressee_id.eq."+a.user.id)
+    .order("created_at",{ascending:false})
+    .limit(200);
+  if(error)return null;
+
+  const ids=[...new Set((rels||[]).flatMap((r:any)=>[r.requester_id,r.addressee_id]).filter((id:string)=>id!==a.user.id))];
+  const {data:profiles,error:profilesError}=ids.length
+    ? await a.service.from("public_profiles").select("id,username,display_name,level,xp,rating_points,ai_score,avatar_url,school_name").in("id",ids)
+    : {data:[] as any[],error:null};
+  if(profilesError)return null;
+  const map=Object.fromEntries((profiles||[]).map((p:any)=>[p.id,p]));
+  return normalizeSocialFriends((rels||[]).map((r:any)=>({
+    ...r,
+    direction:r.requester_id===a.user.id?"outgoing":"incoming",
+    other:map[r.requester_id===a.user.id?r.addressee_id:r.requester_id]||null
+  })),a.user.id);
+}
 
 export async function GET(req:NextRequest){
   const a=await auth(req);
@@ -28,26 +50,15 @@ export async function GET(req:NextRequest){
     return NextResponse.json({results:data||[]});
   }
 
-  const {data:rels,error}=await a.service.from("friendships")
-    .select("id,requester_id,addressee_id,status,created_at")
-    .or("requester_id.eq."+a.user.id+",addressee_id.eq."+a.user.id)
-    .order("created_at",{ascending:false})
-    .limit(200);
-  if(error)return NextResponse.json({error:"Не удалось загрузить список друзей."},{status:503});
+  const canary=await trySocialFriendsCanary(a.token);
+  if(canary.attempted&&canary.value){
+    after(async()=>recordSocialFriendsCanaryComparison(canary.value!,await readLegacyFriends(a)));
+    return NextResponse.json(canary.value,{headers:{"Cache-Control":"no-store"}});
+  }
 
-  const ids=[...new Set((rels||[]).flatMap((r:any)=>[r.requester_id,r.addressee_id]).filter((id:string)=>id!==a.user.id))];
-  const {data:profiles}=ids.length
-    ? await a.service.from("public_profiles").select("id,username,display_name,level,xp,rating_points,ai_score,avatar_url,school_name").in("id",ids)
-    : {data:[] as any[]};
-  const map=Object.fromEntries((profiles||[]).map((p:any)=>[p.id,p]));
-
-  const legacy=normalizeSocialFriends((rels||[]).map((r:any)=>({
-      ...r,
-      direction:r.requester_id===a.user.id?"outgoing":"incoming",
-      other:map[r.requester_id===a.user.id?r.addressee_id:r.requester_id]||null
-    })),a.user.id);
-  if(!legacy)return NextResponse.json({error:"Данные списка друзей повреждены."},{status:500});
-  if(socialFriendsShadowEnabled())after(()=>compareSocialFriendsWithGo(a.token,legacy));
+  const legacy=await readLegacyFriends(a);
+  if(!legacy)return NextResponse.json({error:"Не удалось загрузить список друзей."},{status:503});
+  if(!socialFriendsCanaryEnabled()&&socialFriendsShadowEnabled())after(()=>compareSocialFriendsWithGo(a.token,legacy));
   return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
 }
 

@@ -19,7 +19,7 @@ export type SocialFriendRelation={
 
 export type SocialFriendsResponse={relations:SocialFriendRelation[]};
 
-type GoFriendsReadResult=
+export type GoFriendsReadResult=
   |{ok:true;value:SocialFriendsResponse;durationMs:number}
   |{ok:false;outcome:string;durationMs:number};
 
@@ -30,6 +30,10 @@ const usernamePattern=/^[a-z0-9][a-z0-9._-]{2,29}$/;
 
 export function socialFriendsShadowEnabled(){
   return process.env.GO_BACKEND_SOCIAL_FRIENDS_SHADOW_READS_ENABLED==="true"&&Boolean(friendsEndpoint());
+}
+
+export function goSocialFriendsBackendConfigured(){
+  return Boolean(friendsEndpoint());
 }
 
 export function normalizeSocialFriends(relations:unknown,viewerId?:string):SocialFriendsResponse|null{
@@ -45,11 +49,11 @@ export function normalizeSocialFriends(relations:unknown,viewerId?:string):Socia
 
 export async function compareSocialFriendsWithGo(token:string,legacy:SocialFriendsResponse){
   const result=await readSocialFriendsFromGo(token,shadowTimeout());
-  const outcome=result.ok?(JSON.stringify(result.value)===JSON.stringify(legacy)?"match":"mismatch"):result.outcome;
+  const outcome=result.ok?(sameSocialFriends(result.value,legacy)?"match":"mismatch"):result.outcome;
   console.info("go_social_friends_shadow",{route:"social_friends",outcome,duration_ms:result.durationMs});
 }
 
-async function readSocialFriendsFromGo(token:string,timeoutMs:number):Promise<GoFriendsReadResult>{
+export async function readSocialFriendsFromGo(token:string,timeoutMs:number):Promise<GoFriendsReadResult>{
   const started=Date.now();
   try{
     const endpoint=friendsEndpoint();
@@ -73,6 +77,10 @@ async function readSocialFriendsFromGo(token:string,timeoutMs:number):Promise<Go
     const timeout=error instanceof Error&&(error.name==="TimeoutError"||error.name==="AbortError");
     return failed(timeout?"timeout":"unavailable",started);
   }
+}
+
+export function sameSocialFriends(candidate:SocialFriendsResponse,legacy:SocialFriendsResponse){
+  return JSON.stringify(candidate)===JSON.stringify(legacy);
 }
 
 function parseRelation(item:unknown,viewerId?:string):SocialFriendRelation|null{
