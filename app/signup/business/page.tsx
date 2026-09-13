@@ -76,8 +76,6 @@ export default function BusinessSignup(){
 
     <div className="business-signup-steps"><span><b>1</b> Аккаунт</span><span><b>2</b> Почта</span><span><b>3</b> Документы</span><span><b>4</b> Проверка</span></div>
 
-    <Link className="btn btn-ghost business-demo-link" href="/platform?demo=business">Сначала посмотреть кабинет бизнеса →</Link>
-
     <form className="auth-form" onSubmit={submit}>
       <input required placeholder="Имя представителя компании" value={contactName} onChange={e=>setContactName(e.target.value)}/>
       <input required placeholder="Название бренда, которое увидят монтажёры" value={businessName} onChange={e=>setBusinessName(e.target.value)}/>

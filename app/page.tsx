@@ -42,21 +42,21 @@ export default async function Home(){
   const testimonials=await getTestimonials();
 
   return <main className="landing">
-    <nav className="topbar shell sticky-public-nav">
-      <Link className="brand brand-explained brand-home" href="/" title="Что такое KIVRONIX? Нажми, чтобы вернуться на главную" aria-label="KIVRONIX — обучение видеомонтажу и поиск монтажёров, перейти на главную">
-        <span className="brand-mark"><Image src="/images/kivronix-logo-mark.png" width={48} height={48} alt="" priority/></span>
-        <span className="brand-words"><span className="brand-name">KIVRONIX<b>.</b></span><small>учись · находи · зарабатывай</small></span>
-      </Link>
-      <div className="nav-actions">
-        <a href="#free">Ранний доступ</a>
-        <Link href="/pricing">Будущие тарифы</Link>
-        <a href="#challenge">10 000 ₽</a>
-        <a href="#inside">Что внутри</a>
-        <a href="#safety">Защита</a>
-        <Link href="/login">Войти</Link>
-        <Link className="btn btn-dark" href="/signup/editor">Начать</Link>
-      </div>
-    </nav>
+    <header className="public-header sticky-public-nav"><nav className="topbar shell">
+        <Link className="brand brand-home" href="/" title="Вернуться на главную" aria-label="KIVRONIX — перейти на главную">
+          <span className="brand-name">KIVRONIX<b>.</b></span>
+          <small>монтаж · обучение · работа</small>
+        </Link>
+        <div className="nav-actions">
+          <a href="#free">Ранний доступ</a>
+          <Link href="/pricing">Будущие тарифы</Link>
+          <a href="#challenge">10 000 ₽</a>
+          <a href="#inside">Что внутри</a>
+          <a href="#safety">Защита</a>
+          <Link href="/login">Войти</Link>
+          <Link className="btn btn-dark" href="/signup/editor">Начать</Link>
+        </div>
+    </nav></header>
 
     <section className="hero shell hero-new">
       <div className="hero-grid">

@@ -65,19 +65,6 @@ export default function PlatformApp(){
  },[viewer.role]);
 
  useEffect(()=>{
-   const businessDemo=new URLSearchParams(window.location.search).get("demo")==="business";
-   if(businessDemo){
-     setViewer({
-       name:"Тестовая компания",
-       role:"business",
-       onboarding:{level:"business",goal:"hire",ageGroup:"18+"},
-       plan:"studio_plus",
-       planExpiresAt:"2099-12-31T23:59:59.000Z"
-     });
-     setBusinessStats({challenges:2,submissions:38,jobs:3});
-     setTab("business");
-     return;
-   }
    const syncTabFromHash=()=>{
      const hash=window.location.hash.replace("#","") as Tab;
      if(allTabs.some(([id])=>id===hash))setTab(hash);
@@ -166,13 +153,12 @@ export default function PlatformApp(){
  }
 
  const roleLabel=viewer.role==="business"?"Бизнес":viewer.role==="editor"?"Монтажёр":"Гость";
- const businessDemo=typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("demo")==="business";
  const activePaidPlan=Boolean(viewer.plan&&viewer.plan!=="free"&&viewer.planExpiresAt&&new Date(viewer.planExpiresAt).getTime()>Date.now());
  const accessLabel:string=activePaidPlan?(viewer.plan==="creator_plus"?"Creator+":viewer.plan==="studio_plus"?"Studio+":viewer.plan||"платный план"):"ранний доступ";
 
  return <main className="app">
    <aside className="side">
-     <Link className="brand" href="/platform#home">KIVRONIX<b>.</b></Link>
+     <Link className="brand app-brand" href="/platform#home"><span>KIVRONIX<b>.</b></span><small>твой путь в монтаже</small></Link>
      <nav className="nav">{tabs.map(([id,l])=><button className={tab===id?"active":""} onClick={()=>goTab(id)} key={id}>{l}</button>)}</nav>
      <div className="profile">
        <div className="side-profile-head"><ProfileAvatar src={viewer.avatarUrl} name={viewer.name} size="sm"/><b>{viewer.name}</b></div>
@@ -192,8 +178,6 @@ export default function PlatformApp(){
        <div className="user-pill"><ProfileAvatar src={viewer.avatarUrl} name={viewer.name} size="sm"/><span>{viewer.role?"в сети":"пример"} · {accessLabel}{viewer.role==="editor"?" · "+xp+" опыта":""}</span></div>
      </header>
 
-     {businessDemo&&<div className="demo-business-banner"><div><b>Демо кабинета бизнеса</b><span>Можно открыть все разделы и посмотреть интерфейс. Данные из демо не сохраняются.</span></div><Link className="btn btn-dark" href="/signup/business">Создать настоящий аккаунт</Link></div>}
-
      {tab==="home"&&<Page title={viewer.role?"Продолжай, "+viewer.name+".":"Добро пожаловать в KIVRONIX."} sub={viewer.role?"Открой ближайший урок и двигайся по шагам.":"Посмотри платформу. После входа помощник и учебный прогресс сохраняются."}>
        <section className="mission"><small>ТВОЙ ПУТЬ</small><h2>{done.length?"Продолжи следующий урок":"Первый ролик начинается с одной кнопки"}</h2><p>{curriculum.length} коротких уроков ведут от установки CapCut и первой склейки до цвета, звука, своих работ и общения с заказчиком.</p><button className="btn btn-lime" onClick={()=>goTab("academy")}>Продолжить обучение →</button></section>
        <div className="grid">
@@ -203,12 +187,12 @@ export default function PlatformApp(){
        </div>
      </Page>}
 
-     {tab==="academy"&&<Page title="Обучение" sub="Сначала простое объяснение. Затем установка программы, картинки с нужными кнопками, маленькие задания и помощник KIVRONIX.">
+     {tab==="academy"&&<Page title="Обучение" sub="Выбери свою стартовую точку и проходи уроки по порядку. Каждый урок объясняет одну тему простыми словами.">
        <div className="academy-start-card"><div><div className="eyebrow">ТВОЯ СТАРТОВАЯ ТОЧКА · {suggestedStart.label.toUpperCase()}</div><h2>{curriculum[suggestedStartIndex]?.title}</h2><p>{suggestedStart.reason} Ранние уроки остаются доступными, если захочешь повторить основу.</p></div><Link className="btn btn-lime" href={"/academy/"+suggestedStart.slug}>Начать с этого урока →</Link></div>
        <div className="academy-overview">
          <Stat n={String(curriculumStats.lessons)} t="уроков"/><Stat n={String(curriculumStats.theory)} t="уроков теории"/><Stat n={String(curriculumStats.assignments)} t="заданий"/><Stat n={String(done.length)} t="пройдено"/>
        </div>
-       <div className="academy-route-note"><b>Начни с первого шага</b><span>Открой первый раздел и иди сверху вниз. Сложность растёт постепенно, а продвинутые эффекты появятся после первой готовой работы.</span></div>
+       <div className="academy-route-note"><b>Как здесь учиться?</b><span>Нажми «Начать с этого урока». Закончи его — и откроется следующий. Если что-то непонятно, помощник находится прямо внутри урока.</span></div>
        <div className="academy-modules">{curriculumModules.map((group,moduleIndex)=><section className="academy-module" key={group.module}>
          <header><div><div className="eyebrow">СТУПЕНЬ {moduleIndex+1}</div><h2>{group.module}</h2></div><span>{group.lessons.filter(item=>done.includes(item.slug)).length} / {group.lessons.length}</span></header>
          <div className="academy-lesson-grid">{group.lessons.map(lesson=>{
@@ -224,7 +208,7 @@ export default function PlatformApp(){
        </section>)}</div>
      </Page>}
 
-     {tab==="insights"&&<Page title="Лайфхаки" sub="Короткие статьи, факты, профессия и идеи, которые помогают смотреть на монтаж шире."><EditingInsights openCommunity={()=>goTab("community")}/></Page>}
+     {tab==="insights"&&<Page title="Лайфхаки" sub="Короткие советы, интересные факты и закрытые обсуждения о монтаже."><EditingInsights/></Page>}
 
      {tab==="practice"&&<Page title="Практика" sub="Тренировка разговора с клиентом: цена, правки, сроки и договорённости."><ClientSimulator/></Page>}
 
@@ -303,6 +287,7 @@ export default function PlatformApp(){
      {tab==="messages"&&<Page title="Закрытые чаты" sub="Безопасное общение компании и монтажёра прямо внутри KIVRONIX."><PrivateChats/></Page>}
      {tab==="community"&&<Page title="Сообщество" sub="Рейтинг, друзья, учебные группы, соревнования и приглашения с защитой личных данных."><SocialHub ageGroup={viewer.onboarding?.ageGroup}/></Page>}
      {tab==="business"&&<Page title="Кабинет компании" sub="Сначала подтвердите компанию. После проверки можно публиковать настоящие задания и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных конкурсов"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n={accessLabel} t="режим доступа"/></div><div className="business-stack"><BusinessVerification/><BusinessGrowth/><CampaignHub mode="business"/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/><Card title="Будущий план Studio+"><p className="muted">Командный кабинет и расширенные инструменты готовятся отдельно от тарифа монтажёра. Оплата выключена.</p><Link className="btn btn-ghost" href="/pricing">Посмотреть план</Link></Card></div></Page>}
+     <footer className="app-footer"><div><Link className="brand" href="/platform#home">KIVRONIX<span>.</span></Link><p>Учись, создавай сильные работы и находи реальные проекты.</p></div><nav><button onClick={()=>goTab("home")}>Главная</button><button onClick={()=>goTab("academy")}>Обучение</button><button onClick={()=>goTab("insights")}>Лайфхаки</button><Link href="/status">Статус сервисов</Link></nav><span>© 2026 KIVRONIX · ранний доступ</span></footer>
    </section>
 
    <SiteTour role={viewer.role} onGo={(value)=>goTab(value as Tab)}/>

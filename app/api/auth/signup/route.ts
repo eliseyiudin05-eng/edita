@@ -18,10 +18,12 @@ export async function POST(req:NextRequest){
   const onboarding=body?.onboarding&&typeof body.onboarding==="object"?body.onboarding:{};
   const schoolName=String(body?.schoolName||onboarding?.schoolName||"").trim().replace(/\s+/g," ").slice(0,160);
   const referralCode=String(body?.referralCode||"").trim().toUpperCase().slice(0,16);
+  const motivation=String(onboarding?.motivation||"").trim().slice(0,500);
 
   if(!validEmail(email))return NextResponse.json({error:"Проверь электронную почту."},{status:400});
   if(password.length<8)return NextResponse.json({error:"Пароль должен содержать 8 символов или больше."},{status:400});
   if(!displayName)return NextResponse.json({error:"Укажи имя."},{status:400});
+  if(role==="editor"&&motivation.length<5)return NextResponse.json({error:"Напиши, почему хочешь стать монтажёром."},{status:400});
   if(schoolName&&schoolName.length<2)return NextResponse.json({error:"Название школы слишком короткое."},{status:400});
   if(role==="business"&&(!businessName||onboarding?.ageGroup!=="18+")){
     return NextResponse.json({error:"Для бизнес-аккаунта нужно название компании и возраст 18+."},{status:400});
@@ -32,7 +34,7 @@ export async function POST(req:NextRequest){
     role,
     display_name:displayName,
     business_name:role==="business"?businessName:undefined,
-    onboarding:{...onboarding,schoolName:schoolName||undefined,role},
+    onboarding:{...onboarding,motivation:role==="editor"?motivation:undefined,schoolName:schoolName||undefined,role},
     accepted_terms:true,
     accepted_personal_data:true,
     terms_version:"2026-09-12",
@@ -60,7 +62,11 @@ export async function POST(req:NextRequest){
 
   const createdUserId=(data as any)?.user?.id;
   if(createdUserId){
-    const profileUpdate:Record<string,string|null>={school_name:schoolName||null};
+    const profileUpdate:Record<string,unknown>={
+      school_name:schoolName||null,
+      onboarding:metadata.onboarding,
+      ...(role==="editor"?{referral_points:5}:{})
+    };
     const {error:profileError}=await service.from("profiles").update(profileUpdate).eq("id",createdUserId);
     if(profileError)console.error("Could not save signup profile extras",{code:profileError.code||"profile_update_failed"});
   }

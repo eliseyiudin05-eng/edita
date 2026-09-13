@@ -4,6 +4,7 @@ import AiCoach from "@/components/ai-coach";
 import LessonProgressButton from "@/components/lesson-progress-button";
 import LessonRouteGate from "@/components/lesson-route-gate";
 import LessonVisual from "@/components/lesson-visual";
+import AuthGate from "@/components/auth-gate";
 import {curriculum,lessonBySlug} from "@/lib/curriculum";
 
 export default async function LessonPage({params}:{params:Promise<{slug:string}>}){
@@ -14,7 +15,7 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
   const previous=index>0?curriculum[index-1]:null;
   const next=index<curriculum.length-1?curriculum[index+1]:null;
 
-  return <main className="lesson-shell-page">
+  return <AuthGate><main className="lesson-shell-page">
     <nav className="lesson-topbar">
       <Link href="/platform#academy" className="brand">KIVRONIX<span>.</span></Link>
       <div className="lesson-top-actions"><Link href="/platform#academy" className="btn btn-ghost">← В Академию</Link><Link href="/platform#home" className="btn btn-ghost">В кабинет</Link></div>
@@ -103,5 +104,5 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
       </aside>
     </div>
     </LessonRouteGate>
-  </main>
+  </main></AuthGate>
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import CookieNotice from "@/components/cookie-notice";
+import BackToTop from "@/components/back-to-top";
 import {KIVRONIX_SITE_URL} from "@/lib/public-config";
 
 const siteUrl=KIVRONIX_SITE_URL;
@@ -105,5 +106,5 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     ],
   };
 
-  return <html lang="ru"><body><style data-kivronix-fallback dangerouslySetInnerHTML={{__html:fallbackStyles}}/><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(structuredData)}}/>{children}<CookieNotice/></body></html>;
+  return <html lang="ru"><body><style data-kivronix-fallback dangerouslySetInnerHTML={{__html:fallbackStyles}}/><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(structuredData)}}/>{children}<BackToTop/><CookieNotice/></body></html>;
 }

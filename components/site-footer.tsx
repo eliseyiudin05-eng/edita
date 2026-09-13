@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function SiteFooter(){
   return <footer className="site-footer"><div className="shell footer-grid footer-wide">
     <div>
-      <Link className="brand" href="/">KIVRONIX<span>.</span></Link>
+      <Link className="brand footer-brand" href="/">KIVRONIX<span>.</span></Link>
       <p>От первой кнопки до первой сильной работы.</p>
       <span className="footer-status">Ранний доступ бесплатный</span>
     </div>

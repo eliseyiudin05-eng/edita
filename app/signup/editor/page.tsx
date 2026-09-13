@@ -15,6 +15,7 @@ export default function EditorSignup(){
   const [software,setSoftware]=useState("CapCut");
   const [level,setLevel]=useState("new");
   const [goal,setGoal]=useState("freelance");
+  const [motivation,setMotivation]=useState("");
   const [schoolName,setSchoolName]=useState("");
   const [acceptTerms,setAcceptTerms]=useState(false);
   const [acceptPersonalData,setAcceptPersonalData]=useState(false);
@@ -32,8 +33,9 @@ export default function EditorSignup(){
   async function submit(e:FormEvent){
     e.preventDefault();
     if(!acceptTerms||!acceptPersonalData){setMessage("Нужно принять условия и отдельно согласиться на обработку персональных данных.");return;}
+    if(motivation.trim().length<5){setMessage("Напиши несколькими словами, почему хочешь стать монтажёром.");return;}
     setLoading(true);setMessage("");
-    const onboarding={role:"editor",ageGroup,software,level,goal,schoolName:schoolName.trim()||undefined};
+    const onboarding={role:"editor",ageGroup,software,level,goal,motivation:motivation.trim(),schoolName:schoolName.trim()||undefined};
     localStorage.setItem("kivronix_onboarding",JSON.stringify(onboarding));
     const r=await fetch("/api/auth/signup",{
       method:"POST",
@@ -102,6 +104,10 @@ export default function EditorSignup(){
       <select value={goal} onChange={e=>setGoal(e.target.value)}>
         <option value="freelance">Найти первые заказы</option><option value="reels">Делать короткие вертикальные ролики</option><option value="youtube">Монтировать видео для YouTube</option><option value="career">Развиваться как монтажёр</option>
       </select>
+
+      <label className="field-label">Почему ты хочешь стать монтажёром?</label>
+      <textarea required minLength={5} maxLength={500} placeholder="Например: хочу создавать интересные ролики и зарабатывать своим навыком" value={motivation} onChange={e=>setMotivation(e.target.value)}/>
+      <div className="signup-points-reward"><b>+5 KIVRONIX Points</b><span>Начислим сразу после создания аккаунта за честный ответ.</span></div>
 
       <label className="consent-row"><input type="checkbox" checked={acceptTerms} onChange={e=>setAcceptTerms(e.target.checked)}/><span>Я принимаю <Link href="/terms" target="_blank"><u>условия использования</u></Link>.</span></label>
       <label className="consent-row"><input type="checkbox" checked={acceptPersonalData} onChange={e=>setAcceptPersonalData(e.target.checked)}/><span>Я даю <Link href="/personal-data-consent" target="_blank"><u>согласие на обработку персональных данных</u></Link> и прочитал <Link href="/privacy" target="_blank"><u>политику</u></Link>.</span></label>
