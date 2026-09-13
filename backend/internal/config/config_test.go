@@ -25,6 +25,7 @@ func TestLoadUsesSafeDefaults(t *testing.T) {
 
 func TestLoadBuildsSupabaseJWTConfiguration(t *testing.T) {
 	t.Setenv("GO_BACKEND_SUPABASE_URL", "https://example.supabase.co/")
+	t.Setenv("GO_BACKEND_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test")
 	t.Setenv("GO_BACKEND_JWKS_CACHE_TTL", "30m")
 
 	cfg := Load()
@@ -34,8 +35,18 @@ func TestLoadBuildsSupabaseJWTConfiguration(t *testing.T) {
 	if cfg.JWKSURL != "https://example.supabase.co/auth/v1/.well-known/jwks.json" {
 		t.Fatalf("JWKSURL = %q", cfg.JWKSURL)
 	}
+	if cfg.SupabasePublishableKey != "sb_publishable_test" {
+		t.Fatalf("SupabasePublishableKey = %q", cfg.SupabasePublishableKey)
+	}
 	if cfg.JWKSCacheTTL != 5*time.Minute {
 		t.Fatalf("JWKSCacheTTL = %s, want safe fallback", cfg.JWKSCacheTTL)
+	}
+}
+
+func TestPublishableKeyRequiresSupabaseURL(t *testing.T) {
+	cfg := Config{SupabasePublishableKey: "sb_publishable_test"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate accepted a publishable key without a project URL")
 	}
 }
 

@@ -11,24 +11,26 @@ import (
 )
 
 type Config struct {
-	Address           string
-	Environment       string
-	LogLevel          slog.Level
-	MaxBodyBytes      int64
-	ReadHeaderTimeout time.Duration
-	ReadTimeout       time.Duration
-	WriteTimeout      time.Duration
-	IdleTimeout       time.Duration
-	ShutdownTimeout   time.Duration
-	DependencyTimeout time.Duration
-	DatabaseURL       string
-	DatabaseMaxConns  int32
-	SupabaseURL       string
-	JWTIssuer         string
-	JWKSURL           string
-	JWTAudience       string
-	JWKSCacheTTL      time.Duration
-	JWKSHTTPTimeout   time.Duration
+	Address                string
+	Environment            string
+	LogLevel               slog.Level
+	MaxBodyBytes           int64
+	ReadHeaderTimeout      time.Duration
+	ReadTimeout            time.Duration
+	WriteTimeout           time.Duration
+	IdleTimeout            time.Duration
+	ShutdownTimeout        time.Duration
+	DependencyTimeout      time.Duration
+	DatabaseURL            string
+	DatabaseMaxConns       int32
+	SupabaseURL            string
+	SupabasePublishableKey string
+	JWTIssuer              string
+	JWKSURL                string
+	JWTAudience            string
+	JWKSCacheTTL           time.Duration
+	JWKSHTTPTimeout        time.Duration
+	ProfileHTTPTimeout     time.Duration
 }
 
 func Load() Config {
@@ -41,24 +43,26 @@ func Load() Config {
 	}
 
 	return Config{
-		Address:           envString("GO_BACKEND_ADDRESS", ":8080"),
-		Environment:       envString("GO_BACKEND_ENV", "development"),
-		LogLevel:          logLevel(envString("GO_BACKEND_LOG_LEVEL", "info")),
-		MaxBodyBytes:      envInt64("GO_BACKEND_MAX_BODY_BYTES", 1<<20, 1024, 10<<20),
-		ReadHeaderTimeout: envDuration("GO_BACKEND_READ_HEADER_TIMEOUT", 5*time.Second),
-		ReadTimeout:       envDuration("GO_BACKEND_READ_TIMEOUT", 15*time.Second),
-		WriteTimeout:      envDuration("GO_BACKEND_WRITE_TIMEOUT", 30*time.Second),
-		IdleTimeout:       envDuration("GO_BACKEND_IDLE_TIMEOUT", 60*time.Second),
-		ShutdownTimeout:   envDuration("GO_BACKEND_SHUTDOWN_TIMEOUT", 10*time.Second),
-		DependencyTimeout: envDuration("GO_BACKEND_DEPENDENCY_TIMEOUT", 3*time.Second),
-		DatabaseURL:       envString("GO_BACKEND_DATABASE_URL", ""),
-		DatabaseMaxConns:  int32(envInt64("GO_BACKEND_DATABASE_MAX_CONNS", 4, 1, 20)),
-		SupabaseURL:       supabaseURL,
-		JWTIssuer:         issuer,
-		JWKSURL:           jwksURL,
-		JWTAudience:       envString("GO_BACKEND_JWT_AUDIENCE", "authenticated"),
-		JWKSCacheTTL:      envDurationBounded("GO_BACKEND_JWKS_CACHE_TTL", 5*time.Minute, time.Minute, 10*time.Minute),
-		JWKSHTTPTimeout:   envDurationBounded("GO_BACKEND_JWKS_HTTP_TIMEOUT", 5*time.Second, time.Second, 15*time.Second),
+		Address:                envString("GO_BACKEND_ADDRESS", ":8080"),
+		Environment:            envString("GO_BACKEND_ENV", "development"),
+		LogLevel:               logLevel(envString("GO_BACKEND_LOG_LEVEL", "info")),
+		MaxBodyBytes:           envInt64("GO_BACKEND_MAX_BODY_BYTES", 1<<20, 1024, 10<<20),
+		ReadHeaderTimeout:      envDuration("GO_BACKEND_READ_HEADER_TIMEOUT", 5*time.Second),
+		ReadTimeout:            envDuration("GO_BACKEND_READ_TIMEOUT", 15*time.Second),
+		WriteTimeout:           envDuration("GO_BACKEND_WRITE_TIMEOUT", 30*time.Second),
+		IdleTimeout:            envDuration("GO_BACKEND_IDLE_TIMEOUT", 60*time.Second),
+		ShutdownTimeout:        envDuration("GO_BACKEND_SHUTDOWN_TIMEOUT", 10*time.Second),
+		DependencyTimeout:      envDuration("GO_BACKEND_DEPENDENCY_TIMEOUT", 3*time.Second),
+		DatabaseURL:            envString("GO_BACKEND_DATABASE_URL", ""),
+		DatabaseMaxConns:       int32(envInt64("GO_BACKEND_DATABASE_MAX_CONNS", 4, 1, 20)),
+		SupabaseURL:            supabaseURL,
+		SupabasePublishableKey: envString("GO_BACKEND_SUPABASE_PUBLISHABLE_KEY", ""),
+		JWTIssuer:              issuer,
+		JWKSURL:                jwksURL,
+		JWTAudience:            envString("GO_BACKEND_JWT_AUDIENCE", "authenticated"),
+		JWKSCacheTTL:           envDurationBounded("GO_BACKEND_JWKS_CACHE_TTL", 5*time.Minute, time.Minute, 10*time.Minute),
+		JWKSHTTPTimeout:        envDurationBounded("GO_BACKEND_JWKS_HTTP_TIMEOUT", 5*time.Second, time.Second, 15*time.Second),
+		ProfileHTTPTimeout:     envDurationBounded("GO_BACKEND_PROFILE_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
 	}
 }
 
@@ -81,6 +85,12 @@ func (c Config) Validate() error {
 		if err != nil || projectURL.Scheme != "https" || projectURL.Host == "" || projectURL.User != nil || (projectURL.Path != "" && projectURL.Path != "/") || projectURL.RawQuery != "" || projectURL.Fragment != "" {
 			return errors.New("GO_BACKEND_SUPABASE_URL must be an HTTPS project URL")
 		}
+	}
+	if c.SupabasePublishableKey != "" && c.SupabaseURL == "" {
+		return errors.New("GO_BACKEND_SUPABASE_PUBLISHABLE_KEY requires GO_BACKEND_SUPABASE_URL")
+	}
+	if len(c.SupabasePublishableKey) > 4096 || strings.ContainsAny(c.SupabasePublishableKey, "\r\n") {
+		return errors.New("GO_BACKEND_SUPABASE_PUBLISHABLE_KEY is invalid")
 	}
 
 	return nil

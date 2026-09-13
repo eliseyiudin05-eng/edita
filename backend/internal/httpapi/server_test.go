@@ -14,13 +14,14 @@ import (
 	"time"
 
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 )
 
 func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.3",
+		Version:      "1.0.4",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -54,7 +55,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.3"`) {
+	if !strings.Contains(body, `"version":"1.0.4"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -70,6 +71,73 @@ func (v fakeVerifier) Verify(context.Context, string) (auth.Claims, error) {
 }
 
 func (v fakeVerifier) Ready(context.Context) error { return v.err }
+
+type claimsVerifier struct {
+	claims auth.Claims
+	err    error
+}
+
+func (v claimsVerifier) Verify(context.Context, string) (auth.Claims, error) { return v.claims, v.err }
+func (v claimsVerifier) Ready(context.Context) error                         { return v.err }
+
+type fakeProfileReader struct {
+	result  profile.LearningPreferences
+	err     error
+	token   string
+	subject string
+}
+
+func (reader *fakeProfileReader) GetLearningPreferences(_ context.Context, token, subject string) (profile.LearningPreferences, error) {
+	reader.token = token
+	reader.subject = subject
+	return reader.result, reader.err
+}
+
+func TestLearningPreferencesRequiresAuthAndReadsVerifiedSubject(t *testing.T) {
+	reader := &fakeProfileReader{result: profile.LearningPreferences{
+		Role:        "editor",
+		Preferences: profile.Preferences{Level: "new", Software: "CapCut", Goal: "freelance"},
+	}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "private-user-id", Role: "authenticated"}},
+		Profiles:          reader,
+		DependencyTimeout: time.Second,
+	})
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/v1/profile/learning-preferences", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d", unauthorized.Code)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/profile/learning-preferences?user_id=other", nil)
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "private-user-id" {
+		t.Fatalf("unexpected response or reader arguments: status=%d token=%q subject=%q body=%s", response.Code, reader.token, reader.subject, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "private-user-id") {
+		t.Fatalf("response exposes identity: %s", response.Body.String())
+	}
+}
+
+func TestLearningPreferencesRejectsNonAuthenticatedRole(t *testing.T) {
+	reader := &fakeProfileReader{}
+	handler := New(Options{
+		Logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:     claimsVerifier{claims: auth.Claims{Subject: "private-user-id", Role: "anon"}},
+		Profiles: reader,
+	})
+	request := httptest.NewRequest(http.MethodGet, "/v1/profile/learning-preferences", nil)
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || reader.subject != "" {
+		t.Fatalf("unexpected response: status=%d body=%s", response.Code, response.Body.String())
+	}
+}
 
 func TestReadinessChecksDependencies(t *testing.T) {
 	tests := []struct {

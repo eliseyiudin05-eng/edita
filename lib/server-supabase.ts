@@ -44,6 +44,18 @@ export async function getAuthenticatedProfile(token?:string|null){
   return data?{user,profile:data}:null;
 }
 
+export async function getProfileLearningPreferences(token:string,userId:string){
+  const service=getSupabaseServiceClient();
+  if(service)return service.from("profiles").select("role,onboarding").eq("id",userId).maybeSingle();
+
+  const {url,key}=publicConfig();
+  const client=createClient(url,key,{
+    auth:{persistSession:false,autoRefreshToken:false},
+    global:{headers:{Authorization:"Bearer "+token}}
+  });
+  return client.from("profiles").select("role,onboarding").eq("id",userId).maybeSingle();
+}
+
 export async function canUseArenaReview(token:string|undefined|null,challengeId?:string|null){
   if(!challengeId)return false;
   const auth=await getAuthenticatedProfile(token);

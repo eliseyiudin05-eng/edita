@@ -25,13 +25,19 @@ export default function OnboardingPage(){
     supabase.auth.getUser().then(async({data})=>{
       if(!active)return;
       if(!data.user){setRole("guest");return;}
-      const {data:profile}=await supabase.from("profiles").select("role,onboarding").eq("id",data.user.id).maybeSingle();
-      if(!active||!profile)return;
+      const {data:{session}}=await supabase.auth.getSession();
+      const response=await fetch("/api/profile/learning-preferences",{
+        headers:session?.access_token?{Authorization:"Bearer "+session.access_token}:{},
+        cache:"no-store",
+      });
+      if(!active||!response.ok)return;
+      const profile=await response.json();
+      if(!active)return;
       setRole(profile.role);
       setState({
-        level:profile.onboarding?.level||"new",
-        software:profile.onboarding?.software||"CapCut",
-        goal:profile.onboarding?.goal||"freelance"
+        level:profile.preferences?.level||"new",
+        software:profile.preferences?.software||"CapCut",
+        goal:profile.preferences?.goal||"freelance"
       });
     });
     return()=>{active=false};

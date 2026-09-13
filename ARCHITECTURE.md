@@ -45,11 +45,14 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.3)
+## Go migration boundary (v1.0.4)
 
 - Production traffic and business decisions remain in Next.js/Supabase.
-- The isolated Go service can only report liveness, dependency readiness, build metadata and the result of access-token verification.
+- The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
+- Next.js remains authoritative: it returns its Supabase result first and may compare the Go result afterward when the shadow flag is enabled.
+- The Go profile endpoint derives identity only from a locally verified access token, forwards that token to the Supabase Data API and filters on the same subject; the existing profile RLS policy remains active.
+- The profile response omits user identity and every unrelated profile/onboarding field.
 - Go connects to PostgreSQL through a bounded pool and requires encrypted database transport in production.
 - Supabase JWTs are verified with asymmetric JWKS keys; the service never receives or exposes the JWT signing secret.
 - Request audit events contain request ID, method, route path, status, response size, authentication result and duration. Authorization headers, query strings and user identifiers are excluded.
-- No profile, chat, Points, payout, order, escrow or file-delivery route is served by Go at this stage.
+- No chat, Points, payout, order, escrow, mutation or file-delivery route is served by Go at this stage.

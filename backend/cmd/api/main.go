@@ -14,10 +14,11 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/config"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/database"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/httpapi"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 )
 
 var (
-	version = "1.0.3"
+	version = "1.0.4"
 	commit  = "local"
 )
 
@@ -60,12 +61,26 @@ func main() {
 		authVerifier = tokenVerifier
 	}
 
+	var profileReader httpapi.LearningPreferencesReader
+	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
+		client, err := profile.NewClient(
+			cfg.SupabaseURL,
+			cfg.SupabasePublishableKey,
+			&http.Client{Timeout: cfg.ProfileHTTPTimeout},
+		)
+		if err != nil {
+			logger.Error("profile client configuration failed", "error", err)
+			os.Exit(1)
+		}
+		profileReader = client
+	}
+
 	server := &http.Server{
 		Addr: cfg.Address,
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier,
+			Database: databasePinger, Auth: authVerifier, Profiles: profileReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,

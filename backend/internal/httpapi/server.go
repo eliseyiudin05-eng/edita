@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 )
 
 type Pinger interface {
@@ -25,6 +26,10 @@ type TokenVerifier interface {
 	Ready(context.Context) error
 }
 
+type LearningPreferencesReader interface {
+	GetLearningPreferences(context.Context, string, string) (profile.LearningPreferences, error)
+}
+
 type Options struct {
 	Logger            *slog.Logger
 	Environment       string
@@ -34,6 +39,7 @@ type Options struct {
 	DependencyTimeout time.Duration
 	Database          Pinger
 	Auth              TokenVerifier
+	Profiles          LearningPreferencesReader
 }
 
 type server struct {
@@ -45,6 +51,7 @@ type server struct {
 	dependencyTimeout time.Duration
 	database          Pinger
 	auth              TokenVerifier
+	profiles          LearningPreferencesReader
 }
 
 type contextKey string
@@ -76,6 +83,7 @@ func New(options Options) http.Handler {
 		dependencyTimeout: options.DependencyTimeout,
 		database:          options.Database,
 		auth:              options.Auth,
+		profiles:          options.Profiles,
 	}
 
 	mux := http.NewServeMux()
@@ -83,8 +91,54 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/readyz", s.ready)
 	mux.HandleFunc("/v1/meta", s.meta)
 	mux.HandleFunc("/v1/diagnostics/auth", s.authDiagnostic)
+	mux.HandleFunc("/v1/profile/learning-preferences", s.learningPreferences)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) learningPreferences(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	if s.auth == nil || s.profiles == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "profile_service_unavailable", "Profile reading is temporarily unavailable.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.profiles.GetLearningPreferences(ctx, token, claims.Subject)
+	cancel()
+	if err != nil {
+		if errors.Is(err, profile.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+			return
+		}
+		writeError(w, r, http.StatusServiceUnavailable, "profile_service_unavailable", "Profile reading is temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *server) health(w http.ResponseWriter, r *http.Request) {
