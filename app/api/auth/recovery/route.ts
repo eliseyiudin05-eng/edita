@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient} from "@/lib/server-supabase";
 import {authEmailHtml,sendTransactionalEmail} from "@/lib/resend-email";
+import {KIVRONIX_SITE_URL} from "@/lib/public-config";
 
 export async function POST(req:NextRequest){
   const service=getSupabaseServiceClient();
@@ -10,7 +11,7 @@ export async function POST(req:NextRequest){
   const email=String(body?.email||"").trim().toLowerCase();
   if(!email.includes("@"))return NextResponse.json({ok:true});
 
-  const site=process.env.NEXT_PUBLIC_SITE_URL||new URL(req.url).origin;
+  const site=KIVRONIX_SITE_URL;
   const {data,error}=await service.auth.admin.generateLink({
     type:"recovery",
     email,

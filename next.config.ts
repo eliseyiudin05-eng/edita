@@ -10,6 +10,28 @@ const securityHeaders=[
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  async redirects(){
+    return [
+      {
+        source:"/:path*",
+        has:[{type:"host",value:"kivronix.com"}],
+        destination:"https://kivronix.ru/:path*",
+        permanent:true,
+      },
+      {
+        source:"/:path*",
+        has:[{type:"host",value:"www.kivronix.com"}],
+        destination:"https://kivronix.ru/:path*",
+        permanent:true,
+      },
+      {
+        source:"/:path*",
+        has:[{type:"host",value:"www.kivronix.ru"}],
+        destination:"https://kivronix.ru/:path*",
+        permanent:true,
+      },
+    ];
+  },
   async headers(){
     return [{source:"/:path*",headers:securityHeaders}];
   },

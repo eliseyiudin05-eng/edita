@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient} from "@/lib/server-supabase";
 import {authEmailHtml,sendTransactionalEmail} from "@/lib/resend-email";
+import {KIVRONIX_SITE_URL} from "@/lib/public-config";
 
 function validEmail(value:string){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)}
 
@@ -26,7 +27,7 @@ export async function POST(req:NextRequest){
     return NextResponse.json({error:"Для бизнес-аккаунта нужно название компании и возраст 18+."},{status:400});
   }
 
-  const site=process.env.NEXT_PUBLIC_SITE_URL||new URL(req.url).origin;
+  const site=KIVRONIX_SITE_URL;
   const metadata={
     role,
     display_name:displayName,

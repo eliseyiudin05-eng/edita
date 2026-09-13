@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import CookieNotice from "@/components/cookie-notice";
+import {KIVRONIX_SITE_URL} from "@/lib/public-config";
 
-const siteUrl=process.env.NEXT_PUBLIC_SITE_URL || "https://kivronix.ru";
+const siteUrl=KIVRONIX_SITE_URL;
 const siteDescription="Платформа для тех, кто хочет научиться монтировать видео с нуля. Простые уроки, задания, помощник, разбор роликов, конкурсы и вакансии. Ранний доступ открыт бесплатно.";
 
 // A small inline safety net keeps the platform readable when a browser, VPN,
