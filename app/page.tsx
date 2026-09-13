@@ -43,9 +43,9 @@ export default async function Home(){
 
   return <main className="landing">
     <nav className="topbar shell sticky-public-nav">
-      <Link className="brand brand-explained" href="/" title="KIVRONIX — монтаж, обучение и работа" aria-label="KIVRONIX — обучение видеомонтажу и поиск монтажёров, перейти на главную">
-        <span className="brand-name">KIVRONIX<b>.</b></span>
-        <small>монтаж · обучение · работа</small>
+      <Link className="brand brand-explained brand-home" href="/" title="Что такое KIVRONIX? Нажми, чтобы вернуться на главную" aria-label="KIVRONIX — обучение видеомонтажу и поиск монтажёров, перейти на главную">
+        <span className="brand-mark"><Image src="/images/kivronix-logo-mark.png" width={48} height={48} alt="" priority/></span>
+        <span className="brand-words"><span className="brand-name">KIVRONIX<b>.</b></span><small>учись · находи · зарабатывай</small></span>
       </Link>
       <div className="nav-actions">
         <a href="#free">Ранний доступ</a>
@@ -61,9 +61,9 @@ export default async function Home(){
     <section className="hero shell hero-new">
       <div className="hero-grid">
         <div>
-          <div className="eyebrow">ВИДЕОМОНТАЖ ПОНЯТНЫМ ЯЗЫКОМ</div>
-          <h1 className="structured-title">Учись монтировать.<span>Или найди монтажёра.</span></h1>
-          <p className="hero-copy"><strong>KIVRONIX — платформа, где каждый может научиться видеомонтажу или найти монтажёра для своей компании.</strong> Новичок проходит простые уроки и собирает первые работы. Компания смотрит готовые ролики, публикует задание и выбирает исполнителя.</p>
+          <div className="eyebrow">ВСЁ О ВИДЕОМОНТАЖЕ В ОДНОМ МЕСТЕ</div>
+          <h1 className="structured-title">Научись монтировать.<span>Или найди монтажёра.</span></h1>
+          <p className="hero-copy"><strong>KIVRONIX — платформа, где каждый может научиться видеомонтажу или найти монтажёра для своей компании.</strong> Здесь новичок начинает с самых простых уроков, делает первые ролики и пробует себя в конкурсах. А компания публикует задание, смотрит работы участников и выбирает подходящего человека.</p>
           <div className="hero-actions">
             <Link className="btn btn-primary" href="/signup/editor">Хочу научиться монтажу</Link>
             <Link className="btn btn-ghost" href="/signup/business">Найти монтажёра</Link>
@@ -96,7 +96,7 @@ export default async function Home(){
 
     <section id="challenge" className="challenge-home-band">
       <div className="shell challenge-home-grid">
-        <div><div className="section-kicker light">КОНКУРС KIVRONIX · СЕЗОН 1</div><h2>Сделай ролик и выиграй часть из 10 000 ₽</h2><p>Опубликуй ролик, отметь KIVRONIX и отправь ссылку до 12 ноября 2026 года. Мы проверим просмотры и определим три места. Денежный приз появится в разделе «Мои итоги», откуда победитель сможет запросить вывод.</p><div className="challenge-home-actions"><Link className="btn btn-lime" href="/platform#kivronix-challenges">Участвовать</Link><Link className="btn btn-light" href="/challenge-rules">Прочитать правила</Link></div></div>
+        <div><div className="section-kicker light">КОНКУРС KIVRONIX · СЕЗОН 1</div><h2>Сделай ролик и выиграй часть из 10 000 ₽</h2><p>Опубликуй ролик, отметь KIVRONIX и отправь ссылку до 12 ноября 2026 года. Мы проверим просмотры и определим три места.</p><ol className="prize-flow"><li><b>Ты выигрываешь</b><span>Результат и сумма приза появляются в кабинете.</span></li><li><b>Деньги зачисляются</b><span>Например, победителю начисляется 5 000 ₽ на призовой баланс.</span></li><li><b>Ты запрашиваешь вывод</b><span>Нажимаешь «Вывести», а реквизиты передаёшь только через защищённый платёжный сервис.</span></li></ol><p className="prize-note">Важно: денежный приз можно вывести. Баллы KIVRONIX — отдельный бонус для скидок и подписки, они не считаются рублями.</p><div className="challenge-home-actions"><Link className="btn btn-lime" href="/platform#kivronix-challenges">Участвовать</Link><Link className="btn btn-light" href="/challenge-rules">Прочитать правила</Link></div></div>
         <div className="challenge-prize-card"><div><span>1 место</span><strong>5 000 ₽</strong></div><div><span>2 место</span><strong>3 000 ₽</strong></div><div><span>3 место</span><strong>2 000 ₽</strong></div><p>До 100 участников · новый сезон каждые 2 месяца · с 14 лет</p></div>
       </div>
     </section>

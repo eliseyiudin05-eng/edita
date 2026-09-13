@@ -1,4 +1,4 @@
-import {Resend,type ErrorResponse} from "resend";
+import {Resend} from "resend";
 
 type SendEmailArgs={
   to:string;
@@ -10,7 +10,6 @@ type SendEmailArgs={
 const RESEND_API_URL="https://api.resend.com";
 const KIVRONIX_EMAIL_DOMAIN="auth.kivronix.ru";
 const DEFAULT_FROM="KIVRONIX <no-reply@auth.kivronix.ru>";
-const RESEND_TEST_FROM="onboarding@resend.dev";
 
 type ResendApiErrorBody={
   message?:string;
@@ -56,11 +55,6 @@ function errorCode(body:ResendApiErrorBody){
   return String(body?.code||body?.name||body?.error?.code||body?.error?.name||"resend_error").slice(0,100);
 }
 
-function shouldRetryWithTestSender(error:ErrorResponse){
-  return error.name==="validation_error"
-    &&/domain.+not verified/i.test(error.message);
-}
-
 export function getResendConfig(){
   const key=cleanResendKey(process.env.RESEND_API_KEY);
   const requestedFrom=cleanEnv(process.env.RESEND_FROM_EMAIL);
@@ -92,19 +86,7 @@ export async function sendTransactionalEmail({to,subject,html,text}:SendEmailArg
 
   const resend=new Resend(config.key);
   const email={to:[to],subject,html,text:text||undefined};
-  let result=await resend.emails.send({...email,from:config.from});
-  let usedTestSender=false;
-
-  if(result.error&&shouldRetryWithTestSender(result.error)){
-    usedTestSender=true;
-    result=await resend.emails.send({...email,from:RESEND_TEST_FROM});
-    if(!result.error){
-      console.warn("Resend used the restricted test sender because the custom domain is not verified",{
-        senderDomain:config.domain,
-        testSender:true,
-      });
-    }
-  }
+  const result=await resend.emails.send({...email,from:config.from});
 
   if(result.error){
     const body:ResendApiErrorBody={
@@ -118,7 +100,7 @@ export async function sendTransactionalEmail({to,subject,html,text}:SendEmailArg
       message:safeErrorMessage(body),
       senderDomain:config.domain,
       senderAdjusted:config.senderAdjusted,
-      usedTestSender,
+      usedTestSender:false,
     });
     throw new Error("RESEND_SEND_FAILED:"+(result.error.statusCode||0)+":"+code);
   }
