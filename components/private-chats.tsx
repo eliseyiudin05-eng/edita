@@ -18,6 +18,7 @@ type Conversation={
   title:string;
   status:"active"|"closed";
   last_message_at:string;
+  workOrder?:{id:string;gross_points:number;editor_points:number;platform_fee_points:number;status:string}|null;
 };
 
 type Message={id:string;conversation_id:string;sender_id:string;body:string;created_at:string};
@@ -31,6 +32,7 @@ export default function PrivateChats(){
   const [draft,setDraft]=useState("");
   const [notice,setNotice]=useState("");
   const [sending,setSending]=useState(false);
+  const [uploading,setUploading]=useState(false);
   const endRef=useRef<HTMLDivElement|null>(null);
 
   async function token(){
@@ -111,6 +113,33 @@ export default function PrivateChats(){
     setSending(false);
   }
 
+  async function uploadWorkFile(file:File){
+    if(!selectedId||!viewerId||uploading)return;
+    setUploading(true);setNotice("");
+    const safe=file.name.replace(/[^a-zA-Z0-9а-яА-Я._-]/g,"_").slice(-120);
+    const path=selectedId+"/"+viewerId+"/"+crypto.randomUUID()+"-"+safe;
+    const supabase=getSupabaseBrowserClient();
+    const {error}=await supabase.storage.from("work-files").upload(path,file,{upsert:false,contentType:file.type||"application/octet-stream"});
+    if(error){setNotice("Не удалось загрузить файл: "+error.message);setUploading(false);return;}
+    const access=await token();
+    const response=await fetch("/api/private-chats",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+access},body:JSON.stringify({action:"send",conversationId:selectedId,message:"KIVRONIX_FILE:"+path+"|"+safe})});
+    setNotice(response.ok?"Файл передан внутри защищённого чата.":"Файл загружен, но сообщение не отправилось.");
+    await loadMessages(selectedId,true);setUploading(false);
+  }
+
+  async function openWorkFile(body:string){
+    const [path]=body.replace("KIVRONIX_FILE:","").split("|");
+    const {data,error}=await getSupabaseBrowserClient().storage.from("work-files").createSignedUrl(path,60);
+    if(error||!data?.signedUrl){setNotice("Не удалось открыть файл.");return;}
+    window.open(data.signedUrl,"_blank","noopener,noreferrer");
+  }
+
+  async function completeWork(){
+    if(!current?.workOrder||!window.confirm("Подтвердить, что работа принята? После этого Points будут переведены монтажёру."))return;
+    const access=await token();const r=await fetch("/api/private-chats",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+access},body:JSON.stringify({action:"complete_work",workOrderId:current.workOrder.id})});
+    const data=await r.json().catch(()=>({}));setNotice(r.ok?"Работа принята. Оплата перечислена монтажёру.":data.error||"Не удалось завершить работу.");if(r.ok)await loadConversations();
+  }
+
   if(signedIn===null)return <div className="card"><p className="muted">Открываем закрытые чаты…</p></div>;
   if(signedIn===false)return <div className="card private-chat-empty"><div className="private-chat-lock">🔒</div><h3>Войдите в аккаунт</h3><p>Закрытые чаты доступны участникам работы и конкурса.</p><Link className="btn btn-dark" href="/login?from=/platform%23messages">Войти</Link></div>;
 
@@ -130,13 +159,14 @@ export default function PrivateChats(){
       {current?<>
         <header><div><div className="private-chat-title"><span className="private-chat-shield">◆</span><div><h3>{current.otherName}</h3><p>{current.title}</p></div></div></div><span className="private-chat-badge">Закрытый чат</span></header>
         <div className="private-chat-safety"><b>Сообщения видят только компания и монтажёр.</b><span>Телефоны, электронная почта, ссылки, адреса страниц и названия мессенджеров остаются за пределами чата. Общайтесь внутри KIVRONIX.</span></div>
+        {current.workOrder&&<div className="auth-msg"><b>Оплата защищена: {current.workOrder.gross_points.toLocaleString("ru-RU")} KP</b><br/>{current.workOrder.status==="completed"?"Работа завершена и оплачена.":current.side==="company"?<>Points находятся в резерве. Примите работу только после проверки файлов.<br/><button className="btn btn-dark" type="button" onClick={completeWork}>Принять работу и оплатить</button></>:"После принятия работы ты получишь "+current.workOrder.editor_points.toLocaleString("ru-RU")+" KP. Комиссия платформы — "+current.workOrder.platform_fee_points.toLocaleString("ru-RU")+" KP."}</div>}
         <div className="private-chat-messages" aria-live="polite">
-          {messages.length===0?<div className="private-chat-start"><span>👋</span><b>Можно начинать</b><p>Обсудите задачу, срок, готовый результат и правки простыми словами.</p></div>:messages.map(item=><article className={item.sender_id===viewerId?"mine":"theirs"} key={item.id}><p>{item.body}</p><time>{messageTime(item.created_at)}</time></article>)}
+          {messages.length===0?<div className="private-chat-start"><span>👋</span><b>Можно начинать</b><p>Обсудите задачу, срок, готовый результат и правки простыми словами.</p></div>:messages.map(item=><article className={item.sender_id===viewerId?"mine":"theirs"} key={item.id}>{item.body.startsWith("KIVRONIX_FILE:")?<button className="mini-btn" type="button" onClick={()=>openWorkFile(item.body)}>📎 {item.body.split("|").pop()||"Файл работы"}</button>:<p>{item.body}</p>}<time>{messageTime(item.created_at)}</time></article>)}
           <div ref={endRef}/>
         </div>
         <form className="private-chat-form" onSubmit={send}>
           <textarea value={draft} onChange={event=>setDraft(event.target.value)} maxLength={1500} rows={3} placeholder="Напишите сообщение о работе…" disabled={current.status!=="active"}/>
-          <div><small>{draft.length} / 1500</small><button className="btn btn-dark" disabled={sending||!draft.trim()||current.status!=="active"}>{sending?"Отправляем…":"Отправить"}</button></div>
+          <div><label className="mini-btn">{uploading?"Загружаем…":"📎 Передать файл"}<input hidden type="file" accept="video/mp4,video/quicktime,video/webm,application/zip,image/jpeg,image/png" disabled={uploading} onChange={e=>{const file=e.target.files?.[0];if(file)void uploadWorkFile(file);e.target.value=""}}/></label><small>{draft.length} / 1500</small><button className="btn btn-dark" disabled={sending||!draft.trim()||current.status!=="active"}>{sending?"Отправляем…":"Отправить"}</button></div>
         </form>
         {notice?<div className="auth-msg">{notice}</div>:null}
       </>:<div className="private-chat-zero large"><span>🔒</span><b>Выберите чат</b><p>Здесь будет ваш разговор о работе.</p></div>}

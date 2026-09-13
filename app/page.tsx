@@ -54,7 +54,7 @@ export default async function Home(){
           <a href="#inside">Что внутри</a>
           <a href="#safety">Защита</a>
           <Link href="/login">Войти</Link>
-          <Link className="btn btn-dark" href="/signup/editor">Начать</Link>
+          <Link className="btn btn-dark" href="/signup">Начать</Link>
         </div>
     </nav></header>
 

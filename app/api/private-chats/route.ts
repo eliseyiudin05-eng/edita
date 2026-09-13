@@ -52,6 +52,9 @@ export async function GET(req:NextRequest){
   if(error)return NextResponse.json({error:"Ошибка загрузки чатов."},{status:500});
 
   const editorIds=[...new Set((conversations||[]).map((item:any)=>item.editor_id))];
+  const conversationIds=(conversations||[]).map((item:any)=>item.id);
+  const {data:orders}=conversationIds.length?await auth.service.from("work_orders").select("id,conversation_id,gross_points,editor_points,platform_fee_points,status").in("conversation_id",conversationIds):{data:[] as any[]};
+  const orderMap=Object.fromEntries((orders||[]).map((item:any)=>[item.conversation_id,item]));
   const {data:editors}=editorIds.length
     ?await auth.service.from("public_profiles").select("id,display_name,username,avatar_url").in("id",editorIds)
     :{data:[] as any[]};
@@ -64,6 +67,7 @@ export async function GET(req:NextRequest){
       otherName:item.editor_id===auth.user.id?item.company_name:(editorMap[item.editor_id]?.display_name||"Монтажёр"),
       otherUsername:item.editor_id===auth.user.id?null:(editorMap[item.editor_id]?.username||null),
       otherAvatar:item.editor_id===auth.user.id?null:(editorMap[item.editor_id]?.avatar_url||null)
+      ,workOrder:orderMap[item.id]||null
     }))
   });
 }
@@ -153,12 +157,6 @@ export async function POST(req:NextRequest){
       .maybeSingle();
     if(!application)return NextResponse.json({error:"Отклик отсутствует."},{status:404});
 
-    const {error:updateError}=await auth.service.from("job_applications")
-      .update({status:"accepted"})
-      .eq("job_id",job.id)
-      .eq("editor_id",editorId);
-    if(updateError)return NextResponse.json({error:"Ошибка выбора монтажёра."},{status:500});
-
     const conversation=await ensurePrivateConversation({
       service:auth.service,
       editorId,
@@ -169,7 +167,23 @@ export async function POST(req:NextRequest){
       companyName:business.name||"Компания",
       title:"Вакансия: "+job.title
     });
-    return NextResponse.json({ok:true,conversationId:conversation.id});
+    const {data:orderId,error:reserveError}=await auth.service.rpc("reserve_job_points",{
+      p_customer:auth.user.id,p_job:job.id,p_editor:editorId,p_conversation:conversation.id
+    });
+    if(reserveError){
+      const reason=String(reserveError.message||"");
+      return NextResponse.json({error:reason.includes("NOT_ENOUGH_WORK_POINTS")?"Недостаточно KIVRONIX Points. Сначала пополните баланс.":reason.includes("POINT_PRICE_REQUIRED")?"В задании не указана оплата в Points.":"Не удалось зарезервировать оплату."},{status:409});
+    }
+    const {error:updateError}=await auth.service.from("job_applications").update({status:"accepted"}).eq("job_id",job.id).eq("editor_id",editorId);
+    if(updateError)return NextResponse.json({error:"Оплата зарезервирована, но статус отклика не обновился. Обратитесь в поддержку."},{status:500});
+    return NextResponse.json({ok:true,conversationId:conversation.id,workOrderId:orderId});
+  }
+
+  if(action==="complete_work"){
+    const orderId=String(body?.workOrderId||"");
+    const {error}=await auth.service.rpc("complete_work_order",{p_customer:auth.user.id,p_order:orderId});
+    if(error)return NextResponse.json({error:"Не удалось завершить работу. Проверьте, что вы заказчик и работа ещё активна."},{status:409});
+    return NextResponse.json({ok:true});
   }
 
   return NextResponse.json({error:"Выберите действие."},{status:400});

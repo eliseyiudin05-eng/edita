@@ -4,7 +4,7 @@ import {FormEvent,useEffect,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 
 type JobApplication={job_id:string;editor_id:string;status:string;created_at?:string;editor?:{display_name?:string|null;username?:string|null}|null};
-type Job={id:string;title:string;description:string;budget_min_cents:number|null;budget_max_cents:number|null;businesses?:{name?:string;verified?:boolean;verification_level?:string}|null;applications?:JobApplication[];my_status?:string|null};
+type Job={id:string;title:string;description:string;budget_min_cents:number|null;budget_max_cents:number|null;payment_points?:number;businesses?:{name?:string;verified?:boolean;verification_level?:string}|null;applications?:JobApplication[];my_status?:string|null};
 const demoJobs:Job[]=[
   {id:"d1",title:"Монтажёр коротких роликов",description:"5–7 вертикальных роликов в неделю.",budget_min_cents:4500000,budget_max_cents:6000000,businesses:{name:"Пример компании"}},
   {id:"d2",title:"Монтажёр для YouTube",description:"Видео с экспертом и дополнительными кадрами.",budget_min_cents:250000,budget_max_cents:350000,businesses:{name:"Студия авторов"}},
@@ -18,7 +18,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
   const [editorEligible,setEditorEligible]=useState(true);
   const [message,setMessage]=useState("");
   const [busyKey,setBusyKey]=useState("");
-  const [form,setForm]=useState({title:"",description:"",min:"",max:""});
+  const [form,setForm]=useState({title:"",description:"",points:""});
 
   useEffect(()=>{void load()},[mode]);
 
@@ -40,7 +40,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
       if(!business){setJobs([]);setMessage("Ошибка создания кабинета компании.");return;}
       setBusinessId(business.id);
       setBusinessVerified(Boolean((business as any).verified));
-      const {data,error}=await supabase.from("jobs").select("id,title,description,budget_min_cents,budget_max_cents").eq("business_id",business.id).order("created_at",{ascending:false});
+      const {data,error}=await supabase.from("jobs").select("id,title,description,budget_min_cents,budget_max_cents,payment_points").eq("business_id",business.id).order("created_at",{ascending:false});
       if(error){setMessage(error.message);return;}
       const rows=(data||[]) as Job[];
       const jobIds=rows.map(job=>job.id);
@@ -57,7 +57,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
     }else{
       const {data:editorProfile}=await supabase.from("profiles").select("level,xp").eq("id",user.id).maybeSingle();
       setEditorEligible(Number(editorProfile?.level||1)>=2&&Number(editorProfile?.xp||0)>=300);
-      const {data,error}=await supabase.from("jobs").select("id,business_id,title,description,budget_min_cents,budget_max_cents").eq("status","open").order("created_at",{ascending:false});
+      const {data,error}=await supabase.from("jobs").select("id,business_id,title,description,budget_min_cents,budget_max_cents,payment_points").eq("status","open").order("created_at",{ascending:false});
       if(error){setMessage(error.message);setJobs(demoJobs);return;}
       const rows=(data||[]) as any[];
       const businessIds=[...new Set(rows.map(j=>j.business_id).filter(Boolean))];
@@ -110,20 +110,20 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
     if(!businessVerified){setMessage("Сначала пройди проверку компании. После этого можно публиковать реальные вакансии.");return;}
     const {error}=await supabase.from("jobs").insert({
       business_id:businessId,title:form.title,description:form.description,status:"open",
-      budget_min_cents:form.min?Math.round(Number(form.min)*100):null,
-      budget_max_cents:form.max?Math.round(Number(form.max)*100):null
+      payment_points:Math.max(100,Math.floor(Number(form.points)||0))
     });
     if(error){setMessage(error.message);return;}
-    setForm({title:"",description:"",min:"",max:""});setMessage("Вакансия опубликована.");
+    setForm({title:"",description:"",points:""});setMessage("Задание опубликовано. При выборе монтажёра оплата будет зарезервирована.");
     await load();
   }
 
   return <div className="job-board">
     {mode==="editor"&&!editorEligible&&<div className="auth-msg"><b>Работа откроется на уровне 2 · 300 XP.</b><br/>Пройди первые уроки и выполни учебные шаги. Смотреть задания можно уже сейчас, откликнуться — после достижения уровня.</div>}
-    {mode==="business"&&<section className="card"><div className="eyebrow">НОВАЯ ВАКАНСИЯ</div><h3>Опубликовать вакансию</h3>{!businessVerified&&<div className="auth-msg">Сначала нужна проверка компании. Это защищает монтажёров от вымышленных работодателей.</div>}<form className="business-form" onSubmit={create}>
-      <input required placeholder="Название роли" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
+    {mode==="business"&&<section className="card"><div className="eyebrow">НОВОЕ ЗАДАНИЕ</div><h3>Опубликовать работу</h3>{!businessVerified&&<div className="auth-msg">Сначала нужна проверка аккаунта. Это защищает монтажёров от вымышленных заказчиков.</div>}<form className="business-form" onSubmit={create}>
+      <input required placeholder="Что нужно смонтировать" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
       <textarea required placeholder="Задачи, объём, формат работы" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
-      <div className="split-fields"><input type="number" min="0" placeholder="От, ₽" value={form.min} onChange={e=>setForm({...form,min:e.target.value})}/><input type="number" min="0" placeholder="До, ₽" value={form.max} onChange={e=>setForm({...form,max:e.target.value})}/></div>
+      <input required type="number" min="100" placeholder="Оплата, KIVRONIX Points" value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/>
+      <p className="muted">Сумма резервируется при выборе исполнителя. После принятия работы монтажёр получает 88%, комиссия KIVRONIX — 12%.</p>
       <button className="btn btn-dark" disabled={!businessVerified}>{businessVerified?"Опубликовать":"Сначала пройти проверку"}</button>
     </form></section>}
 
@@ -140,6 +140,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
 }
 
 function budget(job:Job){
+  if(job.payment_points)return new Intl.NumberFormat("ru-RU").format(job.payment_points)+" KIVRONIX Points";
   const min=job.budget_min_cents?Math.round(job.budget_min_cents/100):null;
   const max=job.budget_max_cents?Math.round(job.budget_max_cents/100):null;
   if(min&&max)return new Intl.NumberFormat("ru-RU").format(min)+"–"+new Intl.NumberFormat("ru-RU").format(max)+" ₽";

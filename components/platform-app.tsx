@@ -27,6 +27,7 @@ import EditingInsights from "@/components/editing-insights";
 import BusinessDashboard from "@/components/business-dashboard";
 import BusinessInsights from "@/components/business-insights";
 import CreatorVerification from "@/components/creator-verification";
+import WorkWallet from "@/components/work-wallet";
 
 type Tab="home"|"academy"|"insights"|"practice"|"coach"|"review"|"kivronix-challenges"|"arena"|"portfolio"|"jobs"|"messages"|"community"|"wallet"|"plans"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string;ageGroup?:string;accountKind?:string;socialUrl?:string};
@@ -171,7 +172,7 @@ export default function PlatformApp(){
        {viewer.username&&<><Link href={"/u/"+viewer.username}>Страница с работами ↗</Link><br/></>}
        {viewer.role
          ? <button className="btn" onClick={signOut} style={{marginTop:10}}>Выйти</button>
-         : <Link className="btn btn-lime" href="/onboarding" style={{marginTop:10}}>Начать</Link>}
+         : <Link className="btn btn-lime" href="/signup" style={{marginTop:10}}>Начать</Link>}
      </div>
    </aside>
 
@@ -189,6 +190,7 @@ export default function PlatformApp(){
      {tab==="home"&&isCreator&&<Page title={"Твои ролики, "+viewer.name+"."} sub="Создавай задания, выбирай монтажёра и следи за выполнением в одном месте.">
        <section className="business-hero-panel"><div><div className="eyebrow">КАБИНЕТ ЗАКАЗЧИКА</div><h2>От идеи ролика до готового монтажа</h2><p>Опиши задачу простыми словами. Подходящие монтажёры откликнутся, а после твоего выбора откроется закрытый чат для работы.</p><div className="lesson-actions"><button className="btn btn-lime" onClick={()=>goTab("jobs")}>Создать задание</button><button className="btn btn-light" onClick={()=>goTab("messages")}>Открыть чаты</button></div></div></section>
        <div className="business-kpi-grid"><article><span>Активные задания</span><strong>{businessStats.jobs}</strong></article><article><span>Новые отклики</span><strong>—</strong><small>появятся после публикации</small></article><article><span>В работе</span><strong>—</strong><small>выбранные монтажёры</small></article><article><span>Готово</span><strong>—</strong><small>история выполненных работ</small></article></div>
+       <WorkWallet/>
        <div className="auth-msg"><b>Как это работает:</b> 1. Подтверди публичную страницу. 2. Создай понятное задание. 3. Выбери монтажёра из откликов. 4. Общайся с ним в закрытом чате до готового результата.</div>
      </Page>}
 
