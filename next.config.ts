@@ -7,11 +7,24 @@ const securityHeaders=[
   {key:"Permissions-Policy",value:"camera=(), microphone=(), geolocation=()"},
 ];
 
+const legacyHosts=[
+  "getedita.app",
+  "www.getedita.app",
+  "edita-psi.vercel.app",
+  "edita-eliseyiudin05-9623.vercel.app",
+];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   async redirects(){
     return [
+      ...legacyHosts.map(host=>({
+        source:"/:path*",
+        has:[{type:"host" as const,value:host}],
+        destination:"https://kivronix.ru/:path*",
+        permanent:true,
+      })),
       {
         source:"/:path*",
         has:[{type:"host",value:"kivronix.com"}],
