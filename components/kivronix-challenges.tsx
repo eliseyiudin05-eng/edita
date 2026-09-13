@@ -77,15 +77,15 @@ export default function KivronixChallenges(){
         <p>{competition.description}</p>
         <div className="kivronix-challenge-actions"><a className="btn btn-lime" href="#send-kivronix-work">Отправить ролик</a><Link className="btn btn-light" href="/challenge-rules">Полные правила</Link></div>
       </div>
-      <div className="kivronix-prize-picture" aria-label="Призовой фонд 10 000 рублей">
-        <span>ПРИЗОВОЙ ФОНД</span><strong>{money(competition.prize_pool_cents||1000000)}</strong><small>три победителя · честный конкурс</small>
+      <div className="kivronix-prize-picture" aria-label="Призовой фонд 10 000 KIVRONIX Points">
+        <span>ПРИЗОВОЙ ФОНД</span><strong>{points(competition.prize_pool_cents||1000000)}</strong><small>1 Point = 1 ₽ внутри платформы</small>
       </div>
     </section>
 
     <section className="kivronix-prize-grid">
-      <div><span>🥇</span><b>1 место</b><strong>{money(prizes[0]||0)}</strong></div>
-      <div><span>🥈</span><b>2 место</b><strong>{money(prizes[1]||0)}</strong></div>
-      <div><span>🥉</span><b>3 место</b><strong>{money(prizes[2]||0)}</strong></div>
+      <div><span>🥇</span><b>1 место</b><strong>{points(prizes[0]||0)}</strong></div>
+      <div><span>🥈</span><b>2 место</b><strong>{points(prizes[1]||0)}</strong></div>
+      <div><span>🥉</span><b>3 место</b><strong>{points(prizes[2]||0)}</strong></div>
       <div><span>👥</span><b>Участники</b><strong>{count} / {limit}</strong></div>
     </section>
 
@@ -110,7 +110,7 @@ export default function KivronixChallenges(){
           <div><dt>Приём до</dt><dd>{date(competition.ends_at)}</dd></div>
           <div><dt>Новый сезон</dt><dd>каждые {competition.recurs_every_months||2} месяца</dd></div>
         </dl>
-        <p className="minor-safety-note"><b>Важно</b><span>10 000 ₽ — фонд конкурса. Участие открыто без покупки, а место нельзя получить за оплату или KIVRONIX Points.</span></p>
+        <p className="minor-safety-note"><b>Важно</b><span>10 000 KIVRONIX Points — фонд конкурса. 1 Point = 1 ₽ при использовании внутри платформы. Участие открыто без покупки.</span></p>
       </section>
     </div>
 
@@ -127,7 +127,7 @@ export default function KivronixChallenges(){
   </div>;
 }
 
-function money(cents:number){return new Intl.NumberFormat("ru-RU",{style:"currency",currency:"RUB",maximumFractionDigits:0}).format(cents/100)}
+function points(cents:number){return new Intl.NumberFormat("ru-RU").format(Math.round(cents/100))+" KP"}
 function date(value?:string|null){return value?new Date(value).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"}):"указано в правилах"}
 
 function rememberChat(kind:string,id:string){

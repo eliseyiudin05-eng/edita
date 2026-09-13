@@ -23,7 +23,7 @@ type Review = {
   next_steps: string[];
 };
 
-export default function VideoReview() {
+export default function VideoReview({mode="editor"}:{mode?:"editor"|"business"}) {
   const [file, setFile] = useState<File | null>(null);
   const [brief, setBrief] = useState("");
   const [status, setStatus] = useState("");
@@ -60,7 +60,7 @@ export default function VideoReview() {
           duration: extracted.duration,
           brief,
           filename: file.name,
-          purpose: "standalone",
+          purpose: mode==="business"?"business_campaign":"standalone",
         }),
       });
 
@@ -86,12 +86,12 @@ export default function VideoReview() {
   return (
     <div className="review-layout">
       <section className="card review-upload">
-        <div className="eyebrow">РАЗБОР ВИДЕО · БЕСПЛАТНО</div>
-        <h2>Загрузи ролик и получи понятные советы</h2>
+        <div className="eyebrow">{mode==="business"?"АНАЛИТИКА КОНТЕНТА":"РАЗБОР ВИДЕО · БЕСПЛАТНО"}</div>
+        <h2>{mode==="business"?"Проверьте Reels до публикации или масштабирования":"Загрузи ролик и получи понятные советы"}</h2>
         <p className="muted">
-          KIVRONIX выбирает несколько кадров прямо в браузере. Помощник получает
-          только эти кадры, время и текст задания. Полный видеофайл остаётся на
-          твоём устройстве.
+          {mode==="business"
+            ?"KIVRONIX оценит первые секунды, подачу продукта, темп, призыв к действию и соответствие брифу. Полный файл остаётся на вашем устройстве — для анализа передаются отдельные кадры."
+            :"KIVRONIX выбирает несколько кадров прямо в браузере. Помощник получает только эти кадры, время и текст задания. Полный видеофайл остаётся на твоём устройстве."}
         </p>
 
         <form className="review-form" onSubmit={submit}>
@@ -111,7 +111,7 @@ export default function VideoReview() {
           <textarea
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
-            placeholder="Можно добавить задание клиента. Например: ролик 25 секунд, спокойный стиль, продукт в первые 3 секунды, понятный призыв в конце."
+            placeholder={mode==="business"?"Цель ролика, аудитория, продукт, площадка, желаемое действие зрителя и правила бренда.":"Можно добавить задание клиента. Например: ролик 25 секунд, спокойный стиль, продукт в первые 3 секунды, понятный призыв в конце."}
           />
 
           <button className="btn btn-dark" disabled={!file || loading}>

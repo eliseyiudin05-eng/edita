@@ -66,6 +66,7 @@ export default function BusinessGrowth(){
         {board.length===0?<p className="muted">Лига стартует с первых проверенных компаний.</p>:board.slice(0,8).map((b,i)=><div className="business-league-row" key={b.id}><b>#{i+1}</b><span>{b.name}{b.review_rating!=null?" · "+b.review_rating+" ★":""}</span><strong>{b.points}</strong></div>)}
       </div>
       <p className="muted">Счёт ограничивает количество однотипных действий, поэтому просто создать много пустых вакансий недостаточно.</p>
+      <div className="lesson-example"><b>Награды сезона</b><span>Лидеры получают знак компании сезона, дополнительное продвижение заданий и KIVRONIX Points. 1 Point = 1 ₽ при использовании внутри платформы.</span></div>
     </section>
 
     <section className="card">

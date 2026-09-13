@@ -30,9 +30,9 @@ const features=[
 
 const faq=[
   ["Я впервые открыл программу. Я пойму?","Да. Сначала ты узнаешь самые простые вещи, затем установишь программу и соберёшь первый ролик. Каждое новое слово сразу получает понятное объяснение."],
-  ["Сколько стоит KIVRONIX?","Во время раннего доступа основные функции открыты бесплатно. Отдельные планы Creator+ для монтажёров и Studio+ для компаний готовятся заранее; оплата пока выключена."],
+  ["Сколько стоит KIVRONIX?","Сейчас основные функции открыты бесплатно. Банковская карта для регистрации не нужна."],
   ["Как идут уроки?","Уроки открываются по очереди. Сначала основа, затем маленькое задание и только потом следующий шаг. Такой порядок помогает спокойно закрепить навык."],
-  ["Что входит в ранний доступ?","Весь учебный путь, разбор роликов, вопросы помощнику, сохранение прогресса, свои работы, конкурсы, вакансии, сообщество и закрытые рабочие чаты."],
+  ["Что доступно бесплатно?","Учебный путь, разбор роликов, помощник, сохранение прогресса, свои работы, конкурсы, вакансии, сообщество и закрытые рабочие чаты."],
   ["Как выбирают победителя конкурса?","Для конкурса KIVRONIX команда проверяет работы и настоящие просмотры. В конкурсе компании победителя выбирает сама компания по заранее опубликованным правилам."],
   ["Можно пользоваться в 14–17 лет?","Учиться можно сразу. Для денежного конкурса и коммерческой работы понадобится подтверждение взрослого. Название школы скрыто по умолчанию."],
   ["Как защищён рабочий чат?","Сообщения видят только выбранный монтажёр и компания. Телефон, электронная почта, ссылки, адреса страниц и мессенджеры остаются за пределами чата, поэтому разговор идёт внутри KIVRONIX."]
@@ -48,9 +48,9 @@ export default async function Home(){
           <small>монтаж · обучение · работа</small>
         </Link>
         <div className="nav-actions">
-          <a href="#free">Ранний доступ</a>
-          <Link href="/pricing">Будущие тарифы</Link>
-          <a href="#challenge">10 000 ₽</a>
+          <a href="#free">Бесплатно</a>
+          <Link href="/pricing">Возможности</Link>
+          <a href="#challenge">10 000 Points</a>
           <a href="#inside">Что внутри</a>
           <a href="#safety">Защита</a>
           <Link href="/login">Войти</Link>
@@ -71,7 +71,7 @@ export default async function Home(){
           <div className="simple-proof">
             <span>{curriculumStats.lessons} уроков и {curriculumStats.assignments} заданий</span>
             <span>Для подростков и взрослых</span>
-            <span>Ранний доступ · бесплатно</span>
+            <span>Основные функции бесплатно</span>
           </div>
         </div>
         <figure className="hero-photo">
@@ -86,18 +86,18 @@ export default async function Home(){
     </section>
 
     <section id="free" className="section shell beta-home-section">
-      <div className="beta-home-head"><div><div className="section-kicker">РАННИЙ ДОСТУП ДЛЯ КАЖДОГО</div><h2>Сейчас KIVRONIX открыта бесплатно</h2><p>Создай обычный аккаунт и пользуйся основными функциями. Банковская карта пока нигде не запрашивается.</p></div><div className="zero-price"><small>СЕЙЧАС</small><strong>0 ₽</strong><span>ранний доступ</span></div></div>
+      <div className="beta-home-head"><div><div className="section-kicker">ДОСТУПНО ДЛЯ КАЖДОГО</div><h2>KIVRONIX открыта бесплатно</h2><p>Создай обычный аккаунт и пользуйся основными функциями. Банковская карта не требуется.</p></div><div className="zero-price"><small>ДОСТУП</small><strong>0 ₽</strong><span>без карты</span></div></div>
       <div className="beta-plan-grid">
         <article><span>МОНТАЖЁРУ</span><h3>Учёба и полный разбор</h3><p>Все уроки, задания, помощник, разбор видео, прогресс, свои работы, конкурсы, друзья и вакансии.</p><b>Открыто сразу после входа</b></article>
-        <article className="pro"><span>КОМПАНИИ</span><h3>Поиск монтажёров</h3><p>Проверка компании, публикация заданий и вакансий, выбор участника и закрытый рабочий чат.</p><b>Ранний доступ открыт бесплатно</b></article>
+        <article className="pro"><span>КОМПАНИИ</span><h3>Поиск монтажёров</h3><p>Аналитика, публикация заданий и вакансий, выбор участника, бизнес-помощник и закрытые рабочие чаты.</p><b>Открыто бесплатно</b></article>
       </div>
       <div className="beta-home-actions"><Link className="btn btn-dark" href="/signup/editor">Я монтажёр</Link><Link className="btn btn-ghost" href="/signup/business">Я представляю компанию</Link><Link className="btn btn-ghost" href="/pricing">Посмотреть будущие планы</Link></div>
     </section>
 
     <section id="challenge" className="challenge-home-band">
       <div className="shell challenge-home-grid">
-        <div><div className="section-kicker light">КОНКУРС KIVRONIX · СЕЗОН 1</div><h2>Сделай ролик и выиграй часть из 10 000 ₽</h2><p>Опубликуй ролик, отметь KIVRONIX и отправь ссылку до 12 ноября 2026 года. Мы проверим просмотры и определим три места.</p><ol className="prize-flow"><li><b>Ты выигрываешь</b><span>Результат и сумма приза появляются в кабинете.</span></li><li><b>Деньги зачисляются</b><span>Например, победителю начисляется 5 000 ₽ на призовой баланс.</span></li><li><b>Ты запрашиваешь вывод</b><span>Нажимаешь «Вывести», а реквизиты передаёшь только через защищённый платёжный сервис.</span></li></ol><p className="prize-note">Важно: денежный приз можно вывести. Баллы KIVRONIX — отдельный бонус для скидок и подписки, они не считаются рублями.</p><div className="challenge-home-actions"><Link className="btn btn-lime" href="/platform#kivronix-challenges">Участвовать</Link><Link className="btn btn-light" href="/challenge-rules">Прочитать правила</Link></div></div>
-        <div className="challenge-prize-card"><div><span>1 место</span><strong>5 000 ₽</strong></div><div><span>2 место</span><strong>3 000 ₽</strong></div><div><span>3 место</span><strong>2 000 ₽</strong></div><p>До 100 участников · новый сезон каждые 2 месяца · с 14 лет</p></div>
+        <div><div className="section-kicker light">КОНКУРС KIVRONIX · СЕЗОН 1</div><h2>Сделай ролик и выиграй часть из 10 000 KIVRONIX Points</h2><p>Опубликуй ролик, отметь KIVRONIX и отправь ссылку до 12 ноября 2026 года. Мы проверим просмотры и определим три места.</p><ol className="prize-flow"><li><b>Ты выигрываешь</b><span>Результат и количество поинтов появляются в кабинете.</span></li><li><b>Поинты зачисляются</b><span>Например, победителю начисляется 5 000 KIVRONIX Points.</span></li><li><b>Используешь награду</b><span>1 KIVRONIX Point = 1 ₽ при оплате возможностей внутри платформы.</span></li></ol><p className="prize-note">KIVRONIX Points — внутренние поинты платформы. Курс использования: 1 Point = 1 ₽.</p><div className="challenge-home-actions"><Link className="btn btn-lime" href="/platform#kivronix-challenges">Участвовать</Link><Link className="btn btn-light" href="/challenge-rules">Прочитать правила</Link></div></div>
+        <div className="challenge-prize-card"><div><span>1 место</span><strong>5 000 KP</strong></div><div><span>2 место</span><strong>3 000 KP</strong></div><div><span>3 место</span><strong>2 000 KP</strong></div><p>1 KP = 1 ₽ внутри KIVRONIX · до 100 участников · с 14 лет</p></div>
       </div>
     </section>
 
@@ -151,6 +151,13 @@ export default async function Home(){
       <div className="shell community-vision-grid"><div><div className="section-kicker">БОЛЬШЕ, ЧЕМ КУРС</div><h2>Сообщество монтажёров и компаний</h2><p>Внутри есть профили, друзья, группы, рейтинги, команды школ, соревнования и безопасные рабочие чаты. Каждый пользователь выбирает удобный темп и свой путь.</p></div><div className="community-metrics"><div><strong>1</strong><span>единый профиль</span></div><div><strong>3</strong><span>рейтинга: общий, друзья, школы</span></div><div><strong>24/7</strong><span>помощник рядом в обучении</span></div></div></div>
     </section>
 
+    <section className="section shell creator-ads-section">
+      <div className="section-kicker">РЕКЛАМА У КРЕАТОРОВ</div><h2>Получайте ролики и размещения под задачу бренда</h2>
+      <p className="section-lead">Компания создаёт кампанию, задаёт продукт, формат и условия. Креаторы откликаются на бесплатное тестирование продукта, фиксированную награду или KIVRONIX Points за подтверждённые просмотры.</p>
+      <div className="safety-grid"><article><h3>Бартер</h3><p>Продукт или услуга в обмен на честный ролик по заранее согласованным условиям.</p></article><article><h3>Награда за результат</h3><p>Поинты начисляются за подтверждённые просмотры. 1 KIVRONIX Point = 1 ₽ внутри платформы.</p></article><article><h3>Платная интеграция</h3><p>Фиксируйте формат, срок, маркировку рекламы, права на контент и подтверждение результата.</p></article></div>
+      <Link className="btn btn-dark" href="/signup/business">Создать кампанию</Link>
+    </section>
+
     <section id="safety" className="section shell safety-home">
       <div className="section-kicker">БЕЗОПАСНОСТЬ И ЧЕСТНОСТЬ</div>
       <h2>Личные данные остаются под защитой</h2>
@@ -173,7 +180,7 @@ export default async function Home(){
       <div className="faq-grid">{faq.map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div>
     </section>
 
-    <section className="final-cta"><div className="shell"><div className="eyebrow">KIVRONIX · РАННИЙ ДОСТУП</div><h2>Открой первый урок и сделай первый ролик</h2><p>Создание аккаунта занимает несколько минут. Оплата на этапе раннего доступа выключена.</p><div className="hero-actions"><Link className="btn btn-lime" href="/signup/editor">Создать аккаунт</Link><Link className="btn btn-light" href="/platform">Открыть платформу</Link></div></div></section>
+    <section className="final-cta"><div className="shell"><div className="eyebrow">KIVRONIX · БЕСПЛАТНО</div><h2>Открой первый урок или найди монтажёра</h2><p>Создание аккаунта занимает несколько минут. Банковская карта не требуется.</p><div className="hero-actions"><Link className="btn btn-lime" href="/signup/editor">Создать аккаунт</Link><Link className="btn btn-light" href="/signup/business">Кабинет компании</Link></div></div></section>
 
     <SiteFooter/>
   </main>;

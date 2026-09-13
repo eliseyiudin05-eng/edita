@@ -14,8 +14,8 @@ export default function PricingPage(){
     </nav>
 
     <section className="shell beta-price-hero">
-      <div><div className="eyebrow">ТАРИФЫ ГОТОВЯТСЯ · ОПЛАТА ВЫКЛЮЧЕНА</div><h1>Сейчас — бесплатно.</h1><p>Основные функции KIVRONIX открыты в раннем доступе. Creator+ для монтажёров и Studio+ для компаний уже спроектированы, но списаний и скрытых подключений пока нет.</p></div>
-      <div className="beta-price-number"><small>РАННИЙ ДОСТУП</small><strong>0 ₽</strong><span>банковская карта не нужна</span></div>
+      <div><div className="eyebrow">ОСНОВНЫЕ ФУНКЦИИ БЕСПЛАТНО</div><h1>Начните за 0 ₽.</h1><p>Учебные и бизнес-инструменты KIVRONIX доступны без банковской карты. Дополнительные возможности Creator+ и Studio+ подключаются только отдельным действием пользователя.</p></div>
+      <div className="beta-price-number"><small>ДОСТУП</small><strong>0 ₽</strong><span>банковская карта не нужна</span></div>
     </section>
 
     <section className="section shell">

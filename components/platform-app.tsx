@@ -24,6 +24,8 @@ import PrivateChats from "@/components/private-chats";
 import {futurePlans} from "@/lib/plans";
 import PayoutPanel from "@/components/payout-panel";
 import EditingInsights from "@/components/editing-insights";
+import BusinessDashboard from "@/components/business-dashboard";
+import BusinessInsights from "@/components/business-insights";
 
 type Tab="home"|"academy"|"insights"|"practice"|"coach"|"review"|"kivronix-challenges"|"arena"|"portfolio"|"jobs"|"messages"|"community"|"wallet"|"plans"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string;ageGroup?:string};
@@ -59,7 +61,7 @@ export default function PlatformApp(){
  const suggestedStart=learningStarts[experienceLevel];
  const suggestedStartIndex=learningStartIndex(experienceLevel);
  const tabs=useMemo(()=>{
-   if(viewer.role==="business") return allTabs.filter(([id])=>["home","insights","coach","review","arena","messages","plans","profile","business"].includes(id));
+   if(viewer.role==="business") return allTabs.filter(([id])=>["home","insights","coach","review","arena","messages","plans","profile","business"].includes(id)).map(([id,label])=>[id,id==="home"?"Обзор":id==="coach"?"Бизнес-помощник":id==="review"?"Анализ роликов":id==="arena"?"Лига компаний":id==="profile"?"Профиль компании":label] as [Tab,string]);
    if(viewer.role==="editor") return allTabs.filter(([id])=>id!=="business");
    return allTabs;
  },[viewer.role]);
@@ -117,7 +119,7 @@ export default function PlatformApp(){
        referralPoints:Number(profile?.referral_points||0)
      });
      if(profile?.role==="business"){
-       setTab("business");
+       if(!window.location.hash)setTab("home");
        const {data:ownedBusiness}=await supabase.from("businesses").select("id").eq("owner_id",data.user.id).maybeSingle();
        if(ownedBusiness?.id){
          const {count:challengeCount}=await supabase.from("challenges").select("id",{count:"exact",head:true}).eq("business_id",ownedBusiness.id).eq("status","open");
@@ -148,17 +150,16 @@ export default function PlatformApp(){
  async function signOut(){
    const supabase=getSupabaseBrowserClient();
    if(supabase)await supabase.auth.signOut();
-   setViewer({name:"Гость",role:null,onboarding:{}});
-   setTab("home");
+   window.location.assign("/login");
  }
 
  const roleLabel=viewer.role==="business"?"Бизнес":viewer.role==="editor"?"Монтажёр":"Гость";
  const activePaidPlan=Boolean(viewer.plan&&viewer.plan!=="free"&&viewer.planExpiresAt&&new Date(viewer.planExpiresAt).getTime()>Date.now());
- const accessLabel:string=activePaidPlan?(viewer.plan==="creator_plus"?"Creator+":viewer.plan==="studio_plus"?"Studio+":viewer.plan||"платный план"):"ранний доступ";
+ const accessLabel:string=activePaidPlan?(viewer.plan==="creator_plus"?"Creator+":viewer.plan==="studio_plus"?"Studio+":viewer.plan||"платный план"):"бесплатно";
 
  return <main className="app">
    <aside className="side">
-     <Link className="brand app-brand" href="/platform#home"><span>KIVRONIX<b>.</b></span><small>твой путь в монтаже</small></Link>
+     <Link className="brand app-brand" href="/platform#home"><span>KIVRONIX<b>.</b></span><small>{viewer.role==="business"?"рост видео-команды":"твой путь в монтаже"}</small></Link>
      <nav className="nav">{tabs.map(([id,l])=><button className={tab===id?"active":""} onClick={()=>goTab(id)} key={id}>{l}</button>)}</nav>
      <div className="profile">
        <div className="side-profile-head"><ProfileAvatar src={viewer.avatarUrl} name={viewer.name} size="sm"/><b>{viewer.name}</b></div>
@@ -178,11 +179,15 @@ export default function PlatformApp(){
        <div className="user-pill"><ProfileAvatar src={viewer.avatarUrl} name={viewer.name} size="sm"/><span>{viewer.role?"в сети":"пример"} · {accessLabel}{viewer.role==="editor"?" · "+xp+" опыта":""}</span></div>
      </header>
 
-     {tab==="home"&&<Page title={viewer.role?"Продолжай, "+viewer.name+".":"Добро пожаловать в KIVRONIX."} sub={viewer.role?"Открой ближайший урок и двигайся по шагам.":"Посмотри платформу. После входа помощник и учебный прогресс сохраняются."}>
+     {tab==="home"&&viewer.role==="business"&&<Page title={"Добро пожаловать, "+viewer.name+"."} sub="Управляйте поиском монтажёров и результатами коротких видео из одного кабинета.">
+       <BusinessDashboard stats={businessStats} points={viewer.referralPoints||0} onGo={goTab}/>
+     </Page>}
+
+     {tab==="home"&&viewer.role!=="business"&&<Page title={viewer.role?"Продолжай, "+viewer.name+".":"Добро пожаловать в KIVRONIX."} sub={viewer.role?"Открой ближайший урок и двигайся по шагам.":"Посмотри платформу. После входа помощник и учебный прогресс сохраняются."}>
        <section className="mission"><small>ТВОЙ ПУТЬ</small><h2>{done.length?"Продолжи следующий урок":"Первый ролик начинается с одной кнопки"}</h2><p>{curriculum.length} коротких уроков ведут от установки CapCut и первой склейки до цвета, звука, своих работ и общения с заказчиком.</p><button className="btn btn-lime" onClick={()=>goTab("academy")}>Продолжить обучение →</button></section>
        <div className="grid">
          <Card title="Твой рост"><div className="stats"><Stat n={viewer.aiScore!=null?String(viewer.aiScore):"—"} t="оценка ролика"/><Stat n={String(done.length)} t="уроков"/><Stat n={String(wins)} t="побед"/></div></Card>
-         <Card title="Конкурс KIVRONIX"><p className="muted">Приз 10 000 ₽: опубликуй короткий ролик, отметь KIVRONIX и участвуй в честном рейтинге просмотров.</p><button className="btn btn-dark" onClick={()=>goTab("kivronix-challenges")}>Открыть конкурс</button></Card>
+         <Card title="Конкурс KIVRONIX"><p className="muted">Приз 10 000 KIVRONIX Points: опубликуй короткий ролик, отметь KIVRONIX и участвуй в честном рейтинге просмотров. 1 Point = 1 ₽ внутри платформы.</p><button className="btn btn-dark" onClick={()=>goTab("kivronix-challenges")}>Открыть конкурс</button></Card>
          <Card title="Твой путь"><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"свои проекты"}</p><Link className="btn btn-ghost" href="/onboarding">Изменить цель</Link></Card>
        </div>
      </Page>}
@@ -208,16 +213,17 @@ export default function PlatformApp(){
        </section>)}</div>
      </Page>}
 
-     {tab==="insights"&&<Page title="Лайфхаки" sub="Короткие советы, интересные факты и закрытые обсуждения о монтаже."><EditingInsights/></Page>}
+     {tab==="insights"&&<Page title={viewer.role==="business"?"Лайфхаки для компаний":"Лайфхаки"} sub={viewer.role==="business"?"Практика сильных брифов, контента и работы с монтажёрами. Обсуждение доступно только компаниям.":"Короткие советы, интересные факты и закрытые обсуждения о монтаже."}>{viewer.role==="business"?<BusinessInsights/>:<EditingInsights/>}</Page>}
 
      {tab==="practice"&&<Page title="Практика" sub="Тренировка разговора с клиентом: цена, правки, сроки и договорённости."><ClientSimulator/></Page>}
 
-     {tab==="coach"&&<Page title="Помощник KIVRONIX" sub="Спроси про монтаж обычными словами. Получишь короткий ответ, понятные шаги и способ проверить результат.">
-       <div className="ai-learning-note"><b>ИИ становится полезнее внутри KIVRONIX</b><span>Он учитывает твой уровень, программу, текущий урок, пройденные темы и историю вопросов. Оценки ответов попадают в очередь улучшений, а в общую базу знаний — только после проверки.</span></div>
+     {tab==="coach"&&<Page title={viewer.role==="business"?"Бизнес-помощник KIVRONIX":"Помощник KIVRONIX"} sub={viewer.role==="business"?"Соберите бриф, сравните кандидатов, разберите метрики и найдите следующую гипотезу роста.":"Спроси про монтаж обычными словами. Получишь короткий ответ, понятные шаги и способ проверить результат."}>
+       <div className="ai-learning-note"><b>{viewer.role==="business"?"ИИ работает как часть вашей контент-команды":"ИИ становится полезнее внутри KIVRONIX"}</b><span>{viewer.role==="business"?"Он помогает формулировать брифы, сравнивать идеи и разбирать бизнес-метрики. История компании хранится отдельно от учебных диалогов монтажёров.":"Он учитывает твой уровень, программу, текущий урок, пройденные темы и историю вопросов. Оценки ответов попадают в очередь улучшений, а в общую базу знаний — только после проверки."}</span></div>
        <AiCoach
-         scopeKey="main"
-         title="Помощник KIVRONIX"
-         prompts={["Я впервые открыл CapCut. С чего начать?","Помоги сделать ролик за 30 минут","Как сделать ролик интереснее?","Объясни мой следующий урок"]}
+         scopeKey={viewer.role==="business"?"business-assistant":"main"}
+         title={viewer.role==="business"?"Бизнес-помощник KIVRONIX":"Помощник KIVRONIX"}
+         welcome={viewer.role==="business"?"Расскажите о продукте, аудитории и цели. Помогу подготовить бриф, выбрать монтажёра или понять, что улучшить в контенте.":undefined}
+         prompts={viewer.role==="business"?["Составь бриф для Reels","Как выбрать монтажёра по тестовой работе?","Разбери результаты последних роликов","Придумай конкурс для нашего бренда"]:["Я впервые открыл CapCut. С чего начать?","Помоги сделать ролик за 30 минут","Как сделать ролик интереснее?","Объясни мой следующий урок"]}
          context={{
            level:viewer.onboarding?.level||"unknown",
            xp,
@@ -230,7 +236,7 @@ export default function PlatformApp(){
        />
      </Page>}
 
-     {tab==="review"&&<Page title="Разбор видео" sub="Загрузи ролик. KIVRONIX посмотрит отдельные кадры и простыми словами подскажет, что улучшить."><VideoReview/></Page>}
+     {tab==="review"&&<Page title={viewer.role==="business"?"Анализ роликов компании":"Разбор видео"} sub={viewer.role==="business"?"Загрузите Reels, Shorts или TikTok и получите оценку бизнес-задачи, продукта, удержания и призыва к действию.":"Загрузи ролик. KIVRONIX посмотрит отдельные кадры и простыми словами подскажет, что улучшить."}><VideoReview mode={viewer.role==="business"?"business":"editor"}/></Page>}
      {tab==="kivronix-challenges"&&<Page title="Конкурсы KIVRONIX" sub="Официальные конкурсы платформы: понятное задание, открытые правила, число мест и честный рейтинг."><KivronixChallenges/></Page>}
      {tab==="arena"&&<Page title="Конкурсы компаний" sub="Настоящие задания, одинаковые материалы и реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="arena"/></Page>}
 
@@ -242,9 +248,9 @@ export default function PlatformApp(){
 
      {tab==="wallet"&&<Page title="Мои итоги" sub="Денежные выигрыши, KIVRONIX Points и текущий режим доступа.">
        <div className="grid">
-         <Card title="К выводу"><div className="wallet-number">{money(viewer.earningsCents||0)}</div><p className="muted">Сюда попадают подтверждённые денежные призы. KIVRONIX Points хранятся отдельно и не являются рублями.</p><PayoutPanel balanceCents={viewer.earningsCents||0}/></Card>
-         <Card title="KIVRONIX Points"><div className="wallet-number">{Number(viewer.referralPoints||0).toLocaleString("ru-RU")} KP</div><p className="muted">Получай внутренние баллы за полезные действия и приглашения друзей. Каталог наград находится в сообществе.</p><button className="btn btn-dark" onClick={()=>goTab("community")}>Открыть награды</button></Card>
-         <Card title="Доступ"><div className="wallet-number">{accessLabel}</div><p className="muted">Оплата выключена. Будущие планы уже можно посмотреть без подключения карты.</p><Link className="btn btn-ghost" href="/pricing">Будущие тарифы</Link></Card>
+         <Card title="К выводу"><div className="wallet-number">{money(viewer.earningsCents||0)}</div><p className="muted">Сюда попадают денежные награды от компаний. Официальные конкурсы KIVRONIX начисляют Points на отдельный баланс.</p><PayoutPanel balanceCents={viewer.earningsCents||0}/></Card>
+         <Card title="KIVRONIX Points"><div className="wallet-number">{Number(viewer.referralPoints||0).toLocaleString("ru-RU")} KP</div><p className="muted">Получай поинты за полезные действия и приглашения друзей. 1 KIVRONIX Point = 1 ₽ при использовании внутри платформы.</p><button className="btn btn-dark" onClick={()=>goTab("community")}>Открыть награды</button></Card>
+         <Card title="Доступ"><div className="wallet-number">{accessLabel}</div><p className="muted">Основные функции доступны бесплатно, банковская карта не требуется.</p><Link className="btn btn-ghost" href="/pricing">Все возможности</Link></Card>
        </div>
      </Page>}
 
@@ -254,7 +260,7 @@ export default function PlatformApp(){
            <div className="wallet-number">{accessLabel}</div>
            <p className="muted">{activePaidPlan&&viewer.planExpiresAt
              ?"Активен до "+new Date(viewer.planExpiresAt).toLocaleDateString("ru-RU")
-             :"Во время раннего доступа основные функции открыты бесплатно. Банковская карта не требуется."}</p>
+             :"Основные функции открыты бесплатно. Банковская карта не требуется."}</p>
          </Card>
          {viewer.role==="business"
            ?<Card title={futurePlans.studio_plus.name}>
@@ -274,7 +280,7 @@ export default function PlatformApp(){
        </div>
      </Page>}
 
-     {tab==="profile"&&<Page title="Профиль" sub="Навыки, персональный маршрут и публичная карьерная карточка.">
+     {tab==="profile"&&viewer.role!=="business"&&<Page title="Профиль" sub="Навыки, персональный маршрут и публичная карьерная карточка.">
        <div className="profile-grid">
          <ProfileEditor onSaved={profile=>setViewer(current=>({...current,name:profile.displayName,username:profile.username,avatarUrl:profile.avatarUrl,schoolName:profile.schoolName}))}/>
          <Card title="Карточка монтажёра"><p><b>{viewer.name}</b></p><p className="muted">{viewer.onboarding?.software||"CapCut"} · {viewer.onboarding?.goal||"свои проекты"} · {accessLabel}{viewer.schoolName?" · "+viewer.schoolName:""}</p>{viewer.username&&<Link className="btn btn-dark" href={"/u/"+viewer.username}>Публичная страница ↗</Link>}</Card>
@@ -283,13 +289,15 @@ export default function PlatformApp(){
        </div>
      </Page>}
 
+     {tab==="profile"&&viewer.role==="business"&&<Page title="Профиль компании" sub="Единая карточка бренда, которую видят помощник и приглашённые монтажёры."><div className="business-stack"><BrandBrain viewerName={viewer.name}/><BusinessVerification/><Card title="Что увидят монтажёры"><p className="muted">Название и подтверждение компании, понятные задания, сроки, награды, история выбора победителей и оценка взаимодействия. Учебные данные монтажёра здесь не используются.</p></Card></div></Page>}
+
      {tab==="jobs"&&<Page title="Работа" sub="Задания и вакансии проверенных компаний собраны в одном месте."><div className="business-stack"><CampaignHub mode="editor"/><JobBoard mode="editor" ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified}/></div></Page>}
      {tab==="messages"&&<Page title="Закрытые чаты" sub="Безопасное общение компании и монтажёра прямо внутри KIVRONIX."><PrivateChats/></Page>}
      {tab==="community"&&<Page title="Сообщество" sub="Рейтинг, друзья, учебные группы, соревнования и приглашения с защитой личных данных."><SocialHub ageGroup={viewer.onboarding?.ageGroup}/></Page>}
      {tab==="business"&&<Page title="Кабинет компании" sub="Сначала подтвердите компанию. После проверки можно публиковать настоящие задания и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных конкурсов"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n={accessLabel} t="режим доступа"/></div><div className="business-stack"><BusinessVerification/><BusinessGrowth/><CampaignHub mode="business"/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/><Card title="Будущий план Studio+"><p className="muted">Командный кабинет и расширенные инструменты готовятся отдельно от тарифа монтажёра. Оплата выключена.</p><Link className="btn btn-ghost" href="/pricing">Посмотреть план</Link></Card></div></Page>}
    </section>
 
-   <footer className="app-footer"><div><Link className="brand" href="/platform#home">KIVRONIX<span>.</span></Link><p>Учись, создавай сильные работы и находи реальные проекты.</p></div><nav><button onClick={()=>goTab("home")}>Главная</button><button onClick={()=>goTab("academy")}>Обучение</button><button onClick={()=>goTab("insights")}>Лайфхаки</button><Link href="/status">Статус сервисов</Link></nav><span>© 2026 KIVRONIX · ранний доступ</span></footer>
+   <footer className="app-footer"><div><Link className="brand" href="/platform#home">KIVRONIX<span>.</span></Link><p>{viewer.role==="business"?"Находите монтажёров, проверяйте идеи и растите сильную видео-команду.":"Учись, создавай сильные работы и находи реальные проекты."}</p></div><nav><button onClick={()=>goTab("home")}>Главная</button>{viewer.role!=="business"?<button onClick={()=>goTab("academy")}>Обучение</button>:<button onClick={()=>goTab("arena")}>Лига компаний</button>}<button onClick={()=>goTab("insights")}>Лайфхаки</button><Link href="/status">Статус сервисов</Link></nav><span>© 2026 KIVRONIX · бесплатно</span></footer>
 
    <SiteTour role={viewer.role} onGo={(value)=>goTab(value as Tab)}/>
    <nav className="mobile-nav">{tabs.map(([id,l])=><button key={id} className={tab===id?"active":""} onClick={()=>goTab(id)}>{l}</button>)}</nav>
