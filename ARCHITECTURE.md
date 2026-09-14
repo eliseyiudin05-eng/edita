@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.51)
+## Go migration boundary (v1.0.52)
 
 - Most production writes and all business decisions remain in Next.js/Supabase.
 - Simple AI feedback may use a disabled-by-default 1–10% Go canary after owner and assistant-message verification; feedback that queues learning candidates always remains on the legacy server path.
@@ -143,3 +143,6 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Supabase JWTs are verified with asymmetric JWKS keys; the service never receives or exposes the JWT signing secret.
 - Request audit events contain request ID, method, route path, status, response size, authentication result and duration. Authorization headers, query strings and user identifiers are excluded.
 - No AI-message creation, chat write, Points, payout, escrow or file-delivery route is served by Go at this stage.
+- Production includes every prepared Supabase boundary migration through atomic private-chat ordering. Catalog checks confirm RLS, scoped grants, dual sensitive-route policies, the ordering trigger, and locked private functions.
+- `20260914173500_lock_down_study_group_rls_helper.sql` removes the explicit anonymous EXECUTE ACL inherited from Supabase default privileges. Authenticated execution remains intentional for the two recursion-safe member-only RLS policies.
+- Schema rollout does not enable any Go shadow/canary flag or `PRIVATE_CHAT_ATOMIC_ORDERING_ENABLED`; application traffic rollout remains a separate reversible step.
