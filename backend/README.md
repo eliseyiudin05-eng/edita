@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.38
+## Stage v1.0.39
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -39,6 +39,8 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - `GET /v1/guardian/verification` reads only the authenticated minor editor's latest owner-bound guardian-verification status;
 - guardian-verification output omits representative names, email addresses, relationship details, methods, IDs and timestamps;
 - a disabled 1–10% guardian-verification canary serves only valid fast Go responses and automatically falls back to the minimized legacy result;
+- `GET /v1/community/business-discussion` reads at most 80 published messages from the fixed company-only topic under business-role RLS;
+- business-discussion output omits author IDs, profile details and database-only topic/status fields, while message writes and moderation stay on legacy;
 - `GET /v1/private-chats/thread` reads one participant-bound conversation and at most 200 messages under user RLS;
 - every returned message is checked against the selected conversation and its two participants, with a 256 KiB response cap;
 - `GET /v1/private-chats` reads at most 100 participant-bound conversations, editor cards and related work orders under user RLS;
@@ -49,7 +51,7 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - `POST /v1/ai/conversations` idempotently gets or creates one owner-bound conversation under user RLS;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-Next.js remains the gateway and primary write authority. Profile, profile-settings, academy progress, social ranking, friend-list, study-group, business-verification, editor-verification, guardian-verification, private-chat and AI-history reads can independently compare legacy and Go responses in shadow mode. Mature read routes, including profile settings, may route a bounded 1–10% read-only canary to Go. Separate disabled-by-default canaries may route up to 10% of supported idempotent writes, including profile-settings updates, practice-session saves and simple AI feedback; avatar uploads, queue-eligible feedback, message writes and all financial requests remain outside Go.
+Next.js remains the gateway and primary write authority. Profile, profile-settings, academy progress, social ranking, friend-list, study-group, business-verification, editor-verification, guardian-verification, business-discussion, private-chat and AI-history reads can independently compare legacy and Go responses in shadow mode. Mature read routes, including profile settings, may route a bounded 1–10% read-only canary to Go. Separate disabled-by-default canaries may route up to 10% of supported idempotent writes, including profile-settings updates, practice-session saves and simple AI feedback; avatar uploads, queue-eligible feedback, message writes and all financial requests remain outside Go.
 
 ## Run locally
 
@@ -76,6 +78,7 @@ Endpoints:
 - `GET /v1/business/verification` — returns the authenticated owner's minimized business-verification status.
 - `GET /v1/editor/verification` — returns the authenticated editor's email, age-access, skill level and latest own verification request.
 - `GET /v1/guardian/verification` — returns only whether confirmation is required, whether it is complete, and the latest own status/review note.
+- `GET /v1/community/business-discussion` — returns the bounded chronological feed visible only to an authenticated business account.
 - `GET /v1/private-chats/thread?conversationId=<uuid>` — returns one thread visible to the authenticated participant.
 - `GET /v1/private-chats` — returns a bounded conversation list visible to the authenticated participant.
 - `GET /v1/ai/history?scope=<scope>` — returns one existing conversation history visible to its authenticated owner.
@@ -111,6 +114,8 @@ For business-verification shadow reads, apply the owner-only request RLS migrati
 For editor-verification rollout, apply the v1.0.35 owner-only SELECT migration, deploy Go, and keep both traffic flags disabled until the service is healthy. First enable `GO_BACKEND_EDITOR_VERIFICATION_SHADOW_READS_ENABLED` to compare `/v1/editor/verification` after the legacy response is sent. After stable comparisons, disable shadow, enable `GO_BACKEND_EDITOR_VERIFICATION_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_EDITOR_VERIFICATION_CANARY_PERCENT=1`; the percentage is hard-limited to 10. Timeout is bounded to 250–3000 ms. Error, malformed or oversized output, excessive latency, or an open circuit falls back within the same request. A mismatch opens the five-minute circuit immediately; a 20% unhealthy rate opens it after at least 10 results. Logs contain only route, outcome, duration and percentage. Submission, portfolio data writes and admin review remain in Next.js/Supabase.
 
 For guardian-verification rollout, first apply the v1.0.37 owner-only column SELECT migration, deploy Go, and keep both traffic flags disabled until the service is healthy. Enable `GO_BACKEND_GUARDIAN_VERIFICATION_SHADOW_READS_ENABLED` first to compare `/v1/guardian/verification` after the minimized legacy response is sent. Once comparisons are stable, disable shadow, enable `GO_BACKEND_GUARDIAN_VERIFICATION_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_GUARDIAN_VERIFICATION_CANARY_PERCENT=1`; the percentage is hard-limited to 10. Timeout is bounded to 250–3000 ms. Error, malformed or oversized output, excessive latency, or an open circuit returns the already computed legacy result in the same request. A mismatch opens the five-minute circuit immediately; a 20% unhealthy rate opens it after at least 10 results. Go derives the owner only from the verified JWT and forwards the user's token with the publishable key. Responses and logs omit guardian names, email addresses, relationship details, methods, UUIDs and timestamps. Request submission and admin review remain in Next.js/Supabase.
+
+For confidential business-discussion shadow reads, apply the v1.0.39 business-only SELECT migration, deploy Go, and keep `GO_BACKEND_BUSINESS_DISCUSSION_SHADOW_READS_ENABLED=false` until the service is healthy. Enabling it compares `/v1/community/business-discussion` after the legacy response is sent. The timeout is bounded to 250–3000 ms, each upstream response is capped at 256 KiB, and the feed is limited to 80 published messages from the fixed `company-growth` topic. Go verifies the user's business role and forwards the same user JWT with the publishable key so RLS remains active. Logs contain only route, outcome and duration; tokens, UUIDs, author names and message content are excluded. Sending messages, content moderation and all writes remain in Next.js/Supabase.
 
 For private-chat thread shadow reads, deploy Go and keep `GO_BACKEND_PRIVATE_CHAT_SHADOW_READS_ENABLED=false` until the service is healthy. Enabling it compares one participant-visible thread with `/v1/private-chats/thread` after the legacy response is sent. `GO_BACKEND_PRIVATE_CHAT_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. Go forwards the user's token with the publishable key, explicitly filters the selected conversation by the verified subject, and validates every message against both participants. The contract is capped at one conversation, 200 messages and 256 KiB. Logs omit tokens, query values, UUIDs, names, message bodies and file metadata. After stable comparisons, disable shadow mode, enable `GO_BACKEND_PRIVATE_CHAT_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_PRIVATE_CHAT_CANARY_PERCENT=1`. The percentage is hard-limited to 10. Timeout, malformed/oversized response, excessive latency, or an open circuit falls back within the same request. A 20% unhealthy rate in a 10–20 result window pauses the canary locally for five minutes; a mismatch opens it immediately. The environment flag is the global kill switch. Message writes, moderation, Realtime, files, work delivery and Points remain in Next.js/Supabase in v1.0.17.
 
