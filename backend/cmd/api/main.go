@@ -18,13 +18,14 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/config"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/database"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/httpapi"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
 )
 
 var (
-	version = "1.0.29"
+	version = "1.0.30"
 	commit  = "local"
 )
 
@@ -70,6 +71,7 @@ func main() {
 	var profileReader httpapi.LearningPreferencesReader
 	var academyReader httpapi.AcademyProgressReader
 	var practiceStore httpapi.PracticeSessionStore
+	var planInterestWriter httpapi.PlanInterestWriter
 	var socialReader httpapi.SocialRankingReader
 	var socialFriendsReader httpapi.SocialFriendsReader
 	var socialGroupsReader httpapi.SocialGroupsReader
@@ -109,6 +111,17 @@ func main() {
 			os.Exit(1)
 		}
 		practiceStore = practiceClient
+
+		plansClient, err := plans.NewClient(
+			cfg.SupabaseURL,
+			cfg.SupabasePublishableKey,
+			&http.Client{Timeout: cfg.ProfileHTTPTimeout},
+		)
+		if err != nil {
+			logger.Error("plan interest client configuration failed", "error", err)
+			os.Exit(1)
+		}
+		planInterestWriter = plansClient
 
 		socialClient, err := social.NewClient(
 			cfg.SupabaseURL,
@@ -162,7 +175,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
+			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,

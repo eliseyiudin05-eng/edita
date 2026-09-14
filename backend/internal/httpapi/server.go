@@ -19,6 +19,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
@@ -45,6 +46,10 @@ type AcademyProgressReader interface {
 type PracticeSessionStore interface {
 	GetSession(context.Context, string, string) (practice.ReadResponse, error)
 	SaveSession(context.Context, string, string, practice.Session) (practice.SaveResponse, error)
+}
+
+type PlanInterestWriter interface {
+	SaveInterest(context.Context, string, string, plans.Interest) (plans.Response, error)
 }
 
 type SocialRankingReader interface {
@@ -88,6 +93,7 @@ type Options struct {
 	Profiles          LearningPreferencesReader
 	Academy           AcademyProgressReader
 	Practice          PracticeSessionStore
+	Plans             PlanInterestWriter
 	Social            SocialRankingReader
 	SocialFriends     SocialFriendsReader
 	SocialGroups      SocialGroupsReader
@@ -108,6 +114,7 @@ type server struct {
 	profiles          LearningPreferencesReader
 	academy           AcademyProgressReader
 	practice          PracticeSessionStore
+	plans             PlanInterestWriter
 	social            SocialRankingReader
 	socialFriends     SocialFriendsReader
 	socialGroups      SocialGroupsReader
@@ -148,6 +155,7 @@ func New(options Options) http.Handler {
 		profiles:          options.Profiles,
 		academy:           options.Academy,
 		practice:          options.Practice,
+		plans:             options.Plans,
 		social:            options.Social,
 		socialFriends:     options.SocialFriends,
 		socialGroups:      options.SocialGroups,
@@ -164,6 +172,7 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/profile/learning-preferences", s.learningPreferences)
 	mux.HandleFunc("/v1/academy/progress", s.academyProgress)
 	mux.HandleFunc("/v1/practice/session", s.practiceSession)
+	mux.HandleFunc("/v1/plans/interest", s.planInterest)
 	mux.HandleFunc("/v1/social/ranking", s.socialRanking)
 	mux.HandleFunc("/v1/social/friends", s.socialFriendships)
 	mux.HandleFunc("/v1/social/friends/cancel", s.socialFriendshipCancel)
@@ -176,6 +185,71 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/ai/conversations", s.aiConversationEnsure)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) planInterest(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.auth == nil || s.plans == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "plan_interest_service_unavailable", "Plan interest saving is temporarily unavailable.")
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	var interest plans.Interest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&interest); err != nil || !plans.ValidInterest(interest) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid plan interest is required.")
+		return
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid plan interest is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.plans.SaveInterest(ctx, token, claims.Subject, interest)
+	cancel()
+	if errors.Is(err, plans.ErrNotFound) {
+		writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+		return
+	}
+	if errors.Is(err, plans.ErrForbidden) {
+		writeError(w, r, http.StatusConflict, "plan_audience_mismatch", "The plan must match the account type.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "plan_interest_save_unavailable", "Plan interest could not be saved.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *server) practiceSession(w http.ResponseWriter, r *http.Request) {

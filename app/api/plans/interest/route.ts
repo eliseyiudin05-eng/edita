@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
+import {tryPlanInterestCanary} from "@/lib/go-plan-interest-canary";
 import type {FuturePlanId,PlanAudience} from "@/lib/plans";
 
 const choices:Record<PlanAudience,FuturePlanId>={editor:"creator_plus",business:"studio_plus"};
@@ -10,9 +11,10 @@ function bearer(req:NextRequest){
 }
 
 export async function POST(req:NextRequest){
-  const user=await getUserFromAccessToken(bearer(req));
+  const token=bearer(req);
+  const user=await getUserFromAccessToken(token);
   const service=getSupabaseServiceClient();
-  if(!user||!service)return NextResponse.json({error:"Нужен вход в KIVRONIX."},{status:401});
+  if(!user||!service||!token)return NextResponse.json({error:"Нужен вход в KIVRONIX."},{status:401});
 
   const body=await req.json().catch(()=>({}));
   const audience=String(body?.audience||"") as PlanAudience;
@@ -20,6 +22,9 @@ export async function POST(req:NextRequest){
   if(!(audience in choices)||choices[audience]!==plan){
     return NextResponse.json({error:"Такой тариф пока отсутствует."},{status:400});
   }
+
+  const canary=await tryPlanInterestCanary(token,audience,plan);
+  if(canary)return NextResponse.json(canary,{headers:{"Cache-Control":"no-store"}});
 
   const {data:profile}=await service.from("profiles").select("role").eq("id",user.id).maybeSingle();
   const expectedAudience=profile?.role==="business"?"business":"editor";
@@ -34,5 +39,5 @@ export async function POST(req:NextRequest){
     updated_at:new Date().toISOString()
   },{onConflict:"user_id"});
   if(error)return NextResponse.json({error:"Интерес пока не сохранился."},{status:500});
-  return NextResponse.json({ok:true,audience,plan,paymentsEnabled:false});
+  return NextResponse.json({ok:true,audience,plan,paymentsEnabled:false},{headers:{"Cache-Control":"no-store"}});
 }

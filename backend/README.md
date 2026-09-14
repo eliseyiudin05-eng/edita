@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.29
+## Stage v1.0.30
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -24,6 +24,7 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - `POST /v1/social/friends/respond` idempotently accepts or declines only the verified addressee's pending relation;
 - `POST /v1/practice/session` idempotently saves only the verified user's bounded training state under owner-only RLS;
 - `GET /v1/practice/session` reads exactly one verified-owner training session with bounded output and no owner ID;
+- `POST /v1/plans/interest` idempotently saves one verified-owner future-plan choice after checking the account role;
 - friend-list output omits both participant UUIDs and keeps only the relationship ID required by the existing mutation route;
 - `GET /v1/social/groups` reads at most 20 groups and 500 members visible to the verified JWT subject under member-only RLS;
 - group profile lookups are chunked, and group creation, joining, and messages remain outside Go;
@@ -69,6 +70,7 @@ Endpoints:
 - `POST /v1/ai/conversations` — idempotently gets or creates one conversation owned by the authenticated user.
 - `POST /v1/practice/session` — idempotently saves the authenticated user's bounded training state.
 - `GET /v1/practice/session` — returns the authenticated user's bounded training state without identity fields.
+- `POST /v1/plans/interest` — idempotently saves a supported future-plan choice without enabling payments.
 
 For a persistent IPv4-only Go service, use the Supabase session pooler URL (port `5432`). For a direct IPv6 connection, use the direct URL. The transaction pooler (port `6543`) is also supported; the driver automatically disables prepared statements for that mode. Keep the database password only in the deployment secret store.
 
@@ -105,3 +107,5 @@ For outgoing friendship cancellation, apply `20260914021113_friendship_cancel_rl
 For incoming friendship responses, apply `20260914022457_friendship_response_rls.sql`, deploy Go, and keep `GO_BACKEND_SOCIAL_FRIEND_RESPONSE_CANARY_ENABLED=false` until the migration is active. Then begin at `GO_BACKEND_SOCIAL_FRIEND_RESPONSE_CANARY_PERCENT=1`, capped at 10. Go derives the addressee from the verified JWT, and PATCH is constrained by relation ID, addressee and pending status. Column privileges permit only `status` and `responded_at`; RLS checks both the old and resulting rows. Repeating the same decision is idempotent, while reversing it is forbidden. Failure or excessive latency falls back in the same request. Logs omit tokens, relation IDs, actions and profile data.
 
 For practice-session reads, deploy the Go endpoint and verify stable shadow comparisons before enabling `GO_BACKEND_PRACTICE_CANARY_READS_ENABLED`. Disable shadow mode and begin with `GO_BACKEND_PRACTICE_CANARY_PERCENT=1`, capped at 10. Timeout, malformed or oversized output, excessive latency, and an open circuit fall back to the existing Supabase read in the same request. A mismatch opens the circuit immediately; a 20% unhealthy rate in a 10–20 result window pauses canary traffic locally for five minutes. The environment flag is the global kill switch, and logs omit tokens, identities, scenarios, messages, and results.
+
+For future-plan interest, keep `GO_BACKEND_PLAN_INTEREST_CANARY_ENABLED=false` until the Go build is healthy, then begin at `GO_BACKEND_PLAN_INTEREST_CANARY_PERCENT=1`, capped at 10. Go validates the supported audience/plan pair, verifies the owner-scoped profile role, and upserts under the user's JWT and existing RLS. The primary key makes retries idempotent, so errors or excessive latency safely fall back in the same request. A 20% failure rate in a 10–20 result window opens a five-minute circuit. Logs omit tokens, identities, roles, audiences, and plan values; payments remain outside Go.
