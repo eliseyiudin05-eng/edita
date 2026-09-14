@@ -3,15 +3,17 @@ export type PracticeResult={client_reply:string;score:number;feedback:string;bet
 export type StoredPracticeSession={scenario:string;messages:PracticeMessage[];result:PracticeResult|null;updated_at:string};
 export type PracticeSessionResponse={session:StoredPracticeSession|null};
 
-type GoReadResult=
+export type GoPracticeSessionReadResult=
   |{ok:true;value:PracticeSessionResponse;durationMs:number}
   |{ok:false;outcome:string;durationMs:number};
 
 const maxResponseBytes=256*1024;
 
 export function practiceSessionShadowEnabled(){
-  return process.env.GO_BACKEND_PRACTICE_SHADOW_READS_ENABLED==="true"&&Boolean(endpoint());
+  return process.env.GO_BACKEND_PRACTICE_SHADOW_READS_ENABLED==="true"&&goPracticeSessionBackendConfigured();
 }
+
+export function goPracticeSessionBackendConfigured(){return Boolean(endpoint())}
 
 export function normalizePracticeSessionResponse(value:unknown):PracticeSessionResponse|null{
   if(value==null)return {session:null};
@@ -40,12 +42,12 @@ export function normalizePracticeSessionResponse(value:unknown):PracticeSessionR
 }
 
 export async function comparePracticeSessionWithGo(token:string,legacy:PracticeSessionResponse){
-  const result=await readFromGo(token,shadowTimeout());
-  const outcome=result.ok?(same(result.value,legacy)?"match":"mismatch"):result.outcome;
+  const result=await readPracticeSessionFromGo(token,shadowTimeout());
+  const outcome=result.ok?(samePracticeSession(result.value,legacy)?"match":"mismatch"):result.outcome;
   console.info("go_practice_shadow",{route:"practice_session",outcome,duration_ms:result.durationMs});
 }
 
-async function readFromGo(token:string,timeoutMs:number):Promise<GoReadResult>{
+export async function readPracticeSessionFromGo(token:string,timeoutMs:number):Promise<GoPracticeSessionReadResult>{
   const started=Date.now();
   try{
     const target=endpoint();
@@ -63,8 +65,8 @@ async function readFromGo(token:string,timeoutMs:number):Promise<GoReadResult>{
   }catch(error){return failed(error instanceof Error&&(error.name==="TimeoutError"||error.name==="AbortError")?"timeout":"unavailable",started)}
 }
 
-function same(left:PracticeSessionResponse,right:PracticeSessionResponse){return JSON.stringify(left)===JSON.stringify(right)}
-function failed(outcome:string,started:number):GoReadResult{return {ok:false,outcome,durationMs:Date.now()-started}}
+export function samePracticeSession(left:PracticeSessionResponse,right:PracticeSessionResponse){return JSON.stringify(left)===JSON.stringify(right)}
+function failed(outcome:string,started:number):GoPracticeSessionReadResult{return {ok:false,outcome,durationMs:Date.now()-started}}
 function shadowTimeout(){const value=Number(process.env.GO_BACKEND_PRACTICE_SHADOW_TIMEOUT_MS||"1000");return Number.isInteger(value)&&value>=250&&value<=3000?value:1000}
 function endpoint(){
   try{

@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.28)
+## Go migration boundary (v1.0.29)
 
 - Most production writes and all business decisions remain in Next.js/Supabase.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
@@ -105,6 +105,8 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - The practice upsert uses the user's token and publishable key under owner-only SELECT/INSERT/UPDATE RLS. Column grants prevent ownership changes and Data API deletion; ambiguous failures safely retry through the idempotent legacy path.
 - Practice-session reads add a disabled-by-default shadow contract for exactly one verified-owner row. The response is capped at 50 messages and 256 KiB and omits the owner ID.
 - Next.js remains authoritative for practice reads; background comparison logs only outcome and duration and cannot delay or alter the user response.
+- Practice-session reads have a separate disabled-by-default 1–10% canary with latency limits, legacy fallback and a five-minute circuit breaker.
+- Canary responses are compared with legacy after delivery; a mismatch immediately opens the circuit without exposing session content in logs.
 - The Go profile endpoint derives identity only from a locally verified access token, forwards that token to the Supabase Data API and filters on the same subject; the existing profile RLS policy remains active.
 - The profile response omits user identity and every unrelated profile/onboarding field.
 - Go connects to PostgreSQL through a bounded pool and requires encrypted database transport in production.

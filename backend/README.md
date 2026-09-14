@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.28
+## Stage v1.0.29
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -103,3 +103,5 @@ For learning-preferences updates, keep `GO_BACKEND_PROFILE_UPDATE_CANARY_ENABLED
 For outgoing friendship cancellation, apply `20260914021113_friendship_cancel_rls.sql`, deploy Go, and keep `GO_BACKEND_SOCIAL_FRIEND_CANCEL_CANARY_ENABLED=false` until friend reads are healthy. Then begin at `GO_BACKEND_SOCIAL_FRIEND_CANCEL_CANARY_PERCENT=1`, capped at 10. Go verifies the token, derives the requester from its subject, and deletes only a matching pending relation under the dedicated requester-only DELETE policy. Missing rows are successful idempotent retries. Failure, timeout, malformed output or excessive latency retries through legacy in the same request. A 20% failure rate in a 10–20 result window opens a five-minute circuit. Logs omit tokens, relation IDs and profile data. Sending, accepting and declining requests remain outside Go in v1.0.25.
 
 For incoming friendship responses, apply `20260914022457_friendship_response_rls.sql`, deploy Go, and keep `GO_BACKEND_SOCIAL_FRIEND_RESPONSE_CANARY_ENABLED=false` until the migration is active. Then begin at `GO_BACKEND_SOCIAL_FRIEND_RESPONSE_CANARY_PERCENT=1`, capped at 10. Go derives the addressee from the verified JWT, and PATCH is constrained by relation ID, addressee and pending status. Column privileges permit only `status` and `responded_at`; RLS checks both the old and resulting rows. Repeating the same decision is idempotent, while reversing it is forbidden. Failure or excessive latency falls back in the same request. Logs omit tokens, relation IDs, actions and profile data.
+
+For practice-session reads, deploy the Go endpoint and verify stable shadow comparisons before enabling `GO_BACKEND_PRACTICE_CANARY_READS_ENABLED`. Disable shadow mode and begin with `GO_BACKEND_PRACTICE_CANARY_PERCENT=1`, capped at 10. Timeout, malformed or oversized output, excessive latency, and an open circuit fall back to the existing Supabase read in the same request. A mismatch opens the circuit immediately; a 20% unhealthy rate in a 10–20 result window pauses canary traffic locally for five minutes. The environment flag is the global kill switch, and logs omit tokens, identities, scenarios, messages, and results.
