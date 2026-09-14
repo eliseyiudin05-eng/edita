@@ -56,6 +56,7 @@ type BusinessVerificationReader interface {
 
 type PrivateChatReader interface {
 	GetThread(context.Context, string, string, string) (chat.Thread, error)
+	ListConversations(context.Context, string, string) (chat.ConversationList, error)
 }
 
 type Options struct {
@@ -144,8 +145,54 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/social/groups", s.socialGroupsList)
 	mux.HandleFunc("/v1/business/verification", s.businessVerification)
 	mux.HandleFunc("/v1/private-chats/thread", s.privateChatThread)
+	mux.HandleFunc("/v1/private-chats", s.privateChatList)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) privateChatList(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	if s.auth == nil || s.privateChats == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "private_chat_service_unavailable", "Private chats are temporarily unavailable.")
+		return
+	}
+	if r.URL.RawQuery != "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_query", "Query parameters are not supported.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.privateChats.ListConversations(ctx, token, claims.Subject)
+	cancel()
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "private_chat_service_unavailable", "Private chats are temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *server) privateChatThread(w http.ResponseWriter, r *http.Request) {

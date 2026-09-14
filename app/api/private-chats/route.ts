@@ -4,6 +4,7 @@ import {findPrivateChatBlockReason,privateChatBlockMessage} from "@/lib/private-
 import {ensurePrivateConversation} from "@/lib/private-chat-server";
 import {comparePrivateChatThreadWithGo,normalizePrivateChatThread,privateChatShadowEnabled} from "@/lib/go-private-chat-shadow";
 import {privateChatCanaryEnabled,recordPrivateChatCanaryComparison,tryPrivateChatCanary} from "@/lib/go-private-chat-canary";
+import {comparePrivateChatListWithGo,normalizePrivateChatList,privateChatListShadowEnabled} from "@/lib/go-private-chat-list-shadow";
 
 function accessToken(req:NextRequest){
   const value=req.headers.get("authorization");
@@ -46,6 +47,49 @@ async function readLegacyThread(auth:NonNullable<Awaited<ReturnType<typeof authe
   return {ok:true as const,value};
 }
 
+async function readLegacyConversationList(auth:NonNullable<Awaited<ReturnType<typeof authenticate>>>){
+  const {data:conversations,error}=await auth.service.from("private_conversations")
+    .select("id,editor_id,business_owner_id,source_kind,source_id,company_name,title,status,last_message_at,created_at")
+    .or(`editor_id.eq.${auth.user.id},business_owner_id.eq.${auth.user.id}`)
+    .order("last_message_at",{ascending:false})
+    .order("id",{ascending:true})
+    .limit(100);
+  if(error)return null;
+
+  const editorIds=[...new Set((conversations||[]).map((item:any)=>item.editor_id))];
+  const conversationIds=(conversations||[]).map((item:any)=>item.id);
+  const {data:orders,error:ordersError}=conversationIds.length?await auth.service.from("work_orders")
+    .select("id,conversation_id,gross_points,editor_points,platform_fee_points,status,work_order_deliverables(preview_name,original_name,submitted_at)")
+    .in("conversation_id",conversationIds)
+    .or(`customer_id.eq.${auth.user.id},editor_id.eq.${auth.user.id}`)
+    .limit(100):{data:[] as any[],error:null};
+  if(ordersError)return null;
+  const orderMap=Object.fromEntries((orders||[]).map((item:any)=>[item.conversation_id,item]));
+  const {data:editors,error:editorsError}=editorIds.length
+    ?await auth.service.from("public_profiles").select("id,display_name,username,avatar_url").in("id",editorIds).limit(100)
+    :{data:[] as any[],error:null};
+  if(editorsError)return null;
+  const editorMap=Object.fromEntries((editors||[]).map((item:any)=>[item.id,item]));
+  return normalizePrivateChatList({
+    viewerId:auth.user.id,
+    conversations:(conversations||[]).map((item:any)=>({
+      id:item.id,
+      side:item.editor_id===auth.user.id?"editor":"company",
+      source_kind:item.source_kind,
+      source_id:item.source_id,
+      otherName:item.editor_id===auth.user.id?item.company_name:(editorMap[item.editor_id]?.display_name||"Монтажёр"),
+      otherUsername:item.editor_id===auth.user.id?null:(editorMap[item.editor_id]?.username??null),
+      otherAvatar:item.editor_id===auth.user.id?null:(editorMap[item.editor_id]?.avatar_url??null),
+      company_name:item.company_name,
+      title:item.title,
+      status:item.status,
+      last_message_at:item.last_message_at,
+      created_at:item.created_at,
+      workOrder:orderMap[item.id]||null,
+    })),
+  });
+}
+
 export async function GET(req:NextRequest){
   const auth=await authenticate(req);
   if(!auth)return NextResponse.json({error:"Войдите в аккаунт."},{status:401});
@@ -71,31 +115,10 @@ export async function GET(req:NextRequest){
     return NextResponse.json(legacy.value,{headers:{"Cache-Control":"no-store"}});
   }
 
-  const {data:conversations,error}=await auth.service.from("private_conversations")
-    .select("id,editor_id,business_owner_id,source_kind,source_id,company_name,title,status,last_message_at,created_at")
-    .or(`editor_id.eq.${auth.user.id},business_owner_id.eq.${auth.user.id}`)
-    .order("last_message_at",{ascending:false});
-  if(error)return NextResponse.json({error:"Ошибка загрузки чатов."},{status:500});
-
-  const editorIds=[...new Set((conversations||[]).map((item:any)=>item.editor_id))];
-  const conversationIds=(conversations||[]).map((item:any)=>item.id);
-  const {data:orders}=conversationIds.length?await auth.service.from("work_orders").select("id,conversation_id,gross_points,editor_points,platform_fee_points,status,work_order_deliverables(preview_name,original_name,submitted_at)").in("conversation_id",conversationIds):{data:[] as any[]};
-  const orderMap=Object.fromEntries((orders||[]).map((item:any)=>[item.conversation_id,item]));
-  const {data:editors}=editorIds.length
-    ?await auth.service.from("public_profiles").select("id,display_name,username,avatar_url").in("id",editorIds)
-    :{data:[] as any[]};
-  const editorMap=Object.fromEntries((editors||[]).map((item:any)=>[item.id,item]));
-  return NextResponse.json({
-    viewerId:auth.user.id,
-    conversations:(conversations||[]).map((item:any)=>({
-      ...item,
-      side:item.editor_id===auth.user.id?"editor":"company",
-      otherName:item.editor_id===auth.user.id?item.company_name:(editorMap[item.editor_id]?.display_name||"Монтажёр"),
-      otherUsername:item.editor_id===auth.user.id?null:(editorMap[item.editor_id]?.username||null),
-      otherAvatar:item.editor_id===auth.user.id?null:(editorMap[item.editor_id]?.avatar_url||null)
-      ,workOrder:orderMap[item.id]||null
-    }))
-  });
+  const legacy=await readLegacyConversationList(auth);
+  if(!legacy)return NextResponse.json({error:"Ошибка загрузки чатов."},{status:500});
+  if(privateChatListShadowEnabled())after(()=>comparePrivateChatListWithGo(auth.token,legacy));
+  return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(req:NextRequest){
