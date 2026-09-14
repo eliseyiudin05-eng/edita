@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.32
+## Stage v1.0.33
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -42,7 +42,7 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - `POST /v1/ai/conversations` idempotently gets or creates one owner-bound conversation under user RLS;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-Next.js remains the gateway and primary write authority. Profile, academy progress, social ranking, friend-list, study-group, business-verification, private-chat and AI-history reads can independently compare legacy and Go responses in shadow mode. Mature read routes may route a bounded 1–10% read-only canary to Go. Separate disabled-by-default canaries may route up to 10% of supported idempotent writes, including practice-session saves and simple AI feedback; queue-eligible feedback, message writes and all financial requests remain outside Go.
+Next.js remains the gateway and primary write authority. Profile, profile-settings, academy progress, social ranking, friend-list, study-group, business-verification, private-chat and AI-history reads can independently compare legacy and Go responses in shadow mode. Mature read routes, including profile settings, may route a bounded 1–10% read-only canary to Go. Separate disabled-by-default canaries may route up to 10% of supported idempotent writes, including practice-session saves and simple AI feedback; queue-eligible feedback, message writes and all financial requests remain outside Go.
 
 ## Run locally
 
@@ -83,6 +83,8 @@ Use a dedicated least-privilege database role for the Go service. It still needs
 To enable comparison after deploying the Go service, set `GO_BACKEND_URL` to its HTTPS origin and set `GO_BACKEND_SHADOW_READS_ENABLED=true` in Next.js. The optional `GO_BACKEND_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. The legacy response remains authoritative in shadow mode.
 
 After shadow results are stable, disable shadow mode, set `GO_BACKEND_CANARY_READS_ENABLED=true`, and begin with `GO_BACKEND_CANARY_PERCENT=1`. An active canary suppresses shadow requests even if the shadow flag was accidentally left enabled. The percentage is hard-limited to 10. `GO_BACKEND_CANARY_TIMEOUT_MS` is bounded to 250–3000 ms and `GO_BACKEND_CANARY_MAX_LATENCY_MS` controls when a completed Go request still falls back. Failures and slow responses fall back within the same request. A per-instance circuit breaker pauses the canary for five minutes at a 20% unhealthy rate after at least 10 results, while any contract mismatch opens it immediately. Set the canary flag to `false` for global rollback.
+
+For editable profile settings, keep `GO_BACKEND_PROFILE_SETTINGS_SHADOW_READS_ENABLED=false` and `GO_BACKEND_PROFILE_SETTINGS_CANARY_READS_ENABLED=false` until the Go endpoint is deployed and shadow comparisons are stable. Then disable shadow, enable the settings canary, and begin at `GO_BACKEND_PROFILE_SETTINGS_CANARY_PERCENT=1`; it is hard-limited to 10. Timeout, malformed or oversized output, excessive latency, and an open circuit fall back to the existing owner-scoped Supabase read in the same request. Successful Go responses are compared after delivery. The circuit pauses locally for five minutes at a 20% unhealthy rate after at least 10 results, while a mismatch opens it immediately; the canary flag is the global kill switch.
 
 For the academy stage, keep `GO_BACKEND_ACADEMY_SHADOW_READS_ENABLED=false` until the Go build is healthy, then enable it to compare `/v1/academy/progress` after legacy responses are sent. `GO_BACKEND_ACADEMY_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. After stable comparisons, disable academy shadow mode, enable `GO_BACKEND_ACADEMY_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_ACADEMY_CANARY_PERCENT=1`. The percentage is hard-limited to 10. Timeout, malformed/oversized response, excessive latency, or an open circuit falls back to the existing Supabase read. A 20% unhealthy rate in a 10–20 result window pauses academy canary locally for five minutes; a contract mismatch opens the circuit immediately. The environment flag is the global kill switch. Writes, XP persistence, and unlock decisions remain in Next.js/Supabase.
 

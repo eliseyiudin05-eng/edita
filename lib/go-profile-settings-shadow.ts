@@ -7,8 +7,10 @@ type ReadResult=
 const route="profile_settings";
 
 export function profileSettingsShadowEnabled(){
-  return process.env.GO_BACKEND_PROFILE_SETTINGS_SHADOW_READS_ENABLED==="true"&&Boolean(endpoint());
+  return process.env.GO_BACKEND_PROFILE_SETTINGS_SHADOW_READS_ENABLED==="true"&&goProfileSettingsBackendConfigured();
 }
+
+export function goProfileSettingsBackendConfigured(){return Boolean(endpoint())}
 
 export function normalizeProfileSettings(value:unknown):ProfileSettings|null{
   if(!value||typeof value!=="object"||Array.isArray(value))return null;
@@ -23,12 +25,12 @@ export function normalizeProfileSettings(value:unknown):ProfileSettings|null{
 }
 
 export async function compareProfileSettingsWithGo(token:string,legacy:ProfileSettings){
-  const result=await readFromGo(token,timeout());
-  const outcome=result.ok?(same(result.value,legacy)?"match":"mismatch"):result.outcome;
+  const result=await readProfileSettingsFromGo(token,timeout());
+  const outcome=result.ok?(sameProfileSettings(result.value,legacy)?"match":"mismatch"):result.outcome;
   console.info("go_profile_settings_shadow",{route,outcome,duration_ms:result.durationMs});
 }
 
-async function readFromGo(token:string,timeoutMs:number):Promise<ReadResult>{
+export async function readProfileSettingsFromGo(token:string,timeoutMs:number):Promise<ReadResult>{
   const started=Date.now();
   try{
     const target=endpoint();
@@ -62,7 +64,7 @@ function nullableString(value:unknown,max:number){
   return typeof value==="string"&&[...value].length<=max&&!/[\r\n]/.test(max>1000?value:"")?value:null;
 }
 
-function same(left:ProfileSettings,right:ProfileSettings){
+export function sameProfileSettings(left:ProfileSettings,right:ProfileSettings){
   return left.displayName===right.displayName&&left.username===right.username&&left.schoolName===right.schoolName&&left.avatarUrl===right.avatarUrl&&left.showSchoolPublicly===right.showSchoolPublicly;
 }
 

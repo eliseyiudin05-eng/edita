@@ -1,4 +1,5 @@
 import {after,NextRequest,NextResponse} from "next/server";
+import {profileSettingsCanaryEnabled,recordProfileSettingsCanaryComparison,tryProfileSettingsCanary} from "@/lib/go-profile-settings-canary";
 import {compareProfileSettingsWithGo,normalizeProfileSettings,profileSettingsShadowEnabled} from "@/lib/go-profile-settings-shadow";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 
@@ -14,6 +15,23 @@ export async function GET(req:NextRequest){
   if(!user||!token)return NextResponse.json({error:"Нужен вход в аккаунт."},{status:401});
   if(!service)return NextResponse.json({error:"Сервис профиля недоступен."},{status:503});
 
+  const canary=await tryProfileSettingsCanary(token);
+  if(canary.attempted&&canary.value){
+    after(async()=>{
+      try{
+        const {data,error}=await service.from("profiles")
+          .select("display_name,username,school_name,avatar_url,show_school_publicly")
+          .eq("id",user.id)
+          .maybeSingle();
+        const legacy=!error&&data?normalizeProfileSettings(data):null;
+        recordProfileSettingsCanaryComparison(canary.value!,legacy);
+      }catch{
+        recordProfileSettingsCanaryComparison(canary.value!,null);
+      }
+    });
+    return NextResponse.json(canary.value,{headers:{"Cache-Control":"no-store"}});
+  }
+
   const {data,error}=await service.from("profiles")
     .select("display_name,username,school_name,avatar_url,show_school_publicly")
     .eq("id",user.id)
@@ -23,6 +41,6 @@ export async function GET(req:NextRequest){
   const legacy=normalizeProfileSettings(data);
   if(!legacy)return NextResponse.json({error:"Профиль повреждён."},{status:500});
 
-  if(profileSettingsShadowEnabled())after(()=>compareProfileSettingsWithGo(token,legacy));
+  if(!profileSettingsCanaryEnabled()&&profileSettingsShadowEnabled())after(()=>compareProfileSettingsWithGo(token,legacy));
   return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
 }
