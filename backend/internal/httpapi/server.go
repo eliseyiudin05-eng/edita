@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/aifeedback"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/aihistory"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
@@ -50,6 +51,10 @@ type PracticeSessionStore interface {
 
 type PlanInterestWriter interface {
 	SaveInterest(context.Context, string, string, plans.Interest) (plans.Response, error)
+}
+
+type AIFeedbackWriter interface {
+	SaveFeedback(context.Context, string, string, aifeedback.Feedback) (aifeedback.Response, error)
 }
 
 type SocialRankingReader interface {
@@ -94,6 +99,7 @@ type Options struct {
 	Academy           AcademyProgressReader
 	Practice          PracticeSessionStore
 	Plans             PlanInterestWriter
+	AIFeedback        AIFeedbackWriter
 	Social            SocialRankingReader
 	SocialFriends     SocialFriendsReader
 	SocialGroups      SocialGroupsReader
@@ -115,6 +121,7 @@ type server struct {
 	academy           AcademyProgressReader
 	practice          PracticeSessionStore
 	plans             PlanInterestWriter
+	aiFeedback        AIFeedbackWriter
 	social            SocialRankingReader
 	socialFriends     SocialFriendsReader
 	socialGroups      SocialGroupsReader
@@ -156,6 +163,7 @@ func New(options Options) http.Handler {
 		academy:           options.Academy,
 		practice:          options.Practice,
 		plans:             options.Plans,
+		aiFeedback:        options.AIFeedback,
 		social:            options.Social,
 		socialFriends:     options.SocialFriends,
 		socialGroups:      options.SocialGroups,
@@ -173,6 +181,7 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/academy/progress", s.academyProgress)
 	mux.HandleFunc("/v1/practice/session", s.practiceSession)
 	mux.HandleFunc("/v1/plans/interest", s.planInterest)
+	mux.HandleFunc("/v1/ai/feedback", s.aiFeedbackRoute)
 	mux.HandleFunc("/v1/social/ranking", s.socialRanking)
 	mux.HandleFunc("/v1/social/friends", s.socialFriendships)
 	mux.HandleFunc("/v1/social/friends/cancel", s.socialFriendshipCancel)
@@ -185,6 +194,67 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/ai/conversations", s.aiConversationEnsure)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) aiFeedbackRoute(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.auth == nil || s.aiFeedback == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "ai_feedback_service_unavailable", "AI feedback saving is temporarily unavailable.")
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	var feedback aifeedback.Feedback
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&feedback); err != nil || !aifeedback.ValidFeedback(feedback) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid feedback rating with a short comment is required.")
+		return
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid feedback rating with a short comment is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.aiFeedback.SaveFeedback(ctx, token, claims.Subject, feedback)
+	cancel()
+	if errors.Is(err, aifeedback.ErrNotFound) {
+		writeError(w, r, http.StatusNotFound, "assistant_message_not_found", "The assistant message was not found.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "ai_feedback_save_unavailable", "AI feedback could not be saved.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *server) planInterest(w http.ResponseWriter, r *http.Request) {

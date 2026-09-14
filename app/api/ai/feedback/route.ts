@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
+import {tryAIFeedbackCanary} from "@/lib/go-ai-feedback-canary";
 
 function bearer(req:NextRequest){
   const value=req.headers.get("authorization");
@@ -7,9 +8,10 @@ function bearer(req:NextRequest){
 }
 
 export async function POST(req:NextRequest){
-  const user=await getUserFromAccessToken(bearer(req));
+  const token=bearer(req);
+  const user=await getUserFromAccessToken(token);
   const service=getSupabaseServiceClient();
-  if(!user||!service)return NextResponse.json({error:"Нужен вход в KIVRONIX."},{status:401});
+  if(!user||!service||!token)return NextResponse.json({error:"Нужен вход в KIVRONIX."},{status:401});
 
   const body=await req.json().catch(()=>({}));
   const messageId=String(body?.messageId||"");
@@ -18,6 +20,9 @@ export async function POST(req:NextRequest){
   if(!/^[0-9a-f-]{36}$/i.test(messageId)||typeof helpful!=="boolean"){
     return NextResponse.json({error:"Оценка заполнена неверно."},{status:400});
   }
+
+  const canary=await tryAIFeedbackCanary(token,messageId,helpful,comment);
+  if(canary)return NextResponse.json(canary,{headers:{"Cache-Control":"no-store"}});
 
   const {data:message}=await service.from("ai_messages")
     .select("id,conversation_id,content,role,created_at")
