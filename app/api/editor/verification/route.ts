@@ -1,6 +1,7 @@
 import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {compareEditorVerificationWithGo,editorVerificationShadowEnabled,normalizeEditorVerification} from "@/lib/go-editor-verification-shadow";
+import {editorVerificationCanaryEnabled,recordEditorVerificationCanaryComparison,tryEditorVerificationCanary} from "@/lib/go-editor-verification-canary";
 
 function token(req:NextRequest){
   const h=req.headers.get("authorization");
@@ -32,7 +33,14 @@ export async function GET(req:NextRequest){
     request:request||null
   });
   if(!result)return NextResponse.json({error:"Не удалось загрузить статус проверки."},{status:503});
-  if(editorVerificationShadowEnabled())after(()=>compareEditorVerificationWithGo(accessToken!,result));
+  const canary=await tryEditorVerificationCanary(accessToken!);
+  if(canary.attempted&&canary.value){
+    after(()=>recordEditorVerificationCanaryComparison(canary.value!,result));
+    return NextResponse.json(canary.value,{headers:{"Cache-Control":"no-store"}});
+  }
+  if(!editorVerificationCanaryEnabled()&&editorVerificationShadowEnabled()){
+    after(()=>compareEditorVerificationWithGo(accessToken!,result));
+  }
   return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
 }
 
