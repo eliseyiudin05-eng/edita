@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -126,6 +127,69 @@ func TestGetThreadRejectsMessageFromNonParticipant(t *testing.T) {
 	_, err = client.GetThread(context.Background(), "access-token", subject, conversation)
 	if !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("error = %v, want ErrUnavailable", err)
+	}
+}
+
+func TestCreateMessageUsesVerifiedParticipantAndIdempotencyID(t *testing.T) {
+	const subject = "123e4567-e89b-12d3-a456-426614174001"
+	const editor = "223e4567-e89b-12d3-a456-426614174002"
+	const conversation = "323e4567-e89b-12d3-a456-426614174003"
+	const messageID = "423e4567-e89b-12d3-a456-426614174004"
+	requests := 0
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		if request.Header.Get("Authorization") != "Bearer access-token" || request.Header.Get("apikey") != "sb_publishable_test" {
+			t.Fatal("user authorization headers missing")
+		}
+		if requests == 1 {
+			if request.Method != http.MethodGet || request.URL.Path != "/rest/v1/private_conversations" || request.URL.Query().Get("id") != "eq."+conversation || request.URL.Query().Get("or") != "(editor_id.eq."+subject+",business_owner_id.eq."+subject+")" {
+				t.Fatalf("unsafe participant lookup: %s %s", request.Method, request.URL.String())
+			}
+			return response(`[{"id":"` + conversation + `","editor_id":"` + editor + `","business_owner_id":"` + subject + `","status":"active","company_name":"KIVRONIX","title":"Job","source_kind":"job"}]`), nil
+		}
+		if request.Method != http.MethodPost || request.URL.Path != "/rest/v1/private_messages" || request.URL.Query().Get("on_conflict") != "id" || request.Header.Get("Prefer") != "resolution=ignore-duplicates,return=representation" {
+			t.Fatalf("unsafe message write: %s %s", request.Method, request.URL.String())
+		}
+		var payload map[string]string
+		if json.NewDecoder(request.Body).Decode(&payload) != nil || payload["id"] != messageID || payload["conversation_id"] != conversation || payload["sender_id"] != subject || payload["body"] != "Безопасное сообщение" || payload["created_at"] != "" {
+			t.Fatalf("unsafe message payload: %+v", payload)
+		}
+		return response(`[{"id":"` + messageID + `","conversation_id":"` + conversation + `","sender_id":"` + subject + `","body":"Безопасное сообщение","created_at":"2026-09-14T15:30:00Z"}]`), nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := client.CreateMessage(context.Background(), "access-token", subject, CreateMessageInput{ID: messageID, ConversationID: conversation, Body: "Безопасное сообщение"})
+	if err != nil || !got.OK || got.Message.ID != messageID || requests != 2 {
+		t.Fatalf("result=%+v requests=%d error=%v", got, requests, err)
+	}
+}
+
+func TestCreateMessageRejectsConflictingIdempotencyRow(t *testing.T) {
+	const subject = "123e4567-e89b-12d3-a456-426614174001"
+	const conversation = "323e4567-e89b-12d3-a456-426614174003"
+	const messageID = "423e4567-e89b-12d3-a456-426614174004"
+	requests := 0
+	client, err := NewClient("https://project.supabase.co", "key", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		switch requests {
+		case 1:
+			return response(`[{"id":"` + conversation + `","editor_id":"223e4567-e89b-12d3-a456-426614174002","business_owner_id":"` + subject + `","status":"active","company_name":"KIVRONIX","title":"Job","source_kind":"job"}]`), nil
+		case 2:
+			return response(`[]`), nil
+		default:
+			if request.Method != http.MethodGet || request.URL.Query().Get("id") != "eq."+messageID || request.URL.Query().Get("conversation_id") != "eq."+conversation {
+				t.Fatalf("unsafe retry verification: %s %s", request.Method, request.URL.String())
+			}
+			return response(`[{"id":"` + messageID + `","conversation_id":"` + conversation + `","sender_id":"` + subject + `","body":"Другой текст","created_at":"2026-09-14T15:30:00Z"}]`), nil
+		}
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.CreateMessage(context.Background(), "token", subject, CreateMessageInput{ID: messageID, ConversationID: conversation, Body: "Ожидаемый текст"})
+	if !errors.Is(err, ErrConflict) || requests != 3 {
+		t.Fatalf("requests=%d error=%v, want ErrConflict", requests, err)
 	}
 }
 

@@ -33,7 +33,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.46",
+		Version:      "1.0.47",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -67,7 +67,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.46"`) {
+	if !strings.Contains(body, `"version":"1.0.47"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -269,10 +269,12 @@ func (reader *fakeEditorVerificationReader) GetVerification(_ context.Context, t
 type fakePrivateChatReader struct {
 	result         chat.Thread
 	list           chat.ConversationList
+	created        chat.CreateMessageResponse
 	err            error
 	token          string
 	subject        string
 	conversationID string
+	messageInput   chat.CreateMessageInput
 }
 
 type fakeAIHistoryReader struct {
@@ -318,6 +320,13 @@ func (reader *fakePrivateChatReader) GetThread(_ context.Context, token, subject
 	reader.subject = subject
 	reader.conversationID = conversationID
 	return reader.result, reader.err
+}
+
+func (reader *fakePrivateChatReader) CreateMessage(_ context.Context, token, subject string, input chat.CreateMessageInput) (chat.CreateMessageResponse, error) {
+	reader.token = token
+	reader.subject = subject
+	reader.messageInput = input
+	return reader.created, reader.err
 }
 
 func (reader *fakeBusinessReader) GetVerification(_ context.Context, token, subject string) (business.Verification, error) {
@@ -1058,6 +1067,39 @@ func TestPrivateChatThreadRequiresAuthAndConversationID(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "123e4567-e89b-12d3-a456-426614174001" || reader.conversationID != conversationID {
 		t.Fatalf("unexpected response or reader arguments: status=%d token=%q subject=%q conversation=%q body=%s", response.Code, reader.token, reader.subject, reader.conversationID, response.Body.String())
+	}
+}
+
+func TestPrivateChatMessageRequiresBoundedInputAndVerifiedSubject(t *testing.T) {
+	const subject = "123e4567-e89b-12d3-a456-426614174001"
+	const conversationID = "323e4567-e89b-12d3-a456-426614174003"
+	const messageID = "423e4567-e89b-12d3-a456-426614174004"
+	reader := &fakePrivateChatReader{created: chat.CreateMessageResponse{OK: true, Message: chat.Message{
+		ID: messageID, ConversationID: conversationID, SenderID: subject, Body: "Сообщение", CreatedAt: "2026-09-14T15:30:00Z",
+	}}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: subject, Role: "authenticated"}},
+		PrivateChats:      reader,
+		DependencyTimeout: time.Second,
+	})
+
+	invalid := httptest.NewRecorder()
+	invalidRequest := httptest.NewRequest(http.MethodPost, "/v1/private-chats/message", strings.NewReader(`{"id":"bad","conversationId":"`+conversationID+`","body":"Сообщение"}`))
+	invalidRequest.Header.Set("Authorization", "Bearer signed.token.value")
+	invalidRequest.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(invalid, invalidRequest)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid input status=%d", invalid.Code)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/v1/private-chats/message", strings.NewReader(`{"id":"`+messageID+`","conversationId":"`+conversationID+`","body":"Сообщение"}`))
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != subject || reader.messageInput.ID != messageID || reader.messageInput.ConversationID != conversationID || reader.messageInput.Body != "Сообщение" || !strings.Contains(response.Body.String(), `"ok":true`) {
+		t.Fatalf("unexpected write: status=%d token=%q subject=%q input=%+v body=%s", response.Code, reader.token, reader.subject, reader.messageInput, response.Body.String())
 	}
 }
 

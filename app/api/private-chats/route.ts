@@ -1,4 +1,5 @@
 import {after,NextRequest,NextResponse} from "next/server";
+import {randomUUID} from "node:crypto";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {findPrivateChatBlockReason,privateChatBlockMessage} from "@/lib/private-chat-moderation";
 import {ensurePrivateConversation} from "@/lib/private-chat-server";
@@ -6,6 +7,7 @@ import {comparePrivateChatThreadWithGo,normalizePrivateChatThread,privateChatSha
 import {privateChatCanaryEnabled,recordPrivateChatCanaryComparison,tryPrivateChatCanary} from "@/lib/go-private-chat-canary";
 import {comparePrivateChatListWithGo,normalizePrivateChatList,privateChatListShadowEnabled} from "@/lib/go-private-chat-list-shadow";
 import {privateChatListCanaryEnabled,recordPrivateChatListCanaryComparison,tryPrivateChatListCanary} from "@/lib/go-private-chat-list-canary";
+import {tryPrivateChatWriteCanary} from "@/lib/go-private-chat-write-canary";
 
 function accessToken(req:NextRequest){
   const value=req.headers.get("authorization");
@@ -154,18 +156,31 @@ export async function POST(req:NextRequest){
     if(!canOpen(conversation,auth.user.id))return NextResponse.json({error:"Доступ к чату закрыт."},{status:403});
     if(conversation.status!=="active")return NextResponse.json({error:"Чат завершён."},{status:409});
 
-    const createdAt=new Date().toISOString();
-    const {data:created,error}=await auth.service.from("private_messages").insert({
-      conversation_id:conversation.id,
-      sender_id:auth.user.id,
-      body:message,
-      created_at:createdAt
-    }).select("id,conversation_id,sender_id,body,created_at").single();
-    if(error){
-      if(error.code==="23514")return NextResponse.json({error:privateChatBlockMessage()},{status:400});
-      return NextResponse.json({error:"Ошибка отправки сообщения."},{status:500});
+    const id=randomUUID();
+    let created=await tryPrivateChatWriteCanary(auth.token,id,conversation.id,auth.user.id,message);
+    if(!created){
+      const {data:saved,error}=await auth.service.from("private_messages").upsert({
+        id,
+        conversation_id:conversation.id,
+        sender_id:auth.user.id,
+        body:message
+      },{onConflict:"id",ignoreDuplicates:true}).select("id,conversation_id,sender_id,body,created_at").maybeSingle();
+      if(error){
+        if(error.code==="23514")return NextResponse.json({error:privateChatBlockMessage()},{status:400});
+        return NextResponse.json({error:"Ошибка отправки сообщения."},{status:500});
+      }
+      created=saved;
+      if(!created){
+        const {data:existing,error:readError}=await auth.service.from("private_messages")
+          .select("id,conversation_id,sender_id,body,created_at")
+          .eq("id",id)
+          .eq("conversation_id",conversation.id)
+          .maybeSingle();
+        if(readError||!existing||existing.sender_id!==auth.user.id||existing.body!==message)return NextResponse.json({error:"Ошибка безопасного повтора сообщения."},{status:409});
+        created=existing;
+      }
     }
-    await auth.service.from("private_conversations").update({last_message_at:createdAt}).eq("id",conversation.id);
+    await auth.service.from("private_conversations").update({last_message_at:created.created_at}).eq("id",conversation.id);
     return NextResponse.json({ok:true,message:created});
   }
 

@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.46)
+## Go migration boundary (v1.0.47)
 
 - Most production writes and all business decisions remain in Next.js/Supabase.
 - Simple AI feedback may use a disabled-by-default 1–10% Go canary after owner and assistant-message verification; feedback that queues learning candidates always remains on the legacy server path.
@@ -65,7 +65,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Business-discussion writes may use a separate disabled-by-default 1–10% Go canary after the existing content moderation passes. Next.js generates the message UUID once; ambiguous Go failures retry the identical UUID through legacy, so the primary key prevents duplicate publication.
 - The Go write fixes author, topic and status from the verified JWT and server constants. Authenticated INSERT column grants plus permissive and restrictive business-only RLS prevent cross-account or cross-topic writes; moderation remains authoritative in Next.js.
 - The editor discussion adds a disabled-by-default shadow read for the fixed `editors-in-cinema` topic. Go verifies the JWT subject's own membership under member-only RLS and returns at most 80 published messages.
-- The editor-discussion contract removes `viewerId`, author UUIDs and membership fields. Existing enrollment, message writes and moderation remain in Next.js/Supabase.
+- The editor-discussion contract removes `viewerId`, author UUIDs and membership fields. Moderation remains authoritative in Next.js, while enrollment and message-write canaries stay disabled by default.
 - Editor-discussion reads may use a separate disabled-by-default 1–10% Go canary after shadow validation. Invalid, slow or failed responses fall back to the already computed legacy feed; mismatch or repeated failures open the five-minute circuit.
 - Editor-discussion writes may use a separate disabled-by-default 1–10% Go canary after legacy membership enrollment and content moderation. A single server-generated UUID is reused by Go and legacy fallback to make ambiguous retries idempotent.
 - Go fixes editor-discussion author, topic and status from the verified JWT and server constants. Column-scoped INSERT grants plus permissive and restrictive membership policies prevent cross-user and cross-topic writes.
@@ -103,7 +103,8 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Chat output is capped at one conversation, 200 messages and 256 KiB. Every message must belong to that conversation and be authored by one of its two participants; audit and comparison logs omit all chat content and identifiers.
 - Private-chat thread reads may serve a separately controlled 1–10% canary. Failures, excessive latency, malformed output or an open circuit fall back to the existing Next.js/Supabase read in the same request.
 - Private-chat shadow and canary modes are mutually exclusive. A dedicated five-minute circuit breaker and an environment kill switch provide automatic and global rollback.
-- Chat writes, contact moderation, Realtime subscriptions, file access, protected delivery, refunds and Points remain in the existing Next.js/Supabase routes.
+- Private-message writes may use a disabled-by-default 1–10% Go canary after the existing conversation and contact-information checks. The verified JWT fixes the sender; participant-only RLS and a server-generated UUID make fallback safe.
+- Conversation creation, contact moderation, `last_message_at`, Realtime subscriptions, file access, protected delivery, refunds and Points remain in the existing Next.js/Supabase routes.
 - Private-chat list reads add a separate disabled-by-default shadow contract. Go accepts no query-selected identity, derives the participant from the verified JWT subject, and uses the user's token plus publishable key so RLS remains active.
 - List output is capped at 100 conversations, omits both participant UUIDs, and validates each related work order's participant, Points totals, status and deliverable metadata. The legacy response remains authoritative.
 - Private-chat list comparison logs contain only route, outcome and duration. Chat identities, names, titles, statuses, Points and file metadata are excluded.

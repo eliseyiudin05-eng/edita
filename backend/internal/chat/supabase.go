@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,7 +14,10 @@ import (
 	"unicode/utf8"
 )
 
-var ErrUnavailable = errors.New("private chat service unavailable")
+var (
+	ErrUnavailable = errors.New("private chat service unavailable")
+	ErrConflict    = errors.New("private chat idempotency conflict")
+)
 
 const (
 	maxMessages      = 200
@@ -113,6 +117,17 @@ type Message struct {
 	SenderID       string `json:"sender_id"`
 	Body           string `json:"body"`
 	CreatedAt      string `json:"created_at"`
+}
+
+type CreateMessageInput struct {
+	ID             string `json:"id"`
+	ConversationID string `json:"conversationId"`
+	Body           string `json:"body"`
+}
+
+type CreateMessageResponse struct {
+	OK      bool    `json:"ok"`
+	Message Message `json:"message"`
 }
 
 type Client struct {
@@ -317,6 +332,86 @@ func (c *Client) GetThread(ctx context.Context, accessToken, subject, conversati
 	return Thread{ViewerID: subject, Conversation: conversation, Messages: messages}, nil
 }
 
+func (c *Client) CreateMessage(ctx context.Context, accessToken, subject string, input CreateMessageInput) (CreateMessageResponse, error) {
+	subject = strings.ToLower(strings.TrimSpace(subject))
+	input.ID = strings.ToLower(strings.TrimSpace(input.ID))
+	input.ConversationID = strings.ToLower(strings.TrimSpace(input.ConversationID))
+	if c == nil || strings.TrimSpace(accessToken) == "" || !validUUID(subject) || !ValidCreateMessage(input) {
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+
+	conversationQuery := url.Values{}
+	conversationQuery.Set("select", "id,editor_id,business_owner_id,status,company_name,title,source_kind")
+	conversationQuery.Set("id", "eq."+input.ConversationID)
+	conversationQuery.Set("or", "(editor_id.eq."+subject+",business_owner_id.eq."+subject+")")
+	conversationQuery.Set("limit", "1")
+	var conversations []Conversation
+	if err := c.getJSON(ctx, c.conversationsEndpoint+"?"+conversationQuery.Encode(), accessToken, &conversations); err != nil || len(conversations) != 1 {
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+	conversation := conversations[0]
+	if !validConversation(conversation) || !strings.EqualFold(conversation.ID, input.ConversationID) || conversation.Status != "active" ||
+		(strings.ToLower(conversation.EditorID) != subject && strings.ToLower(conversation.BusinessOwnerID) != subject) {
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+
+	payload, err := json.Marshal(struct {
+		ID             string `json:"id"`
+		ConversationID string `json:"conversation_id"`
+		SenderID       string `json:"sender_id"`
+		Body           string `json:"body"`
+	}{ID: input.ID, ConversationID: input.ConversationID, SenderID: subject, Body: input.Body})
+	if err != nil {
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+	query := url.Values{}
+	query.Set("on_conflict", "id")
+	query.Set("select", "id,conversation_id,sender_id,body,created_at")
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.messagesEndpoint+"?"+query.Encode(), bytes.NewReader(payload))
+	if err != nil {
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	request.Header.Set("apikey", c.publishableKey)
+	request.Header.Set("Prefer", "resolution=ignore-duplicates,return=representation")
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+	var rows []Message
+	if err := decodeBounded(response.Body, 16*1024, &rows); err != nil || len(rows) > 1 {
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+	if len(rows) == 0 {
+		messageQuery := url.Values{}
+		messageQuery.Set("select", "id,conversation_id,sender_id,body,created_at")
+		messageQuery.Set("id", "eq."+input.ID)
+		messageQuery.Set("conversation_id", "eq."+input.ConversationID)
+		messageQuery.Set("limit", "1")
+		if err := c.getJSON(ctx, c.messagesEndpoint+"?"+messageQuery.Encode(), accessToken, &rows); err != nil || len(rows) != 1 {
+			return CreateMessageResponse{}, ErrUnavailable
+		}
+	}
+	message := rows[0]
+	if !validMessage(message, conversation) || !strings.EqualFold(message.ID, input.ID) || !strings.EqualFold(message.SenderID, subject) || message.Body != input.Body {
+		return CreateMessageResponse{}, ErrConflict
+	}
+	return CreateMessageResponse{OK: true, Message: message}, nil
+}
+
+func ValidCreateMessage(input CreateMessageInput) bool {
+	return validUUID(strings.ToLower(strings.TrimSpace(input.ID))) &&
+		validUUID(strings.ToLower(strings.TrimSpace(input.ConversationID))) &&
+		input.Body == strings.TrimSpace(input.Body) && validText(input.Body, 1, 1500)
+}
+
 func (c *Client) getJSON(ctx context.Context, endpoint, accessToken string, target any) error {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -336,6 +431,14 @@ func (c *Client) getJSON(ctx context.Context, endpoint, accessToken string, targ
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
 	if err != nil || len(body) > maxResponseBytes || json.Unmarshal(body, target) != nil {
+		return ErrUnavailable
+	}
+	return nil
+}
+
+func decodeBounded(reader io.Reader, limit int64, target any) error {
+	body, err := io.ReadAll(io.LimitReader(reader, limit+1))
+	if err != nil || int64(len(body)) > limit || json.Unmarshal(body, target) != nil {
 		return ErrUnavailable
 	}
 	return nil

@@ -103,6 +103,7 @@ type GuardianVerificationReader interface {
 type PrivateChatReader interface {
 	GetThread(context.Context, string, string, string) (chat.Thread, error)
 	ListConversations(context.Context, string, string) (chat.ConversationList, error)
+	CreateMessage(context.Context, string, string, chat.CreateMessageInput) (chat.CreateMessageResponse, error)
 }
 
 type AIHistoryReader interface {
@@ -233,6 +234,7 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/guardian/verification", s.guardianVerificationStatus)
 	mux.HandleFunc("/v1/private-chats/thread", s.privateChatThread)
 	mux.HandleFunc("/v1/private-chats", s.privateChatList)
+	mux.HandleFunc("/v1/private-chats/message", s.privateChatMessage)
 	mux.HandleFunc("/v1/ai/history", s.aiHistoryRoute)
 	mux.HandleFunc("/v1/ai/conversations", s.aiConversationEnsure)
 
@@ -856,6 +858,67 @@ func (s *server) privateChatThread(w http.ResponseWriter, r *http.Request) {
 	cancel()
 	if err != nil {
 		writeError(w, r, http.StatusServiceUnavailable, "private_chat_service_unavailable", "Private chat is temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) privateChatMessage(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not allowed and a JSON body is required.")
+		return
+	}
+	if s.auth == nil || s.privateChats == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "private_chat_service_unavailable", "Private chat is temporarily unavailable.")
+		return
+	}
+	var input chat.CreateMessageInput
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || !chat.ValidCreateMessage(input) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid idempotency ID, conversation ID and bounded message are required.")
+		return
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A single JSON object is required.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.privateChats.CreateMessage(ctx, token, claims.Subject, input)
+	cancel()
+	if errors.Is(err, chat.ErrConflict) {
+		writeError(w, r, http.StatusConflict, "idempotency_conflict", "The idempotency ID is already used by another message.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "private_chat_write_unavailable", "The private message could not be saved.")
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
