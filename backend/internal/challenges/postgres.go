@@ -208,9 +208,10 @@ func (r *PostgresRepository) SetSubmissionStatus(ctx context.Context, _ string, 
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
 	var challengeID, editorID, businessID, businessName, title, currentStatus, videoPath string
+	var objectID *string
 	var points, cash int64
 	var aiScore *int64
-	err = tx.QueryRow(ctx, `select c.id::text,s.editor_id::text,b.id::text,b.name,c.title,s.status,s.video_url,c.prize_points,c.prize_cents,s.ai_score from public.challenge_submissions s join public.challenges c on c.id=s.challenge_id join public.businesses b on b.id=c.business_id where s.id=$1 and b.owner_id=$2 and b.verified for update of c,s`, submissionID, subject).Scan(&challengeID, &editorID, &businessID, &businessName, &title, &currentStatus, &videoPath, &points, &cash, &aiScore)
+	err = tx.QueryRow(ctx, `select c.id::text,s.editor_id::text,b.id::text,b.name,c.title,s.status,s.video_url,s.object_id::text,c.prize_points,c.prize_cents,s.ai_score from public.challenge_submissions s join public.challenges c on c.id=s.challenge_id join public.businesses b on b.id=c.business_id where s.id=$1 and b.owner_id=$2 and b.verified for update of c,s`, submissionID, subject).Scan(&challengeID, &editorID, &businessID, &businessName, &title, &currentStatus, &videoPath, &objectID, &points, &cash, &aiScore)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return WinnerResult{}, ErrForbidden
 	}
@@ -274,7 +275,7 @@ func (r *PostgresRepository) SetSubmissionStatus(ctx context.Context, _ string, 
 			result.CashAwarded = cash
 		}
 	}
-	if _, err = tx.Exec(ctx, `insert into public.portfolio_items(editor_id,title,video_url,tags,ai_score,source_kind,source_id) values($1,$2,$3,array['challenge-winner','commercial'],$4,'challenge',$5) on conflict(source_kind,source_id) where source_kind is not null and source_id is not null do nothing`, editorID, businessName+" — "+title, videoPath, aiScore, challengeID); err != nil {
+	if _, err = tx.Exec(ctx, `insert into public.portfolio_items(editor_id,title,video_url,tags,ai_score,source_kind,source_id,object_id) values($1,$2,$3,array['challenge-winner','commercial'],$4,'challenge',$5,$6) on conflict(source_kind,source_id) where source_kind is not null and source_id is not null do update set object_id=coalesce(portfolio_items.object_id,excluded.object_id)`, editorID, businessName+" — "+title, videoPath, aiScore, challengeID, objectID); err != nil {
 		return WinnerResult{}, ErrUnavailable
 	}
 	if err = tx.QueryRow(ctx, `insert into public.private_conversations(editor_id,business_id,business_owner_id,source_kind,source_id,company_name,title) values($1,$2,$3,'challenge',$4,$5,$6) on conflict(source_kind,source_id,editor_id) do update set status='active' returning id::text`, editorID, businessID, subject, challengeID, businessName, "Победитель конкурса: "+title).Scan(&result.ConversationID); err != nil {

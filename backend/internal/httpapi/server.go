@@ -30,6 +30,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/guardianverification"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/jobs"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/portfolio"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/rewards"
@@ -167,6 +168,12 @@ type ChallengeStore interface {
 	SetSubmissionStatus(context.Context, string, string, string, string) (challenges.WinnerResult, error)
 }
 
+type PortfolioStore interface {
+	GetOwn(context.Context, string, string) ([]portfolio.Item, error)
+	Create(context.Context, string, string, portfolio.CreateInput) (portfolio.Item, error)
+	GetPublic(context.Context, string) (portfolio.PublicEditor, error)
+}
+
 type Options struct {
 	Logger                  *slog.Logger
 	Environment             string
@@ -199,6 +206,7 @@ type Options struct {
 	Campaigns               CampaignStore
 	Jobs                    JobStore
 	Challenges              ChallengeStore
+	Portfolio               PortfolioStore
 }
 
 type server struct {
@@ -233,6 +241,7 @@ type server struct {
 	campaigns               CampaignStore
 	jobs                    JobStore
 	challenges              ChallengeStore
+	portfolio               PortfolioStore
 }
 
 type contextKey string
@@ -287,6 +296,7 @@ func New(options Options) http.Handler {
 		campaigns:               options.Campaigns,
 		jobs:                    options.Jobs,
 		challenges:              options.Challenges,
+		portfolio:               options.Portfolio,
 	}
 
 	mux := http.NewServeMux()
@@ -333,8 +343,114 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/marketplace/campaigns", s.marketplaceCampaigns)
 	mux.HandleFunc("/v1/marketplace/jobs", s.marketplaceJobs)
 	mux.HandleFunc("/v1/marketplace/challenges", s.marketplaceChallenges)
+	mux.HandleFunc("/v1/marketplace/portfolio", s.marketplacePortfolio)
+	mux.HandleFunc("/v1/public/editors/", s.publicEditorPortfolio)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) marketplacePortfolio(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
+		return
+	}
+	if s.portfolio == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "portfolio_service_unavailable", "Portfolio is temporarily unavailable.")
+		return
+	}
+	token, subject, ok := s.authenticatedIdentity(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	defer cancel()
+	if r.Method == http.MethodGet {
+		if r.URL.RawQuery != "" {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not supported.")
+			return
+		}
+		items, err := s.portfolio.GetOwn(ctx, token, subject)
+		if errors.Is(err, portfolio.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+			return
+		}
+		if errors.Is(err, portfolio.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "editor_required", "An editor account is required.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "portfolio_unavailable", "The portfolio could not be loaded.")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+		return
+	}
+	var body portfolio.CreateInput
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid portfolio item is required.")
+		return
+	}
+	input, err := portfolio.NormalizeCreate(body)
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_portfolio_item", "Add a title, a safe HTTPS video link and no more than 12 tags.")
+		return
+	}
+	item, err := s.portfolio.Create(ctx, token, subject, input)
+	if errors.Is(err, portfolio.ErrNotFound) {
+		writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+		return
+	}
+	if errors.Is(err, portfolio.ErrForbidden) {
+		writeError(w, r, http.StatusForbidden, "editor_required", "Only an editor can add portfolio work.")
+		return
+	}
+	if errors.Is(err, portfolio.ErrLimit) {
+		writeError(w, r, http.StatusConflict, "portfolio_limit", "The portfolio already contains the maximum of 100 works.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "portfolio_create_failed", "The portfolio item could not be created.")
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "item": item})
+}
+
+func (s *server) publicEditorPortfolio(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
+		return
+	}
+	if s.portfolio == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "portfolio_service_unavailable", "Portfolio is temporarily unavailable.")
+		return
+	}
+	if r.URL.RawQuery != "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not supported.")
+		return
+	}
+	username, err := portfolio.NormalizeUsername(strings.TrimPrefix(r.URL.Path, "/v1/public/editors/"))
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_username", "A valid editor username is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	defer cancel()
+	result, err := s.portfolio.GetPublic(ctx, username)
+	if errors.Is(err, portfolio.ErrNotFound) {
+		writeError(w, r, http.StatusNotFound, "editor_not_found", "The public editor profile was not found.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "portfolio_unavailable", "The public editor profile could not be loaded.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *server) marketplaceChallenges(w http.ResponseWriter, r *http.Request) {

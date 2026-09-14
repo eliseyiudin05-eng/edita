@@ -46,3 +46,30 @@ func TestChallengeMigrationProtectsWinnerContract(t *testing.T) {
 		}
 	}
 }
+
+func TestPortfolioMigrationProtectsPublicContract(t *testing.T) {
+	items, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sql string
+	for _, item := range items {
+		if item.version == "000016" {
+			sql = item.sql
+			break
+		}
+	}
+	if sql == "" {
+		t.Fatal("portfolio migration was not embedded")
+	}
+	for _, required := range []string{
+		"portfolio_items_editor_created_idx",
+		"portfolio_items_object_idx",
+		"cardinality(tags)<=12",
+		"object_id uuid references public.objects",
+	} {
+		if !strings.Contains(sql, required) {
+			t.Fatalf("portfolio migration is missing %q", required)
+		}
+	}
+}

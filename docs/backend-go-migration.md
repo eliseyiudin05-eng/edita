@@ -20,7 +20,7 @@ Target release: **2.0.0**. This branch keeps Next.js as a browser UI and moves a
 | Academy and practice | lessons, progress, simulator, competitions | `/v1/academy/*` | existing Go adapter must be replaced |
 | Social | ranking, friends, referrals, groups, group chat | `/v1/social/*` | referrals and reward redemption migrated; other surfaces partial |
 | AI | coach, history, feedback, brief, simulator, video review, admin learning | `/v1/ai/*`, `/v1/admin/ai/*` | partial shadow implementation |
-| Marketplace | challenges, jobs, campaigns, portfolio, creators | `/v1/marketplace/*` | campaign, funded jobs and company challenges migrated; standalone portfolio and creators remain |
+| Marketplace | challenges, jobs, campaigns, portfolio, creators | `/v1/marketplace/*` | campaign, funded jobs, company challenges and editor portfolio migrated; creators remain |
 | Business | growth, ratings, verification, discussion | `/v1/business/*` | partial shadow implementation |
 | Work chat | private chat, files, delivery, escrow | `/v1/work/*` | job acceptance and Points reservation migrated; delivery and settlement remain |
 | Finance | Points, YooKassa webhook, payouts, rewards | `/v1/finance/*` | wallet, top-ups, verified webhook, payouts, referral and challenge rewards migrated |
