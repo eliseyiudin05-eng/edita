@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	version = "2.0.0-alpha.7"
+	version = "2.0.0-alpha.8"
 	commit  = "local"
 )
 
@@ -122,6 +122,7 @@ func main() {
 		guardianVerificationReader = guardianverification.NewPostgresRepository(databasePool.DB())
 		businessDiscussionReader = businessdiscussion.NewPostgresRepository(databasePool.DB())
 		editorDiscussionReader = editordiscussion.NewPostgresRepository(databasePool.DB())
+		privateChatReader = chat.NewPostgresRepository(databasePool.DB())
 	}
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
@@ -278,7 +279,9 @@ func main() {
 			logger.Error("private chat client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		privateChatReader = privateChatClient
+		if privateChatReader == nil {
+			privateChatReader = privateChatClient
+		}
 
 		aiHistoryClient, err := aihistory.NewClient(
 			cfg.SupabaseURL,
