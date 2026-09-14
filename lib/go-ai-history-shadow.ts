@@ -26,6 +26,8 @@ export function aiHistoryShadowEnabled(){
   return process.env.GO_BACKEND_AI_HISTORY_SHADOW_READS_ENABLED==="true"&&Boolean(historyEndpoint("main"));
 }
 
+export function goAiHistoryBackendConfigured(){return Boolean(historyEndpoint("main"))}
+
 export function normalizeAiHistory(value:unknown,expectedScope:string):NormalizedAiHistory|null{
   if(!value||typeof value!=="object"||!scopePattern.test(expectedScope))return null;
   const row=value as Record<string,unknown>;
@@ -44,11 +46,13 @@ export function normalizeAiHistory(value:unknown,expectedScope:string):Normalize
 
 export async function compareAiHistoryWithGo(token:string,scope:string,legacy:NormalizedAiHistory){
   const result=await readAiHistoryFromGo(token,scope,shadowTimeout());
-  const outcome=result.ok?(JSON.stringify(result.value)===JSON.stringify(legacy)?"match":"mismatch"):result.outcome;
+  const outcome=result.ok?(sameAiHistory(result.value,legacy)?"match":"mismatch"):result.outcome;
   console.info("go_ai_history_shadow",{route:"ai_history",outcome,duration_ms:result.durationMs});
 }
 
-async function readAiHistoryFromGo(token:string,scope:string,timeoutMs:number):Promise<GoAIHistoryResult>{
+export function sameAiHistory(left:AiHistory,right:AiHistory){return JSON.stringify(left)===JSON.stringify(right)}
+
+export async function readAiHistoryFromGo(token:string,scope:string,timeoutMs:number):Promise<GoAIHistoryResult>{
   const started=Date.now();
   try{
     const endpoint=historyEndpoint(scope);

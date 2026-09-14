@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.20)
+## Go migration boundary (v1.0.21)
 
 - Production writes and business decisions remain in Next.js/Supabase.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
@@ -89,6 +89,8 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - AI-history reads add a separate disabled-by-default shadow contract. Next.js remains responsible for creating a missing conversation before the background comparison; Go performs no AI-history mutation.
 - Go derives the owner from the verified JWT subject and forwards the user's token with the publishable key. Both conversation and message queries also include explicit owner filters, preserving owner-only RLS.
 - AI-history output is capped at one conversation, 80 messages and 2 MiB, and omits owner IDs, database roles and metadata. Comparison logs exclude scopes, titles and message content.
+- AI-history reads may serve a separately controlled 1–10% canary. Failures, excessive latency, malformed output or an open circuit fall back to legacy in the same request; an absent conversation is created by legacy without penalizing Go health.
+- AI-history shadow and canary modes are mutually exclusive. A dedicated five-minute circuit breaker and an environment kill switch provide automatic and global rollback.
 - The Go profile endpoint derives identity only from a locally verified access token, forwards that token to the Supabase Data API and filters on the same subject; the existing profile RLS policy remains active.
 - The profile response omits user identity and every unrelated profile/onboarding field.
 - Go connects to PostgreSQL through a bounded pool and requires encrypted database transport in production.
