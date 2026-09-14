@@ -21,6 +21,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/businessdiscussion"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/campaigns"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/editordiscussion"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/editorverification"
@@ -143,6 +144,13 @@ type RewardsStore interface {
 	Redeem(context.Context, string, string, string) (rewards.RedemptionResult, error)
 }
 
+type CampaignStore interface {
+	Get(context.Context, string, string) (campaigns.View, error)
+	Create(context.Context, string, string, campaigns.CreateInput) (campaigns.Campaign, error)
+	Apply(context.Context, string, string, campaigns.ApplyInput) error
+	SetApplicationStatus(context.Context, string, string, string, string) (string, error)
+}
+
 type Options struct {
 	Logger                  *slog.Logger
 	Environment             string
@@ -172,6 +180,7 @@ type Options struct {
 	Finance                 FinanceStore
 	Rewards                 RewardsStore
 	PointsRedemptionEnabled bool
+	Campaigns               CampaignStore
 }
 
 type server struct {
@@ -203,6 +212,7 @@ type server struct {
 	finance                 FinanceStore
 	rewards                 RewardsStore
 	pointsRedemptionEnabled bool
+	campaigns               CampaignStore
 }
 
 type contextKey string
@@ -254,6 +264,7 @@ func New(options Options) http.Handler {
 		finance:                 options.Finance,
 		rewards:                 options.Rewards,
 		pointsRedemptionEnabled: options.PointsRedemptionEnabled,
+		campaigns:               options.Campaigns,
 	}
 
 	mux := http.NewServeMux()
@@ -297,8 +308,134 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/finance/yookassa/webhook", s.financeWebhook)
 	mux.HandleFunc("/v1/social/referrals", s.socialReferrals)
 	mux.HandleFunc("/v1/referrals/qualify", s.referralQualify)
+	mux.HandleFunc("/v1/marketplace/campaigns", s.marketplaceCampaigns)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) marketplaceCampaigns(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
+		return
+	}
+	if s.campaigns == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "campaign_service_unavailable", "Campaigns are temporarily unavailable.")
+		return
+	}
+	token, subject, ok := s.authenticatedIdentity(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	defer cancel()
+	if r.Method == http.MethodGet {
+		if r.URL.RawQuery != "" {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not supported.")
+			return
+		}
+		result, err := s.campaigns.Get(ctx, token, subject)
+		if errors.Is(err, campaigns.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "campaigns_unavailable", "Campaigns could not be loaded.")
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+		return
+	}
+	var body struct {
+		Action        string   `json:"action"`
+		Title         string   `json:"title"`
+		Goal          string   `json:"goal"`
+		Requirements  string   `json:"requirements"`
+		BudgetText    string   `json:"budgetText"`
+		CreatorSlots  int64    `json:"creatorSlots"`
+		ContentTypes  []string `json:"contentTypes"`
+		EndsAt        *string  `json:"endsAt"`
+		CampaignID    string   `json:"campaignId"`
+		PortfolioURL  string   `json:"portfolioUrl"`
+		Note          string   `json:"note"`
+		ApplicationID string   `json:"applicationId"`
+		Status        string   `json:"status"`
+	}
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid campaign request is required.")
+		return
+	}
+	switch body.Action {
+	case "create":
+		input, err := campaigns.NormalizeCreate(campaigns.CreateInput{Title: body.Title, Goal: body.Goal, Requirements: body.Requirements, BudgetText: body.BudgetText, CreatorSlots: body.CreatorSlots, ContentTypes: body.ContentTypes, EndsAt: body.EndsAt})
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "invalid_campaign", "Add a valid title, goal, budget and creator count.")
+			return
+		}
+		result, err := s.campaigns.Create(ctx, token, subject, input)
+		if errors.Is(err, campaigns.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "verified_business_required", "A verified business account is required.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "campaign_create_failed", "The campaign could not be created.")
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "campaign": result})
+	case "apply":
+		input, err := campaigns.NormalizeApply(campaigns.ApplyInput{CampaignID: body.CampaignID, PortfolioURL: body.PortfolioURL, Note: body.Note})
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "invalid_application", "A valid campaign application is required.")
+			return
+		}
+		err = s.campaigns.Apply(ctx, token, subject, input)
+		if errors.Is(err, campaigns.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "editor_not_eligible", "Level 2, 300 XP and guardian approval when required are needed.")
+			return
+		}
+		if errors.Is(err, campaigns.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "campaign_not_found", "The open campaign was not found.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "application_failed", "The application could not be saved.")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	case "application_status":
+		applicationID := strings.ToLower(strings.TrimSpace(body.ApplicationID))
+		if !campaigns.ValidStatus(body.Status) {
+			writeError(w, r, http.StatusBadRequest, "invalid_status", "The application status is invalid.")
+			return
+		}
+		conversationID, err := s.campaigns.SetApplicationStatus(ctx, token, subject, applicationID, body.Status)
+		if errors.Is(err, campaigns.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "application_forbidden", "The application is not owned by this business.")
+			return
+		}
+		if errors.Is(err, campaigns.ErrInvalid) {
+			writeError(w, r, http.StatusBadRequest, "invalid_application", "A valid application ID is required.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "application_update_failed", "The application status could not be updated.")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "conversationId": nilIfEmpty(conversationID)})
+	default:
+		writeError(w, r, http.StatusBadRequest, "unknown_action", "Choose a supported campaign action.")
+	}
+}
+
+func nilIfEmpty(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }
 
 func (s *server) socialReferrals(w http.ResponseWriter, r *http.Request) {

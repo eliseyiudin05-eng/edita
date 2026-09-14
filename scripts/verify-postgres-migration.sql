@@ -26,6 +26,12 @@ begin
     left join public.work_point_events e on e.topup_id=t.id and e.kind='topup'
     where t.status='succeeded' and e.id is null;
   if orphan_count <> 0 then raise exception 'succeeded topups without ledger event: %', orphan_count; end if;
+
+  select count(*) into orphan_count from public.business_campaign_applications a
+    left join public.business_campaigns c on c.id=a.campaign_id
+    left join public.profiles p on p.id=a.editor_id
+    where c.id is null or p.id is null;
+  if orphan_count <> 0 then raise exception 'orphan campaign applications: %', orphan_count; end if;
 end $$;
 
 select 'app_users' as entity,count(*) as rows from public.app_users
@@ -36,5 +42,7 @@ union all select 'work_orders',count(*) from public.work_orders
 union all select 'point_topups',count(*) from public.point_topups
 union all select 'reward_events',count(*) from public.referral_reward_events
 union all select 'beta_members',count(*) from public.beta_members
+union all select 'business_campaigns',count(*) from public.business_campaigns
+union all select 'campaign_applications',count(*) from public.business_campaign_applications
 union all select 'objects',count(*) from public.objects
 order by entity;
