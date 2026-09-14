@@ -14,7 +14,10 @@ import (
 	"unicode/utf8"
 )
 
-var ErrUnavailable = errors.New("social service unavailable")
+var (
+	ErrForbidden   = errors.New("social operation forbidden")
+	ErrUnavailable = errors.New("social service unavailable")
+)
 
 var (
 	uuidPattern     = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
@@ -428,6 +431,70 @@ func (c *Client) GetFriendships(ctx context.Context, accessToken, subject string
 	return Friendships{Relations: relations}, nil
 }
 
+func (c *Client) CancelFriendRequest(ctx context.Context, accessToken, subject, relationID string) error {
+	subject = strings.ToLower(strings.TrimSpace(subject))
+	relationID = strings.ToLower(strings.TrimSpace(relationID))
+	if c == nil || strings.TrimSpace(accessToken) == "" || !uuidPattern.MatchString(subject) || !uuidPattern.MatchString(relationID) {
+		return ErrUnavailable
+	}
+
+	readQuery := url.Values{}
+	readQuery.Set("select", "id,requester_id,addressee_id,status,created_at")
+	readQuery.Set("id", "eq."+relationID)
+	readQuery.Set("limit", "1")
+	var rows []friendshipRow
+	if err := c.getJSON(ctx, c.friendsEndpoint+"?"+readQuery.Encode(), accessToken, &rows); err != nil || len(rows) > 1 {
+		return ErrUnavailable
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	row := rows[0]
+	if !validFriendshipRow(row, subject) || strings.ToLower(row.RequesterID) != subject || row.Status != "pending" {
+		return ErrForbidden
+	}
+
+	deleteQuery := url.Values{}
+	deleteQuery.Set("select", "id")
+	deleteQuery.Set("id", "eq."+relationID)
+	deleteQuery.Set("requester_id", "eq."+subject)
+	deleteQuery.Set("status", "eq.pending")
+	request, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.friendsEndpoint+"?"+deleteQuery.Encode(), nil)
+	if err != nil {
+		return ErrUnavailable
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Prefer", "return=representation")
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	request.Header.Set("apikey", c.publishableKey)
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return ErrUnavailable
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		return ErrUnavailable
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, 16*1024+1))
+	if err != nil || len(body) > 16*1024 {
+		return ErrUnavailable
+	}
+	var deleted []struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(body, &deleted) != nil || len(deleted) > 1 {
+		return ErrUnavailable
+	}
+	if len(deleted) == 0 {
+		return ErrForbidden
+	}
+	if strings.ToLower(deleted[0].ID) != relationID {
+		return ErrUnavailable
+	}
+	return nil
+}
+
 func (c *Client) getJSON(ctx context.Context, endpoint, accessToken string, destination any) error {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -466,6 +533,10 @@ func validFriendshipRow(row friendshipRow, subject string) bool {
 	}
 	_, err := time.Parse(time.RFC3339Nano, row.CreatedAt)
 	return err == nil
+}
+
+func ValidRelationID(value string) bool {
+	return uuidPattern.MatchString(strings.ToLower(strings.TrimSpace(value)))
 }
 
 func validMembershipRow(row membershipRow) bool {

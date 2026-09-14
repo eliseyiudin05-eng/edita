@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.24
+## Stage v1.0.25
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -20,6 +20,7 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - `GET /v1/social/ranking` reads at most 50 public ranking profiles under the existing `public_profiles` RLS policy;
 - the social response omits profile UUIDs and all non-public profile fields;
 - `GET /v1/social/friends` reads at most 200 relations visible to the verified JWT subject under participant-only RLS;
+- `POST /v1/social/friends/cancel` idempotently deletes only the verified requester's pending relation;
 - friend-list output omits both participant UUIDs and keeps only the relationship ID required by the existing mutation route;
 - `GET /v1/social/groups` reads at most 20 groups and 500 members visible to the verified JWT subject under member-only RLS;
 - group profile lookups are chunked, and group creation, joining, and messages remain outside Go;
@@ -93,3 +94,5 @@ For AI-history deletion, keep `GO_BACKEND_AI_HISTORY_DELETE_CANARY_ENABLED=false
 For AI-conversation creation, keep `GO_BACKEND_AI_CONVERSATION_CANARY_ENABLED=false` until AI-history writes are healthy, then begin at `GO_BACKEND_AI_CONVERSATION_CANARY_PERCENT=1`, capped at 10. The endpoint accepts only bounded scope, title and optional lesson slug fields. Identity comes solely from the verified token subject, and the user's token plus publishable key preserve owner-only RLS. Existing conversations are returned unchanged; a concurrent unique-key conflict is resolved by another owner-scoped read. Error, timeout, malformed response or excessive latency falls back to the idempotent legacy get-or-create operation in the same request. The five-minute circuit breaker opens at a 20% failure rate after at least 10 results. Logs omit all conversation data. Message writes, model calls, feedback, attachments and Points remain outside Go in v1.0.23.
 
 For learning-preferences updates, keep `GO_BACKEND_PROFILE_UPDATE_CANARY_ENABLED=false` until profile reads are healthy, then begin at `GO_BACKEND_PROFILE_UPDATE_CANARY_PERCENT=1`, capped at 10. Go accepts only the three bounded preference fields, derives the owner from the verified token, preserves unrelated onboarding fields, and updates only an editor's own row with the user token and publishable key. Owner-only RLS and the existing onboarding column grant remain active. Failure, timeout, malformed output or excessive latency retries the idempotent update through legacy in the same request. A 20% failure rate in a 10–20 result window opens a five-minute circuit. Logs omit tokens, identity and preference values.
+
+For outgoing friendship cancellation, apply `20260914021113_friendship_cancel_rls.sql`, deploy Go, and keep `GO_BACKEND_SOCIAL_FRIEND_CANCEL_CANARY_ENABLED=false` until friend reads are healthy. Then begin at `GO_BACKEND_SOCIAL_FRIEND_CANCEL_CANARY_PERCENT=1`, capped at 10. Go verifies the token, derives the requester from its subject, and deletes only a matching pending relation under the dedicated requester-only DELETE policy. Missing rows are successful idempotent retries. Failure, timeout, malformed output or excessive latency retries through legacy in the same request. A 20% failure rate in a 10–20 result window opens a five-minute circuit. Logs omit tokens, relation IDs and profile data. Sending, accepting and declining requests remain outside Go in v1.0.25.
