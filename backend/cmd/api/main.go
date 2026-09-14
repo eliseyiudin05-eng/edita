@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/aihistory"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
@@ -22,7 +23,7 @@ import (
 )
 
 var (
-	version = "1.0.19"
+	version = "1.0.20"
 	commit  = "local"
 )
 
@@ -72,6 +73,7 @@ func main() {
 	var socialGroupsReader httpapi.SocialGroupsReader
 	var businessReader httpapi.BusinessVerificationReader
 	var privateChatReader httpapi.PrivateChatReader
+	var aiHistoryReader httpapi.AIHistoryReader
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
 			cfg.SupabaseURL,
@@ -129,6 +131,17 @@ func main() {
 			os.Exit(1)
 		}
 		privateChatReader = privateChatClient
+
+		aiHistoryClient, err := aihistory.NewClient(
+			cfg.SupabaseURL,
+			cfg.SupabasePublishableKey,
+			&http.Client{Timeout: cfg.AIHistoryHTTPTimeout},
+		)
+		if err != nil {
+			logger.Error("AI history client configuration failed", "error", err)
+			os.Exit(1)
+		}
+		aiHistoryReader = aiHistoryClient
 	}
 
 	server := &http.Server{
@@ -136,7 +149,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, PrivateChats: privateChatReader,
+			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,

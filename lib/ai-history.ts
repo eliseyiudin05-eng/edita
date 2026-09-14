@@ -38,6 +38,7 @@ export async function readConversationMessages(service:SupabaseClient,userId:str
     .eq("conversation_id",conversationId)
     .eq("user_id",userId)
     .order("created_at",{ascending:true})
+    .order("id",{ascending:true})
     .limit(Math.max(1,Math.min(limit,120)));
   if(error)throw error;
   return (data||[]).map((row:any)=>({
