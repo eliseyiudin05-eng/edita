@@ -86,8 +86,9 @@ type BusinessDiscussionStore interface {
 	CreateMessage(context.Context, string, string, businessdiscussion.CreateMessageInput) (businessdiscussion.CreateMessageResponse, error)
 }
 
-type EditorDiscussionReader interface {
+type EditorDiscussionStore interface {
 	GetDiscussion(context.Context, string, string) (editordiscussion.Discussion, error)
+	CreateMessage(context.Context, string, string, editordiscussion.CreateMessageInput) (editordiscussion.CreateMessageResponse, error)
 }
 
 type EditorVerificationReader interface {
@@ -128,7 +129,7 @@ type Options struct {
 	SocialGroups         SocialGroupsReader
 	Business             BusinessVerificationReader
 	BusinessDiscussion   BusinessDiscussionStore
-	EditorDiscussion     EditorDiscussionReader
+	EditorDiscussion     EditorDiscussionStore
 	EditorVerification   EditorVerificationReader
 	GuardianVerification GuardianVerificationReader
 	PrivateChats         PrivateChatReader
@@ -154,7 +155,7 @@ type server struct {
 	socialGroups         SocialGroupsReader
 	business             BusinessVerificationReader
 	businessDiscussion   BusinessDiscussionStore
-	editorDiscussion     EditorDiscussionReader
+	editorDiscussion     EditorDiscussionStore
 	editorVerification   EditorVerificationReader
 	guardianVerification GuardianVerificationReader
 	privateChats         PrivateChatReader
@@ -983,11 +984,13 @@ func (s *server) businessDiscussionList(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *server) editorDiscussionList(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
 		return
 	}
-	if r.URL.RawQuery != "" {
-		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not allowed.")
+	if r.URL.RawQuery != "" || (r.Method == http.MethodPost && !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json")) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not allowed and writes require a JSON body.")
 		return
 	}
 	if s.auth == nil || s.editorDiscussion == nil {
@@ -998,6 +1001,20 @@ func (s *server) editorDiscussionList(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
 		return
+	}
+	var input editordiscussion.CreateMessageInput
+	if r.Method == http.MethodPost {
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&input); err != nil || !editordiscussion.ValidCreateMessage(input) {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid idempotency ID and bounded message are required.")
+			return
+		}
+		var extra any
+		if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid idempotency ID and bounded message are required.")
+			return
+		}
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
 	claims, err := s.auth.Verify(ctx, token)
@@ -1017,6 +1034,24 @@ func (s *server) editorDiscussionList(w http.ResponseWriter, r *http.Request) {
 	}
 	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
 		state.authenticated = true
+	}
+	if r.Method == http.MethodPost {
+		result, err := s.editorDiscussion.CreateMessage(ctx, token, claims.Subject, input)
+		cancel()
+		if errors.Is(err, editordiscussion.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "discussion_membership_required", "Discussion membership is required.")
+			return
+		}
+		if errors.Is(err, editordiscussion.ErrConflict) {
+			writeError(w, r, http.StatusConflict, "idempotency_conflict", "The idempotency ID is already used by another message.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "editor_discussion_write_unavailable", "The editor discussion message could not be saved.")
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+		return
 	}
 	result, err := s.editorDiscussion.GetDiscussion(ctx, token, claims.Subject)
 	cancel()

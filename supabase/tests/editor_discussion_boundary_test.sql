@@ -1,5 +1,5 @@
 begin;
-select plan(9);
+select plan(10);
 
 select ok(
   (select relrowsecurity from pg_class where oid='public.discussion_members'::regclass),
@@ -26,7 +26,7 @@ select ok(
   and not has_table_privilege('authenticated','public.discussion_messages','insert')
   and not has_table_privilege('authenticated','public.discussion_messages','update')
   and not has_table_privilege('authenticated','public.discussion_messages','delete'),
-  'authenticated clients cannot mutate discussion data directly'
+  'authenticated clients have no table-wide mutation privileges'
 );
 select ok(
   has_column_privilege('authenticated','public.discussion_members','topic_key','select')
@@ -37,8 +37,13 @@ select ok(
 select ok(
   has_column_privilege('authenticated','public.discussion_messages','id','select')
   and has_column_privilege('authenticated','public.discussion_messages','content','select')
-  and not has_column_privilege('authenticated','public.discussion_messages','id','insert'),
-  'message access is read-only and column-scoped'
+  and has_column_privilege('authenticated','public.discussion_messages','id','insert')
+  and has_column_privilege('authenticated','public.discussion_messages','topic_key','insert')
+  and has_column_privilege('authenticated','public.discussion_messages','author_id','insert')
+  and has_column_privilege('authenticated','public.discussion_messages','content','insert')
+  and has_column_privilege('authenticated','public.discussion_messages','status','insert')
+  and not has_column_privilege('authenticated','public.discussion_messages','created_at','insert'),
+  'message reads and writes expose only required columns'
 );
 select is(
   (select count(*)::integer from pg_policies where schemaname='public' and tablename='discussion_members' and cmd='SELECT' and policyname like 'editor discussion%'),
@@ -49,6 +54,11 @@ select is(
   (select count(*)::integer from pg_policies where schemaname='public' and tablename='discussion_messages' and cmd='SELECT' and policyname like 'editor discussion%'),
   2,
   'messages have permissive and restrictive member boundaries'
+);
+select is(
+  (select count(*)::integer from pg_policies where schemaname='public' and tablename='discussion_messages' and cmd='INSERT' and policyname like 'editor discussion%'),
+  2,
+  'message inserts have permissive and restrictive member boundaries'
 );
 
 select * from finish();

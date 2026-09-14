@@ -1,8 +1,10 @@
 import {after,NextRequest,NextResponse} from "next/server";
+import {randomUUID} from "node:crypto";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {moderateGroupMessage} from "@/lib/content-moderation";
 import {compareEditorDiscussionWithGo,editorDiscussionShadowEnabled,normalizeEditorDiscussion} from "@/lib/go-editor-discussion-shadow";
 import {editorDiscussionCanaryEnabled,recordEditorDiscussionCanaryComparison,tryEditorDiscussionCanary} from "@/lib/go-editor-discussion-canary";
+import {tryEditorDiscussionWriteCanary} from "@/lib/go-editor-discussion-write-canary";
 
 const TOPIC="editors-in-cinema";
 
@@ -79,15 +81,20 @@ export async function POST(req:NextRequest){
   const moderation=await moderateGroupMessage(content);
   if(!moderation.allowed)return NextResponse.json({error:moderation.message||"Сообщение остановлено проверкой безопасности."},{status:422});
 
+  const id=randomUUID();
   try{
     await enroll(auth.service,auth.user.id);
-    const {error}=await auth.service.from("discussion_messages").insert({
-      topic_key:TOPIC,
-      author_id:auth.user.id,
-      content,
-      status:"published"
-    });
-    if(error)throw error;
+    const savedByGo=await tryEditorDiscussionWriteCanary(auth.token,id,content);
+    if(!savedByGo){
+      const {error}=await auth.service.from("discussion_messages").upsert({
+        id,
+        topic_key:TOPIC,
+        author_id:auth.user.id,
+        content,
+        status:"published"
+      },{onConflict:"id",ignoreDuplicates:true});
+      if(error)throw error;
+    }
     return NextResponse.json({ok:true,messages:await listMessages(auth.service)});
   }catch{
     return NextResponse.json({error:"Не удалось отправить сообщение."},{status:503});

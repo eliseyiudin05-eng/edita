@@ -33,7 +33,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.43",
+		Version:      "1.0.44",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -67,7 +67,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.43"`) {
+	if !strings.Contains(body, `"version":"1.0.44"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -202,9 +202,17 @@ type fakeBusinessDiscussionReader struct {
 
 type fakeEditorDiscussionReader struct {
 	result  editordiscussion.Discussion
+	created editordiscussion.CreateMessageInput
 	err     error
 	token   string
 	subject string
+}
+
+func (reader *fakeEditorDiscussionReader) CreateMessage(_ context.Context, token, subject string, input editordiscussion.CreateMessageInput) (editordiscussion.CreateMessageResponse, error) {
+	reader.token = token
+	reader.subject = subject
+	reader.created = input
+	return editordiscussion.CreateMessageResponse{OK: true}, reader.err
 }
 
 func (reader *fakeEditorDiscussionReader) GetDiscussion(_ context.Context, token, subject string) (editordiscussion.Discussion, error) {
@@ -955,6 +963,32 @@ func TestEditorDiscussionRequiresAuthRejectsQueryAndOmitsUserIDs(t *testing.T) {
 		if strings.Contains(response.Body.String(), forbidden) {
 			t.Fatalf("response exposes sensitive value %q: %s", forbidden, response.Body.String())
 		}
+	}
+}
+
+func TestEditorDiscussionCreateRequiresBoundedIdempotentMessage(t *testing.T) {
+	reader := &fakeEditorDiscussionReader{}
+	handler := New(Options{
+		Logger:             slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:               claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174001", Role: "authenticated"}},
+		EditorDiscussion:   reader,
+		DependencyTimeout:  time.Second,
+	})
+	invalid := httptest.NewRecorder()
+	invalidRequest := httptest.NewRequest(http.MethodPost, "/v1/community/editor-discussion", strings.NewReader(`{"id":"bad","content":"Текст"}`))
+	invalidRequest.Header.Set("Authorization", "Bearer signed.token.value")
+	invalidRequest.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(invalid, invalidRequest)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid status = %d body=%s", invalid.Code, invalid.Body.String())
+	}
+	request := httptest.NewRequest(http.MethodPost, "/v1/community/editor-discussion", strings.NewReader(`{"id":"223e4567-e89b-12d3-a456-426614174002","content":"Текст"}`))
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.created.ID != "223e4567-e89b-12d3-a456-426614174002" || reader.created.Content != "Текст" || reader.subject != "123e4567-e89b-12d3-a456-426614174001" {
+		t.Fatalf("unexpected create response: status=%d input=%+v subject=%q body=%s", response.Code, reader.created, reader.subject, response.Body.String())
 	}
 }
 
