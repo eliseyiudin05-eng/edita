@@ -66,6 +66,12 @@ type messageRow struct {
 	CreatedAt      string `json:"created_at"`
 }
 
+type conversationIdentityRow struct {
+	ID       string `json:"id"`
+	UserID   string `json:"user_id"`
+	ScopeKey string `json:"scope_key"`
+}
+
 type Client struct {
 	conversationsEndpoint string
 	messagesEndpoint      string
@@ -147,6 +153,54 @@ func (c *Client) GetHistory(ctx context.Context, accessToken, subject, scope str
 		ID: strings.ToLower(conversation.ID), ScopeKey: conversation.ScopeKey, Title: conversation.Title,
 		LessonSlug: conversation.LessonSlug, UpdatedAt: conversation.UpdatedAt,
 	}, Messages: messages}, nil
+}
+
+// ClearHistory removes messages from one owner-scoped conversation while
+// preserving the conversation itself, matching the existing gateway contract.
+func (c *Client) ClearHistory(ctx context.Context, accessToken, subject, scope string) error {
+	subject = strings.ToLower(strings.TrimSpace(subject))
+	if c == nil || strings.TrimSpace(accessToken) == "" || !validUUID(subject) || !ValidScope(scope) {
+		return ErrUnavailable
+	}
+
+	conversationQuery := url.Values{}
+	conversationQuery.Set("select", "id,user_id,scope_key")
+	conversationQuery.Set("user_id", "eq."+subject)
+	conversationQuery.Set("scope_key", "eq."+scope)
+	conversationQuery.Set("limit", "1")
+	var conversations []conversationIdentityRow
+	if err := c.getJSON(ctx, c.conversationsEndpoint+"?"+conversationQuery.Encode(), accessToken, &conversations); err != nil || len(conversations) > 1 {
+		return ErrUnavailable
+	}
+	if len(conversations) == 0 {
+		return nil
+	}
+	conversation := conversations[0]
+	if !validUUID(conversation.ID) || !strings.EqualFold(conversation.UserID, subject) || conversation.ScopeKey != scope {
+		return ErrUnavailable
+	}
+
+	messageQuery := url.Values{}
+	messageQuery.Set("conversation_id", "eq."+strings.ToLower(conversation.ID))
+	messageQuery.Set("user_id", "eq."+subject)
+	request, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.messagesEndpoint+"?"+messageQuery.Encode(), nil)
+	if err != nil {
+		return ErrUnavailable
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	request.Header.Set("apikey", c.publishableKey)
+	request.Header.Set("Prefer", "return=minimal")
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return ErrUnavailable
+	}
+	defer response.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+	if response.StatusCode != http.StatusNoContent && response.StatusCode != http.StatusOK {
+		return ErrUnavailable
+	}
+	return nil
 }
 
 func (c *Client) getJSON(ctx context.Context, endpoint, accessToken string, target any) error {

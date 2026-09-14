@@ -62,6 +62,7 @@ type PrivateChatReader interface {
 
 type AIHistoryReader interface {
 	GetHistory(context.Context, string, string, string) (aihistory.History, error)
+	ClearHistory(context.Context, string, string, string) error
 }
 
 type Options struct {
@@ -154,13 +155,15 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/business/verification", s.businessVerification)
 	mux.HandleFunc("/v1/private-chats/thread", s.privateChatThread)
 	mux.HandleFunc("/v1/private-chats", s.privateChatList)
-	mux.HandleFunc("/v1/ai/history", s.aiHistoryRead)
+	mux.HandleFunc("/v1/ai/history", s.aiHistoryRoute)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
 }
 
-func (s *server) aiHistoryRead(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+func (s *server) aiHistoryRoute(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodDelete {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodDelete)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
 		return
 	}
 	if s.auth == nil || s.aiHistory == nil {
@@ -196,6 +199,17 @@ func (s *server) aiHistoryRead(w http.ResponseWriter, r *http.Request) {
 	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
 		state.authenticated = true
 	}
+	if r.Method == http.MethodDelete {
+		err = s.aiHistory.ClearHistory(ctx, token, claims.Subject, scopes[0])
+		cancel()
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "ai_history_clear_unavailable", "AI history could not be cleared.")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		return
+	}
+
 	result, err := s.aiHistory.GetHistory(ctx, token, claims.Subject, scopes[0])
 	cancel()
 	if errors.Is(err, aihistory.ErrNotFound) {

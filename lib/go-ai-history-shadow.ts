@@ -23,10 +23,10 @@ const uuidPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[
 const scopePattern=/^[a-z0-9:_-]{1,100}$/;
 
 export function aiHistoryShadowEnabled(){
-  return process.env.GO_BACKEND_AI_HISTORY_SHADOW_READS_ENABLED==="true"&&Boolean(historyEndpoint("main"));
+  return process.env.GO_BACKEND_AI_HISTORY_SHADOW_READS_ENABLED==="true"&&Boolean(goAiHistoryEndpoint("main"));
 }
 
-export function goAiHistoryBackendConfigured(){return Boolean(historyEndpoint("main"))}
+export function goAiHistoryBackendConfigured(){return Boolean(goAiHistoryEndpoint("main"))}
 
 export function normalizeAiHistory(value:unknown,expectedScope:string):NormalizedAiHistory|null{
   if(!value||typeof value!=="object"||!scopePattern.test(expectedScope))return null;
@@ -55,7 +55,7 @@ export function sameAiHistory(left:AiHistory,right:AiHistory){return JSON.string
 export async function readAiHistoryFromGo(token:string,scope:string,timeoutMs:number):Promise<GoAIHistoryResult>{
   const started=Date.now();
   try{
-    const endpoint=historyEndpoint(scope);
+    const endpoint=goAiHistoryEndpoint(scope);
     if(!endpoint)return failed("invalid_configuration",started);
     const response=await fetch(endpoint,{
       method:"GET",headers:{Authorization:`Bearer ${token}`,Accept:"application/json"},cache:"no-store",redirect:"error",
@@ -90,7 +90,7 @@ function parseMessage(value:unknown):AiHistoryMessage|null{
   return {id,from:row.from,text:row.text as string,createdAt:row.createdAt as string};
 }
 
-function historyEndpoint(scope:string){
+export function goAiHistoryEndpoint(scope:string){
   try{
     if(!scopePattern.test(scope))return null;
     const base=new URL(process.env.GO_BACKEND_URL||"");

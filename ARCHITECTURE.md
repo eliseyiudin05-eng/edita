@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.21)
+## Go migration boundary (v1.0.22)
 
 - Production writes and business decisions remain in Next.js/Supabase.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
@@ -86,14 +86,16 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Private-chat list comparison logs contain only route, outcome and duration. Chat identities, names, titles, statuses, Points and file metadata are excluded.
 - Private-chat list reads may serve a separately controlled 1–10% canary. Failures, excessive latency, malformed output or an open circuit fall back to the legacy read in the same request.
 - List shadow and canary modes are mutually exclusive. A dedicated five-minute circuit breaker and an environment kill switch provide automatic and global rollback.
-- AI-history reads add a separate disabled-by-default shadow contract. Next.js remains responsible for creating a missing conversation before the background comparison; Go performs no AI-history mutation.
+- AI-history reads add a separate disabled-by-default shadow contract. Next.js remains responsible for creating a missing conversation before the background comparison.
 - Go derives the owner from the verified JWT subject and forwards the user's token with the publishable key. Both conversation and message queries also include explicit owner filters, preserving owner-only RLS.
 - AI-history output is capped at one conversation, 80 messages and 2 MiB, and omits owner IDs, database roles and metadata. Comparison logs exclude scopes, titles and message content.
 - AI-history reads may serve a separately controlled 1–10% canary. Failures, excessive latency, malformed output or an open circuit fall back to legacy in the same request; an absent conversation is created by legacy without penalizing Go health.
 - AI-history shadow and canary modes are mutually exclusive. A dedicated five-minute circuit breaker and an environment kill switch provide automatic and global rollback.
+- AI-history clear is the first Go mutation and has a separate disabled-by-default 1–10% canary. It deletes only owner-scoped messages and preserves the conversation, matching legacy behavior.
+- The clear uses the verified user's token, publishable key, explicit owner filters and existing delete RLS. Because it is idempotent, ambiguous failures safely retry through legacy; a dedicated circuit breaker and kill switch provide rollback.
 - The Go profile endpoint derives identity only from a locally verified access token, forwards that token to the Supabase Data API and filters on the same subject; the existing profile RLS policy remains active.
 - The profile response omits user identity and every unrelated profile/onboarding field.
 - Go connects to PostgreSQL through a bounded pool and requires encrypted database transport in production.
 - Supabase JWTs are verified with asymmetric JWKS keys; the service never receives or exposes the JWT signing secret.
 - Request audit events contain request ID, method, route path, status, response size, authentication result and duration. Authorization headers, query strings and user identifiers are excluded.
-- No chat write, Points, payout, escrow, mutation or file-delivery route is served by Go at this stage.
+- No message creation, chat write, Points, payout, escrow or file-delivery route is served by Go at this stage.

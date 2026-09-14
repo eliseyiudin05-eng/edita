@@ -3,6 +3,7 @@ import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supa
 import {getOrCreateConversation,normalizeAiScope,readConversationMessages} from "@/lib/ai-history";
 import {aiHistoryShadowEnabled,compareAiHistoryWithGo,normalizeAiHistory} from "@/lib/go-ai-history-shadow";
 import {aiHistoryCanaryEnabled,recordAiHistoryCanaryComparison,tryAiHistoryCanary} from "@/lib/go-ai-history-canary";
+import {tryAiHistoryDeleteCanary} from "@/lib/go-ai-history-delete-canary";
 
 function bearer(req:NextRequest){
   const value=req.headers.get("authorization");
@@ -48,12 +49,16 @@ export async function GET(req:NextRequest){
 }
 
 export async function DELETE(req:NextRequest){
-  const user=await getUserFromAccessToken(bearer(req));
+  const token=bearer(req);
+  const user=await getUserFromAccessToken(token);
   const service=getSupabaseServiceClient();
-  if(!user||!service)return NextResponse.json({error:"Нужен вход."},{status:401});
+  if(!user||!service||!token)return NextResponse.json({error:"Нужен вход."},{status:401});
 
   try{
     const scope=normalizeAiScope(req.nextUrl.searchParams.get("scope"));
+    const canary=await tryAiHistoryDeleteCanary(token,scope);
+    if(canary.attempted&&canary.ok)return NextResponse.json({ok:true});
+
     const {data:conversation}=await service.from("ai_conversations")
       .select("id")
       .eq("user_id",user.id)
