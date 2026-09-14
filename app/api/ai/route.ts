@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
-import {getOrCreateConversation,normalizeAiScope,readConversationMessages,saveConversationMessage} from "@/lib/ai-history";
+import {normalizeAiScope,readConversationMessages,saveConversationMessage} from "@/lib/ai-history";
+import {getOrCreateAiConversationWithCanary} from "@/lib/go-ai-conversation-canary";
 
 const SYSTEM=`
 Ты — спокойный и очень понятный помощник KIVRONIX по видеомонтажу.
@@ -76,9 +77,10 @@ export async function POST(req:NextRequest){
 
     if(user&&service){
       try{
-        const conversation=await getOrCreateConversation(
+        const conversation=await getOrCreateAiConversationWithCanary(
           service,
           user.id,
+          token!,
           scopeKey,
           String(context.lessonTitle||"Помощник KIVRONIX"),
           context.lessonSlug||null

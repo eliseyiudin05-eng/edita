@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -63,6 +64,7 @@ type PrivateChatReader interface {
 type AIHistoryReader interface {
 	GetHistory(context.Context, string, string, string) (aihistory.History, error)
 	ClearHistory(context.Context, string, string, string) error
+	EnsureConversation(context.Context, string, string, aihistory.EnsureConversationInput) (aihistory.Conversation, error)
 }
 
 type Options struct {
@@ -156,8 +158,66 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/private-chats/thread", s.privateChatThread)
 	mux.HandleFunc("/v1/private-chats", s.privateChatList)
 	mux.HandleFunc("/v1/ai/history", s.aiHistoryRoute)
+	mux.HandleFunc("/v1/ai/conversations", s.aiConversationEnsure)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) aiConversationEnsure(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.auth == nil || s.aiHistory == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "ai_history_service_unavailable", "AI history is temporarily unavailable.")
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	var input aihistory.EnsureConversationInput
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid conversation payload is required.")
+		return
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) || !aihistory.ValidEnsureConversationInput(input) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid conversation payload is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	conversation, err := s.aiHistory.EnsureConversation(ctx, token, claims.Subject, input)
+	cancel()
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "ai_conversation_unavailable", "AI conversation could not be prepared.")
+		return
+	}
+	writeJSON(w, http.StatusOK, conversation)
 }
 
 func (s *server) aiHistoryRoute(w http.ResponseWriter, r *http.Request) {

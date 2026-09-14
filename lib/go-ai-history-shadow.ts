@@ -44,6 +44,8 @@ export function normalizeAiHistory(value:unknown,expectedScope:string):Normalize
   return {conversation,messages};
 }
 
+export function normalizeAiConversation(value:unknown,expectedScope:string){return parseConversation(value,expectedScope)}
+
 export async function compareAiHistoryWithGo(token:string,scope:string,legacy:NormalizedAiHistory){
   const result=await readAiHistoryFromGo(token,scope,shadowTimeout());
   const outcome=result.ok?(sameAiHistory(result.value,legacy)?"match":"mismatch"):result.outcome;
@@ -100,6 +102,15 @@ export function goAiHistoryEndpoint(scope:string){
     endpoint.searchParams.set("scope",scope);
     return endpoint.toString();
   }catch{return null;}
+}
+
+export function goAiConversationEndpoint(){
+  const history=goAiHistoryEndpoint("main");
+  if(!history)return null;
+  const endpoint=new URL(history);
+  endpoint.pathname="/v1/ai/conversations";
+  endpoint.search="";
+  return endpoint.toString();
 }
 
 function uuid(value:unknown){return typeof value==="string"&&uuidPattern.test(value.toLowerCase())?value.toLowerCase():null}
