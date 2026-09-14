@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	version = "2.0.0-alpha.5"
+	version = "2.0.0-alpha.6"
 	commit  = "local"
 )
 
@@ -117,6 +117,9 @@ func main() {
 		socialReader = socialRepository
 		socialFriendsReader = socialRepository
 		socialGroupsReader = socialRepository
+		businessReader = business.NewPostgresRepository(databasePool.DB())
+		editorVerificationReader = editorverification.NewPostgresRepository(databasePool.DB())
+		guardianVerificationReader = guardianverification.NewPostgresRepository(databasePool.DB())
 	}
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
@@ -208,7 +211,9 @@ func main() {
 			logger.Error("business client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		businessReader = businessClient
+		if businessReader == nil {
+			businessReader = businessClient
+		}
 
 		businessDiscussionClient, err := businessdiscussion.NewClient(
 			cfg.SupabaseURL,
@@ -241,7 +246,9 @@ func main() {
 			logger.Error("editor verification client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		editorVerificationReader = editorVerificationClient
+		if editorVerificationReader == nil {
+			editorVerificationReader = editorVerificationClient
+		}
 
 		guardianVerificationClient, err := guardianverification.NewClient(
 			cfg.SupabaseURL,
@@ -252,7 +259,9 @@ func main() {
 			logger.Error("guardian verification client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		guardianVerificationReader = guardianVerificationClient
+		if guardianVerificationReader == nil {
+			guardianVerificationReader = guardianVerificationClient
+		}
 
 		privateChatClient, err := chat.NewClient(
 			cfg.SupabaseURL,
