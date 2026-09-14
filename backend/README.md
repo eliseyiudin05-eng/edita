@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v2.0.0-alpha.12
+## Stage v2.0.0-alpha.13
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -70,9 +70,12 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - `GET /v1/marketplace/campaigns` returns a role-specific, bounded campaign board and verified-company league directly from PostgreSQL;
 - campaign creation is restricted to verified business owners, while editor applications enforce level, XP and guardian gates;
 - accepting a campaign application changes its state and opens the participant-bound private conversation in one transaction;
+- business signup creates the corresponding company record in the same PostgreSQL transaction;
+- `GET|POST /v1/marketplace/jobs` lists, creates and applies to verified-company jobs directly in PostgreSQL;
+- accepting a job application atomically locks the job and wallet, reserves the full Points payment and creates its private conversation and funded work order;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-The `backendGo` branch now prefers direct PostgreSQL repositories whenever `GO_BACKEND_DATABASE_URL` is configured. Legacy Supabase adapters remain only as a temporary rollback path while the browser gateway is being removed. Wallets, YooKassa top-ups, verified payment notifications, payout requests, signup/referral rewards, redemption and business campaigns are implemented directly in Go/PostgreSQL; jobs, challenges, administration and the remaining unsupported writes are still migration work.
+The `backendGo` branch now prefers direct PostgreSQL repositories whenever `GO_BACKEND_DATABASE_URL` is configured. Legacy Supabase adapters remain only as a temporary rollback path while the browser gateway is being removed. Wallets, YooKassa top-ups, verified payment notifications, payout requests, signup/referral rewards, redemption, business campaigns and the job/application funding lifecycle are implemented directly in Go/PostgreSQL; challenges, administration and the remaining unsupported writes are still migration work.
 
 ## Run locally
 
@@ -95,6 +98,7 @@ Endpoints:
 - `GET|POST /v1/social/referrals` — returns referral rewards or atomically redeems an enabled reward.
 - `POST /v1/referrals/qualify` — qualifies an eligible referred editor and credits both reward ledgers once.
 - `GET|POST /v1/marketplace/campaigns` — lists, creates, applies to and moderates verified-company campaigns.
+- `GET|POST /v1/marketplace/jobs` — lists and creates jobs, records eligible applications and atomically funds accepted work.
 - `GET /v1/diagnostics/auth` — verifies `Authorization: Bearer <access-token>` and returns no claims or identity.
 - `GET /v1/profile/learning-preferences` — returns the authenticated user's normalized learning preferences.
 - `GET /v1/profile/settings` — returns the authenticated user's bounded editable profile settings without an owner ID.

@@ -27,6 +27,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/editorverification"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/finance"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/guardianverification"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/jobs"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
@@ -151,6 +152,13 @@ type CampaignStore interface {
 	SetApplicationStatus(context.Context, string, string, string, string) (string, error)
 }
 
+type JobStore interface {
+	Get(context.Context, string, string) (jobs.View, error)
+	Create(context.Context, string, string, jobs.CreateInput) (jobs.Job, error)
+	Apply(context.Context, string, string, string) error
+	Accept(context.Context, string, string, string, string) (jobs.AcceptResult, error)
+}
+
 type Options struct {
 	Logger                  *slog.Logger
 	Environment             string
@@ -181,6 +189,7 @@ type Options struct {
 	Rewards                 RewardsStore
 	PointsRedemptionEnabled bool
 	Campaigns               CampaignStore
+	Jobs                    JobStore
 }
 
 type server struct {
@@ -213,6 +222,7 @@ type server struct {
 	rewards                 RewardsStore
 	pointsRedemptionEnabled bool
 	campaigns               CampaignStore
+	jobs                    JobStore
 }
 
 type contextKey string
@@ -265,6 +275,7 @@ func New(options Options) http.Handler {
 		rewards:                 options.Rewards,
 		pointsRedemptionEnabled: options.PointsRedemptionEnabled,
 		campaigns:               options.Campaigns,
+		jobs:                    options.Jobs,
 	}
 
 	mux := http.NewServeMux()
@@ -309,8 +320,133 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/social/referrals", s.socialReferrals)
 	mux.HandleFunc("/v1/referrals/qualify", s.referralQualify)
 	mux.HandleFunc("/v1/marketplace/campaigns", s.marketplaceCampaigns)
+	mux.HandleFunc("/v1/marketplace/jobs", s.marketplaceJobs)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) marketplaceJobs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
+		return
+	}
+	if s.jobs == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "jobs_service_unavailable", "Jobs are temporarily unavailable.")
+		return
+	}
+	token, subject, ok := s.authenticatedIdentity(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	defer cancel()
+	if r.Method == http.MethodGet {
+		if r.URL.RawQuery != "" {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not supported.")
+			return
+		}
+		result, err := s.jobs.Get(ctx, token, subject)
+		if errors.Is(err, jobs.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "jobs_unavailable", "Jobs could not be loaded.")
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+		return
+	}
+	var body struct {
+		Action        string `json:"action"`
+		Title         string `json:"title"`
+		Description   string `json:"description"`
+		PaymentPoints int64  `json:"paymentPoints"`
+		JobID         string `json:"jobId"`
+		EditorID      string `json:"editorId"`
+	}
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid job request is required.")
+		return
+	}
+	switch body.Action {
+	case "create":
+		input, err := jobs.NormalizeCreate(jobs.CreateInput{Title: body.Title, Description: body.Description, PaymentPoints: body.PaymentPoints})
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "invalid_job", "Add a title, description and payment of at least 100 Points.")
+			return
+		}
+		result, err := s.jobs.Create(ctx, token, subject, input)
+		if errors.Is(err, jobs.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "verified_business_required", "A verified business account is required.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "job_create_failed", "The job could not be created.")
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "job": result})
+	case "apply":
+		jobID, err := jobs.NormalizeUUID(body.JobID)
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "invalid_job", "A valid job ID is required.")
+			return
+		}
+		err = s.jobs.Apply(ctx, token, subject, jobID)
+		if errors.Is(err, jobs.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "editor_not_eligible", "Level 2, 300 XP and guardian approval when required are needed.")
+			return
+		}
+		if errors.Is(err, jobs.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "job_not_found", "The open job was not found.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "job_application_failed", "The application could not be saved.")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	case "accept":
+		jobID, err := jobs.NormalizeUUID(body.JobID)
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "invalid_job", "A valid job ID is required.")
+			return
+		}
+		editorID, err := jobs.NormalizeUUID(body.EditorID)
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "invalid_editor", "A valid editor ID is required.")
+			return
+		}
+		result, err := s.jobs.Accept(ctx, token, subject, jobID, editorID)
+		if errors.Is(err, jobs.ErrInsufficient) {
+			writeError(w, r, http.StatusConflict, "insufficient_points", "Top up the wallet before selecting an editor.")
+			return
+		}
+		if errors.Is(err, jobs.ErrConflict) {
+			writeError(w, r, http.StatusConflict, "job_already_assigned", "This job is already assigned or cannot be funded.")
+			return
+		}
+		if errors.Is(err, jobs.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "application_not_found", "The editor application was not found.")
+			return
+		}
+		if errors.Is(err, jobs.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "job_forbidden", "Only the verified job owner can select an editor.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "job_accept_failed", "The editor could not be selected.")
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+	default:
+		writeError(w, r, http.StatusBadRequest, "unknown_action", "Choose a supported job action.")
+	}
 }
 
 func (s *server) marketplaceCampaigns(w http.ResponseWriter, r *http.Request) {
@@ -763,6 +899,7 @@ func (s *server) authSignup(w http.ResponseWriter, r *http.Request) {
 		Username     string          `json:"username"`
 		Onboarding   json.RawMessage `json:"onboarding"`
 		ReferralCode string          `json:"referralCode"`
+		BusinessName string          `json:"businessName"`
 	}
 	if err := decodeJSON(r, &body); err != nil {
 		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid JSON request is required.")
@@ -770,7 +907,7 @@ func (s *server) authSignup(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, err := s.authSessions.Register(r.Context(), auth.Registration{
 		Email: body.Email, Password: body.Password, Role: body.Role, DisplayName: body.DisplayName,
-		Username: body.Username, Onboarding: body.Onboarding, ReferralCode: body.ReferralCode,
+		Username: body.Username, Onboarding: body.Onboarding, ReferralCode: body.ReferralCode, BusinessName: body.BusinessName,
 	})
 	if errors.Is(err, auth.ErrEmailExists) {
 		writeError(w, r, http.StatusConflict, "email_exists", "An account with this email already exists.")

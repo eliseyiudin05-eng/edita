@@ -40,6 +40,7 @@ type Registration struct {
 	Username     string
 	Onboarding   json.RawMessage
 	ReferralCode string
+	BusinessName string
 }
 
 type Session struct {
@@ -91,6 +92,10 @@ func (s *Service) Register(ctx context.Context, input Registration) (string, err
 		return "", ErrInvalidCredentials
 	}
 	if role != "editor" && role != "business" && role != "creator" {
+		return "", ErrInvalidCredentials
+	}
+	businessName := strings.TrimSpace(input.BusinessName)
+	if (role == "business" || role == "creator") && (businessName == "" || len([]rune(businessName)) > 160) {
 		return "", ErrInvalidCredentials
 	}
 	onboarding := input.Onboarding
@@ -145,6 +150,11 @@ func (s *Service) Register(ctx context.Context, input Registration) (string, err
 			where referral_code=$2 and id<>$1
 			on conflict(referred_id) do nothing`, userID, referralCode); err != nil {
 			return "", fmt.Errorf("create referral: %w", err)
+		}
+	}
+	if role == "business" || role == "creator" {
+		if _, err := tx.Exec(ctx, `insert into public.businesses(owner_id,name) values($1,$2) on conflict(owner_id) do update set name=excluded.name`, userID, businessName); err != nil {
+			return "", fmt.Errorf("create business: %w", err)
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {

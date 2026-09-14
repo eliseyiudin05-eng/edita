@@ -1465,6 +1465,19 @@ func TestAuthSignupValidatesJSONAndDelegates(t *testing.T) {
 	}
 }
 
+func TestAuthSignupForwardsBusinessName(t *testing.T) {
+	service := &fakeAuthSessions{}
+	mailer := &fakeAuthMailer{}
+	handler := New(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), AuthSessions: service, AuthMailer: mailer})
+	request := httptest.NewRequest(http.MethodPost, "/v1/auth/signup", strings.NewReader(`{"email":"owner@example.com","password":"long-password","role":"business","displayName":"Owner","businessName":"KIVRONIX Studio"}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted || service.registered.BusinessName != "KIVRONIX Studio" {
+		t.Fatalf("unexpected response: status=%d body=%s registration=%+v", response.Code, response.Body.String(), service.registered)
+	}
+}
+
 func TestAuthRefreshRotatesAndLogoutRevokes(t *testing.T) {
 	service := &fakeAuthSessions{session: auth.Session{AccessToken: "access", RefreshToken: "rotated"}}
 	handler := New(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), AuthSessions: service})
