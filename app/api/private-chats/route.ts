@@ -8,6 +8,7 @@ import {privateChatCanaryEnabled,recordPrivateChatCanaryComparison,tryPrivateCha
 import {comparePrivateChatListWithGo,normalizePrivateChatList,privateChatListShadowEnabled} from "@/lib/go-private-chat-list-shadow";
 import {privateChatListCanaryEnabled,recordPrivateChatListCanaryComparison,tryPrivateChatListCanary} from "@/lib/go-private-chat-list-canary";
 import {tryPrivateChatWriteCanary} from "@/lib/go-private-chat-write-canary";
+import {privateChatAtomicOrderingEnabled} from "@/lib/private-chat-ordering";
 
 function accessToken(req:NextRequest){
   const value=req.headers.get("authorization");
@@ -180,7 +181,12 @@ export async function POST(req:NextRequest){
         created=existing;
       }
     }
-    await auth.service.from("private_conversations").update({last_message_at:created.created_at}).eq("id",conversation.id);
+    if(!privateChatAtomicOrderingEnabled()){
+      const {error:orderingError}=await auth.service.from("private_conversations")
+        .update({last_message_at:created.created_at})
+        .eq("id",conversation.id);
+      if(orderingError)console.warn("private_chat_ordering",{outcome:"legacy_update_failed"});
+    }
     return NextResponse.json({ok:true,message:created});
   }
 
