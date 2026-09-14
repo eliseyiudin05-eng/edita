@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	version = "2.0.0-alpha.6"
+	version = "2.0.0-alpha.7"
 	commit  = "local"
 )
 
@@ -120,6 +120,8 @@ func main() {
 		businessReader = business.NewPostgresRepository(databasePool.DB())
 		editorVerificationReader = editorverification.NewPostgresRepository(databasePool.DB())
 		guardianVerificationReader = guardianverification.NewPostgresRepository(databasePool.DB())
+		businessDiscussionReader = businessdiscussion.NewPostgresRepository(databasePool.DB())
+		editorDiscussionReader = editordiscussion.NewPostgresRepository(databasePool.DB())
 	}
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
@@ -224,7 +226,9 @@ func main() {
 			logger.Error("business discussion client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		businessDiscussionReader = businessDiscussionClient
+		if businessDiscussionReader == nil {
+			businessDiscussionReader = businessDiscussionClient
+		}
 
 		editorDiscussionClient, err := editordiscussion.NewClient(
 			cfg.SupabaseURL,
@@ -235,7 +239,9 @@ func main() {
 			logger.Error("editor discussion client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		editorDiscussionReader = editorDiscussionClient
+		if editorDiscussionReader == nil {
+			editorDiscussionReader = editorDiscussionClient
+		}
 
 		editorVerificationClient, err := editorverification.NewClient(
 			cfg.SupabaseURL,
