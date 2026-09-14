@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	version = "2.0.0-alpha.9"
+	version = "2.0.0-alpha.10"
 	commit  = "local"
 )
 
@@ -125,7 +125,22 @@ func main() {
 		businessDiscussionReader = businessdiscussion.NewPostgresRepository(databasePool.DB())
 		editorDiscussionReader = editordiscussion.NewPostgresRepository(databasePool.DB())
 		privateChatReader = chat.NewPostgresRepository(databasePool.DB())
-		financeStore = finance.NewPostgresRepository(databasePool.DB())
+		financeRepository := finance.NewPostgresRepository(databasePool.DB())
+		var paymentProvider finance.PaymentProvider
+		if cfg.YooKassaShopID != "" {
+			provider, providerErr := finance.NewYooKassa(cfg.YooKassaShopID, cfg.YooKassaSecretKey, &http.Client{Timeout: cfg.PaymentHTTPTimeout})
+			if providerErr != nil {
+				logger.Error("payment provider configuration failed", "error", providerErr)
+				os.Exit(1)
+			}
+			paymentProvider = provider
+		}
+		service, serviceErr := finance.NewService(financeRepository, paymentProvider, cfg.PublicSiteURL+"/platform#wallet")
+		if serviceErr != nil {
+			logger.Error("finance service configuration failed", "error", serviceErr)
+			os.Exit(1)
+		}
+		financeStore = service
 	}
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(

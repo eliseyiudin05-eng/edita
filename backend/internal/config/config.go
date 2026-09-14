@@ -45,6 +45,9 @@ type Config struct {
 	BusinessHTTPTimeout    time.Duration
 	PrivateChatHTTPTimeout time.Duration
 	AIHistoryHTTPTimeout   time.Duration
+	YooKassaShopID         string
+	YooKassaSecretKey      string
+	PaymentHTTPTimeout     time.Duration
 }
 
 func Load() Config {
@@ -91,6 +94,9 @@ func Load() Config {
 		BusinessHTTPTimeout:    envDurationBounded("GO_BACKEND_BUSINESS_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
 		PrivateChatHTTPTimeout: envDurationBounded("GO_BACKEND_PRIVATE_CHAT_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
 		AIHistoryHTTPTimeout:   envDurationBounded("GO_BACKEND_AI_HISTORY_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
+		YooKassaShopID:         envString("YOOKASSA_SHOP_ID", ""),
+		YooKassaSecretKey:      envString("YOOKASSA_SECRET_KEY", ""),
+		PaymentHTTPTimeout:     envDurationBounded("GO_BACKEND_PAYMENT_HTTP_TIMEOUT", 10*time.Second, time.Second, 20*time.Second),
 	}
 }
 
@@ -128,6 +134,12 @@ func (c Config) Validate() error {
 	}
 	if len(c.SupabasePublishableKey) > 4096 || strings.ContainsAny(c.SupabasePublishableKey, "\r\n") {
 		return errors.New("GO_BACKEND_SUPABASE_PUBLISHABLE_KEY is invalid")
+	}
+	if (c.YooKassaShopID == "") != (c.YooKassaSecretKey == "") {
+		return errors.New("YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY must be configured together")
+	}
+	if strings.ContainsAny(c.YooKassaShopID+c.YooKassaSecretKey, "\r\n") {
+		return errors.New("YooKassa credentials are invalid")
 	}
 
 	return nil

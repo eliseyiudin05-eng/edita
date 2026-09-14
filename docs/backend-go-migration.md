@@ -23,7 +23,7 @@ Target release: **2.0.0**. This branch keeps Next.js as a browser UI and moves a
 | Marketplace | challenges, jobs, campaigns, portfolio, creators | `/v1/marketplace/*` | TypeScript/Supabase only |
 | Business | growth, ratings, verification, discussion | `/v1/business/*` | partial shadow implementation |
 | Work chat | private chat, files, delivery, escrow | `/v1/work/*` | partial shadow implementation |
-| Finance | Points, YooKassa webhook, payouts, rewards | `/v1/finance/*` | wallet and payout requests migrated; top-ups/rewards remain |
+| Finance | Points, YooKassa webhook, payouts, rewards | `/v1/finance/*` | wallet, top-ups, verified webhook and payout requests migrated; rewards remain |
 | Admin | six moderation/review surfaces | `/v1/admin/*` | TypeScript/Supabase only |
 | Platform | health, readiness, email health, audit/outbox | `/healthz`, `/readyz`, `/v1/system/*` | partial |
 

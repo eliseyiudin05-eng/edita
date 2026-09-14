@@ -18,14 +18,50 @@ type fakeFinanceStore struct {
 	payouts       finance.Payouts
 	err           error
 	createdAmount int64
+	topupInput    finance.TopupInput
+	webhookID     string
 	token         string
 	subject       string
+}
+
+func (store *fakeFinanceStore) StartTopup(_ context.Context, subject string, input finance.TopupInput) (finance.TopupResponse, error) {
+	store.subject = subject
+	store.topupInput = input
+	return finance.TopupResponse{URL: "https://payments.example/confirm"}, store.err
+}
+
+func (store *fakeFinanceStore) HandlePaymentWebhook(_ context.Context, paymentID string) error {
+	store.webhookID = paymentID
+	return store.err
 }
 
 func (store *fakeFinanceStore) GetWallet(_ context.Context, token, subject string) (finance.Wallet, error) {
 	store.token = token
 	store.subject = subject
 	return store.wallet, store.err
+}
+
+func TestFinanceTopupRequiresIdempotencyID(t *testing.T) {
+	store := &fakeFinanceStore{}
+	request := httptest.NewRequest(http.MethodPost, "/v1/finance/topups", strings.NewReader(`{"id":"00000000-0000-4000-8000-000000000010","points":1000}`))
+	request.Header.Set("Authorization", "Bearer access-token")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	financeTestHandler(store).ServeHTTP(response, request)
+	if response.Code != http.StatusOK || store.topupInput.Points != 1000 || !strings.Contains(response.Body.String(), "https://payments.example/confirm") {
+		t.Fatalf("unexpected response: status=%d body=%s store=%+v", response.Code, response.Body.String(), store)
+	}
+}
+
+func TestFinanceWebhookDelegatesSucceededPayment(t *testing.T) {
+	store := &fakeFinanceStore{}
+	request := httptest.NewRequest(http.MethodPost, "/v1/finance/yookassa/webhook", strings.NewReader(`{"type":"notification","event":"payment.succeeded","object":{"id":"payment-123","status":"succeeded","amount":{"value":"1050.00","currency":"RUB"}}}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	financeTestHandler(store).ServeHTTP(response, request)
+	if response.Code != http.StatusOK || store.webhookID != "payment-123" {
+		t.Fatalf("unexpected response: status=%d body=%s store=%+v", response.Code, response.Body.String(), store)
+	}
 }
 
 func (store *fakeFinanceStore) ListPayouts(_ context.Context, token, subject string) (finance.Payouts, error) {

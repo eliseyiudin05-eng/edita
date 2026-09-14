@@ -132,6 +132,8 @@ type FinanceStore interface {
 	GetWallet(context.Context, string, string) (finance.Wallet, error)
 	ListPayouts(context.Context, string, string) (finance.Payouts, error)
 	CreatePayout(context.Context, string, string, int64) error
+	StartTopup(context.Context, string, finance.TopupInput) (finance.TopupResponse, error)
+	HandlePaymentWebhook(context.Context, string) error
 }
 
 type Options struct {
@@ -278,8 +280,85 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/ai/conversations", s.aiConversationEnsure)
 	mux.HandleFunc("/v1/finance/wallet", s.financeWallet)
 	mux.HandleFunc("/v1/finance/payouts", s.financePayouts)
+	mux.HandleFunc("/v1/finance/topups", s.financeTopups)
+	mux.HandleFunc("/v1/finance/yookassa/webhook", s.financeWebhook)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) financeTopups(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+		return
+	}
+	_, subject, ok := s.financeIdentity(w, r)
+	if !ok {
+		return
+	}
+	var input finance.TopupInput
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || !finance.ValidTopup(input) {
+		writeError(w, r, http.StatusBadRequest, "invalid_topup", "A valid idempotency ID and 100 to 1,000,000 Points are required.")
+		return
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A single valid JSON object is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
+	defer cancel()
+	result, err := s.finance.StartTopup(ctx, subject, input)
+	if errors.Is(err, finance.ErrConflict) {
+		writeError(w, r, http.StatusConflict, "idempotency_conflict", "The idempotency ID is already used by another top-up.")
+		return
+	}
+	if errors.Is(err, finance.ErrProvider) {
+		writeError(w, r, http.StatusServiceUnavailable, "payment_provider_unavailable", "The payment provider is temporarily unavailable.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "topup_unavailable", "The top-up could not be created.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) financeWebhook(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.finance == nil || r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_notification", "A valid notification is required.")
+		return
+	}
+	var body struct {
+		Type   string `json:"type"`
+		Event  string `json:"event"`
+		Object struct {
+			ID string `json:"id"`
+		} `json:"object"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&body); err != nil || body.Type != "notification" || body.Object.ID == "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_notification", "A valid notification is required.")
+		return
+	}
+	if body.Event != "payment.succeeded" {
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
+	defer cancel()
+	if err := s.finance.HandlePaymentWebhook(ctx, body.Object.ID); err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "notification_processing_failed", "The notification could not be processed.")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 func (s *server) financeWallet(w http.ResponseWriter, r *http.Request) {

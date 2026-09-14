@@ -92,3 +92,12 @@ func TestLoadAcceptsBoundedOverrides(t *testing.T) {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 }
+
+func TestValidateRequiresCompleteYooKassaCredentials(t *testing.T) {
+	cfg := Load()
+	cfg.YooKassaShopID = "shop-id"
+	cfg.YooKassaSecretKey = ""
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate accepted incomplete YooKassa credentials")
+	}
+}

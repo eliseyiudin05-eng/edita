@@ -11,6 +11,8 @@ var (
 	ErrNotFound     = errors.New("finance profile not found")
 	ErrInsufficient = errors.New("insufficient earnings balance")
 	ErrPending      = errors.New("active payout request exists")
+	ErrConflict     = errors.New("finance idempotency conflict")
+	ErrProvider     = errors.New("payment provider unavailable")
 )
 
 const (
@@ -44,8 +46,48 @@ type Store interface {
 	GetWallet(context.Context, string, string) (Wallet, error)
 	ListPayouts(context.Context, string, string) (Payouts, error)
 	CreatePayout(context.Context, string, string, int64) error
+	BeginTopup(context.Context, string, TopupInput) (TopupRecord, error)
+	AttachTopupPayment(context.Context, string, ProviderPayment) (TopupRecord, error)
+	CreditTopup(context.Context, ProviderPayment) error
 }
 
 func ValidPayoutAmount(amountCents int64) bool {
 	return amountCents >= MinimumPayoutCents && amountCents <= MaximumPayoutCents
+}
+
+type TopupInput struct {
+	ID     string `json:"id"`
+	Points int64  `json:"points"`
+}
+
+type TopupRecord struct {
+	ID              string
+	UserID          string
+	Points          int64
+	AmountCents     int64
+	Status          string
+	ProviderID      *string
+	ConfirmationURL *string
+}
+
+type TopupResponse struct {
+	URL string `json:"url"`
+}
+
+type ProviderPayment struct {
+	ID              string
+	Status          string
+	AmountCents     int64
+	Currency        string
+	ConfirmationURL string
+	Metadata        map[string]string
+}
+
+type PaymentProvider interface {
+	CreatePayment(context.Context, TopupRecord, string) (ProviderPayment, error)
+	GetPayment(context.Context, string) (ProviderPayment, error)
+}
+
+func ValidTopup(input TopupInput) bool {
+	return uuidPattern.MatchString(input.ID) && input.Points >= 100 && input.Points <= 1_000_000
 }

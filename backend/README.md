@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v2.0.0-alpha.9
+## Stage v2.0.0-alpha.10
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -60,9 +60,11 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - `GET /v1/finance/wallet` reads or initializes only the authenticated user's Points wallet in PostgreSQL;
 - `GET /v1/finance/payouts` returns at most 20 owner-bound payout requests without payment details;
 - `POST /v1/finance/payouts` creates one payout request after atomically checking the earnings balance and active requests;
+- `POST /v1/finance/topups` creates an idempotent YooKassa payment without exposing provider credentials;
+- `POST /v1/finance/yookassa/webhook` re-fetches provider state and credits Points exactly once in PostgreSQL;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-The `backendGo` branch now prefers direct PostgreSQL repositories whenever `GO_BACKEND_DATABASE_URL` is configured. Legacy Supabase adapters remain only as a temporary rollback path while the browser gateway is being removed. Wallet reads and payout requests are implemented directly in Go/PostgreSQL; YooKassa top-up creation, provider webhooks, reward settlement and the remaining unsupported writes are still migration work.
+The `backendGo` branch now prefers direct PostgreSQL repositories whenever `GO_BACKEND_DATABASE_URL` is configured. Legacy Supabase adapters remain only as a temporary rollback path while the browser gateway is being removed. Wallet reads, YooKassa top-ups, verified payment notifications and payout requests are implemented directly in Go/PostgreSQL; reward settlement and the remaining unsupported writes are still migration work.
 
 ## Run locally
 
@@ -80,6 +82,8 @@ Endpoints:
 - `GET /v1/meta` — non-sensitive build metadata.
 - `GET /v1/finance/wallet` — returns the authenticated user's available and reserved Points.
 - `GET|POST /v1/finance/payouts` — lists or creates owner-bound payout requests.
+- `POST /v1/finance/topups` — creates an idempotent YooKassa redirect payment for Points.
+- `POST /v1/finance/yookassa/webhook` — verifies a payment with YooKassa and credits it once.
 - `GET /v1/diagnostics/auth` — verifies `Authorization: Bearer <access-token>` and returns no claims or identity.
 - `GET /v1/profile/learning-preferences` — returns the authenticated user's normalized learning preferences.
 - `GET /v1/profile/settings` — returns the authenticated user's bounded editable profile settings without an owner ID.
