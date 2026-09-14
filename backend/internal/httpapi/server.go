@@ -80,8 +80,9 @@ type BusinessVerificationReader interface {
 	GetVerification(context.Context, string, string) (business.Verification, error)
 }
 
-type BusinessDiscussionReader interface {
+type BusinessDiscussionStore interface {
 	GetDiscussion(context.Context, string, string) (businessdiscussion.Discussion, error)
+	CreateMessage(context.Context, string, string, businessdiscussion.CreateMessageInput) (businessdiscussion.CreateMessageResponse, error)
 }
 
 type EditorVerificationReader interface {
@@ -121,7 +122,7 @@ type Options struct {
 	SocialFriends        SocialFriendsReader
 	SocialGroups         SocialGroupsReader
 	Business             BusinessVerificationReader
-	BusinessDiscussion   BusinessDiscussionReader
+	BusinessDiscussion   BusinessDiscussionStore
 	EditorVerification   EditorVerificationReader
 	GuardianVerification GuardianVerificationReader
 	PrivateChats         PrivateChatReader
@@ -146,7 +147,7 @@ type server struct {
 	socialFriends        SocialFriendsReader
 	socialGroups         SocialGroupsReader
 	business             BusinessVerificationReader
-	businessDiscussion   BusinessDiscussionReader
+	businessDiscussion   BusinessDiscussionStore
 	editorVerification   EditorVerificationReader
 	guardianVerification GuardianVerificationReader
 	privateChats         PrivateChatReader
@@ -890,11 +891,13 @@ func (s *server) businessVerification(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) businessDiscussionList(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
 		return
 	}
-	if r.URL.RawQuery != "" {
-		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not allowed.")
+	if r.URL.RawQuery != "" || (r.Method == http.MethodPost && !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json")) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not allowed and writes require a JSON body.")
 		return
 	}
 	if s.auth == nil || s.businessDiscussion == nil {
@@ -905,6 +908,20 @@ func (s *server) businessDiscussionList(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
 		return
+	}
+	var input businessdiscussion.CreateMessageInput
+	if r.Method == http.MethodPost {
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&input); err != nil || !businessdiscussion.ValidCreateMessage(input) {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid idempotency ID and bounded message are required.")
+			return
+		}
+		var extra any
+		if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid idempotency ID and bounded message are required.")
+			return
+		}
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
 	claims, err := s.auth.Verify(ctx, token)
@@ -924,6 +941,24 @@ func (s *server) businessDiscussionList(w http.ResponseWriter, r *http.Request) 
 	}
 	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
 		state.authenticated = true
+	}
+	if r.Method == http.MethodPost {
+		result, err := s.businessDiscussion.CreateMessage(ctx, token, claims.Subject, input)
+		cancel()
+		if errors.Is(err, businessdiscussion.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "business_role_required", "A business account is required.")
+			return
+		}
+		if errors.Is(err, businessdiscussion.ErrConflict) {
+			writeError(w, r, http.StatusConflict, "idempotency_conflict", "The idempotency ID is already used by another message.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "business_discussion_write_unavailable", "The business discussion message could not be saved.")
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+		return
 	}
 	result, err := s.businessDiscussion.GetDiscussion(ctx, token, claims.Subject)
 	cancel()

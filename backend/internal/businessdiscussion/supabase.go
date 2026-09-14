@@ -1,6 +1,7 @@
 package businessdiscussion
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 
 var (
 	ErrForbidden   = errors.New("business discussion forbidden")
+	ErrConflict    = errors.New("business discussion idempotency conflict")
 	ErrUnavailable = errors.New("business discussion unavailable")
 )
 
@@ -28,6 +30,15 @@ var uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-
 
 type Discussion struct {
 	Messages []Message `json:"messages"`
+}
+
+type CreateMessageInput struct {
+	ID      string `json:"id"`
+	Content string `json:"content"`
+}
+
+type CreateMessageResponse struct {
+	OK bool `json:"ok"`
 }
 
 type Message struct {
@@ -48,7 +59,7 @@ type messageRow struct {
 	AuthorID  string `json:"author_id"`
 	Content   string `json:"content"`
 	Status    string `json:"status"`
-	CreatedAt string `json:"created_at"`
+	CreatedAt string `json:"created_at,omitempty"`
 }
 
 type publicProfileRow struct {
@@ -161,14 +172,93 @@ func (c *Client) GetDiscussion(ctx context.Context, accessToken, subject string)
 	return Discussion{Messages: messages}, nil
 }
 
+func (c *Client) CreateMessage(ctx context.Context, accessToken, subject string, input CreateMessageInput) (CreateMessageResponse, error) {
+	subject = strings.ToLower(strings.TrimSpace(subject))
+	input.ID = strings.ToLower(strings.TrimSpace(input.ID))
+	if c == nil || strings.TrimSpace(accessToken) == "" || !uuidPattern.MatchString(subject) || !ValidCreateMessage(input) {
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+	if err := c.requireBusiness(ctx, accessToken, subject); err != nil {
+		return CreateMessageResponse{}, err
+	}
+
+	payload, err := json.Marshal(messageRow{
+		ID: input.ID, TopicKey: topic, AuthorID: subject, Content: input.Content, Status: "published",
+	})
+	if err != nil {
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+	query := url.Values{}
+	query.Set("on_conflict", "id")
+	query.Set("select", "id,topic_key,author_id,content,status,created_at")
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.messagesEndpoint+"?"+query.Encode(), bytes.NewReader(payload))
+	if err != nil {
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Prefer", "resolution=ignore-duplicates,return=representation")
+	c.authorize(request, accessToken)
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+	var rows []messageRow
+	if err := decodeBounded(response.Body, 32*1024, &rows); err != nil || len(rows) > 1 {
+		return CreateMessageResponse{}, ErrUnavailable
+	}
+	if len(rows) == 0 {
+		row, err := c.getMessageByID(ctx, accessToken, input.ID)
+		if err != nil {
+			return CreateMessageResponse{}, err
+		}
+		rows = []messageRow{row}
+	}
+	if !sameCreatedMessage(rows[0], subject, input) {
+		return CreateMessageResponse{}, ErrConflict
+	}
+	return CreateMessageResponse{OK: true}, nil
+}
+
+func (c *Client) requireBusiness(ctx context.Context, accessToken, subject string) error {
+	profileQuery := url.Values{}
+	profileQuery.Set("select", "id,role")
+	profileQuery.Set("id", "eq."+subject)
+	profileQuery.Set("limit", "1")
+	var profiles []profileRow
+	if err := c.getJSON(ctx, c.profilesEndpoint+"?"+profileQuery.Encode(), accessToken, &profiles); err != nil || len(profiles) != 1 {
+		return ErrUnavailable
+	}
+	if strings.ToLower(profiles[0].ID) != subject || profiles[0].Role != "business" {
+		return ErrForbidden
+	}
+	return nil
+}
+
+func (c *Client) getMessageByID(ctx context.Context, accessToken, id string) (messageRow, error) {
+	query := url.Values{}
+	query.Set("select", "id,topic_key,author_id,content,status,created_at")
+	query.Set("id", "eq."+id)
+	query.Set("limit", "1")
+	var rows []messageRow
+	if err := c.getJSON(ctx, c.messagesEndpoint+"?"+query.Encode(), accessToken, &rows); err != nil || len(rows) != 1 {
+		return messageRow{}, ErrUnavailable
+	}
+	return rows[0], nil
+}
+
 func (c *Client) getJSON(ctx context.Context, endpoint, accessToken string, target any) error {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return ErrUnavailable
 	}
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("Authorization", "Bearer "+accessToken)
-	request.Header.Set("apikey", c.publishableKey)
+	c.authorize(request, accessToken)
 	response, err := c.httpClient.Do(request)
 	if err != nil {
 		return ErrUnavailable
@@ -178,11 +268,31 @@ func (c *Client) getJSON(ctx context.Context, endpoint, accessToken string, targ
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
 		return ErrUnavailable
 	}
-	body, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
-	if err != nil || len(body) > maxResponseBytes || json.Unmarshal(body, target) != nil {
+	if err := decodeBounded(response.Body, maxResponseBytes, target); err != nil {
 		return ErrUnavailable
 	}
 	return nil
+}
+
+func (c *Client) authorize(request *http.Request, accessToken string) {
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	request.Header.Set("apikey", c.publishableKey)
+}
+
+func decodeBounded(reader io.Reader, limit int64, target any) error {
+	body, err := io.ReadAll(io.LimitReader(reader, limit+1))
+	if err != nil || int64(len(body)) > limit || json.Unmarshal(body, target) != nil {
+		return ErrUnavailable
+	}
+	return nil
+}
+
+func ValidCreateMessage(input CreateMessageInput) bool {
+	return uuidPattern.MatchString(strings.ToLower(input.ID)) && input.Content == strings.TrimSpace(input.Content) && utf8.ValidString(input.Content) && utf8.RuneCountInString(input.Content) >= 1 && utf8.RuneCountInString(input.Content) <= 1400
+}
+
+func sameCreatedMessage(row messageRow, subject string, input CreateMessageInput) bool {
+	return strings.ToLower(row.ID) == input.ID && row.TopicKey == topic && strings.ToLower(row.AuthorID) == subject && row.Content == input.Content && row.Status == "published" && validMessage(row)
 }
 
 func validMessage(row messageRow) bool {

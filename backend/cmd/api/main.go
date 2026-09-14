@@ -29,7 +29,7 @@ import (
 )
 
 var (
-	version = "1.0.40"
+	version = "1.0.41"
 	commit  = "local"
 )
 
@@ -81,7 +81,7 @@ func main() {
 	var socialFriendsReader httpapi.SocialFriendsReader
 	var socialGroupsReader httpapi.SocialGroupsReader
 	var businessReader httpapi.BusinessVerificationReader
-	var businessDiscussionReader httpapi.BusinessDiscussionReader
+	var businessDiscussionReader httpapi.BusinessDiscussionStore
 	var editorVerificationReader httpapi.EditorVerificationReader
 	var guardianVerificationReader httpapi.GuardianVerificationReader
 	var privateChatReader httpapi.PrivateChatReader
