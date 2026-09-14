@@ -188,6 +188,70 @@ func TestCancelFriendRequestRejectsAddressee(t *testing.T) {
 	}
 }
 
+func TestRespondToFriendRequestUsesAddresseePendingFilters(t *testing.T) {
+	const viewer = "123e4567-e89b-12d3-a456-426614174000"
+	const other = "223e4567-e89b-12d3-a456-426614174001"
+	const relation = "323e4567-e89b-12d3-a456-426614174002"
+	requests := 0
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		if request.Header.Get("Authorization") != "Bearer access-token" || request.Header.Get("apikey") != "sb_publishable_test" {
+			t.Fatal("authentication headers missing")
+		}
+		if requests == 1 {
+			body := `[{"id":"` + relation + `","requester_id":"` + other + `","addressee_id":"` + viewer + `","status":"pending","created_at":"2026-09-13T22:00:00Z"}]`
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+		}
+		query := request.URL.Query()
+		if request.Method != http.MethodPatch || query.Get("id") != "eq."+relation || query.Get("addressee_id") != "eq."+viewer || query.Get("status") != "eq.pending" || request.Header.Get("Prefer") != "return=representation" {
+			t.Fatalf("update is not explicitly scoped: %s %s headers=%v", request.Method, request.URL.String(), request.Header)
+		}
+		payload, _ := io.ReadAll(request.Body)
+		if !strings.Contains(string(payload), `"status":"accepted"`) || !strings.Contains(string(payload), `"responded_at":`) {
+			t.Fatalf("unexpected payload: %s", payload)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`[{"id":"` + relation + `","status":"accepted"}]`)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := client.RespondToFriendRequest(context.Background(), "access-token", viewer, relation, "accept")
+	if err != nil || !got.OK || got.Status != "accepted" || requests != 2 {
+		t.Fatalf("result=%+v error=%v requests=%d", got, err, requests)
+	}
+}
+
+func TestRespondToFriendRequestIsIdempotentForSameStatus(t *testing.T) {
+	const viewer = "123e4567-e89b-12d3-a456-426614174000"
+	body := `[{"id":"323e4567-e89b-12d3-a456-426614174002","requester_id":"223e4567-e89b-12d3-a456-426614174001","addressee_id":"` + viewer + `","status":"declined","created_at":"2026-09-13T22:00:00Z"}]`
+	requests := 0
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		requests++
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := client.RespondToFriendRequest(context.Background(), "access-token", viewer, "323e4567-e89b-12d3-a456-426614174002", "decline")
+	if err != nil || got.Status != "declined" || requests != 1 {
+		t.Fatalf("result=%+v error=%v requests=%d", got, err, requests)
+	}
+}
+
+func TestRespondToFriendRequestRejectsRequester(t *testing.T) {
+	const viewer = "123e4567-e89b-12d3-a456-426614174000"
+	body := `[{"id":"323e4567-e89b-12d3-a456-426614174002","requester_id":"` + viewer + `","addressee_id":"223e4567-e89b-12d3-a456-426614174001","status":"pending","created_at":"2026-09-13T22:00:00Z"}]`
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.RespondToFriendRequest(context.Background(), "access-token", viewer, "323e4567-e89b-12d3-a456-426614174002", "accept"); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
+	}
+}
+
 func TestGetGroupsUsesVerifiedMembershipAndBoundedQueries(t *testing.T) {
 	const viewer = "123e4567-e89b-12d3-a456-426614174000"
 	const other = "223e4567-e89b-12d3-a456-426614174001"

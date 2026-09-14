@@ -3,6 +3,7 @@ import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supa
 import {compareSocialFriendsWithGo,normalizeSocialFriends,socialFriendsShadowEnabled} from "@/lib/go-social-friends-shadow";
 import {recordSocialFriendsCanaryComparison,socialFriendsCanaryEnabled,trySocialFriendsCanary} from "@/lib/go-social-friends-canary";
 import {tryFriendshipCancelCanary} from "@/lib/go-social-friend-cancel-canary";
+import {tryFriendshipResponseCanary} from "@/lib/go-social-friend-response-canary";
 
 function token(req:NextRequest){
   const h=req.headers.get("authorization");
@@ -102,6 +103,10 @@ export async function POST(req:NextRequest){
   if(action==="cancel"&&await tryFriendshipCancelCanary(a.token,id)){
     return NextResponse.json({ok:true},{headers:{"Cache-Control":"no-store"}});
   }
+  if((action==="accept"||action==="decline")){
+    const canary=await tryFriendshipResponseCanary(a.token,id,action);
+    if(canary)return NextResponse.json(canary,{headers:{"Cache-Control":"no-store"}});
+  }
   const {data:rel}=await a.service.from("friendships").select("*").eq("id",id).maybeSingle();
   if(!rel){
     if(action==="cancel")return NextResponse.json({ok:true},{headers:{"Cache-Control":"no-store"}});
@@ -109,11 +114,13 @@ export async function POST(req:NextRequest){
   }
 
   if(action==="accept"||action==="decline"){
-    if(rel.addressee_id!==a.user.id||rel.status!=="pending")return NextResponse.json({error:"Нет доступа."},{status:403});
     const status=action==="accept"?"accepted":"declined";
+    if(rel.addressee_id!==a.user.id)return NextResponse.json({error:"Нет доступа."},{status:403});
+    if(rel.status===status)return NextResponse.json({ok:true,status},{headers:{"Cache-Control":"no-store"}});
+    if(rel.status!=="pending")return NextResponse.json({error:"Нет доступа."},{status:403});
     const {error}=await a.service.from("friendships").update({status,responded_at:new Date().toISOString()}).eq("id",id);
     if(error)return NextResponse.json({error:error.message},{status:500});
-    return NextResponse.json({ok:true,status});
+    return NextResponse.json({ok:true,status},{headers:{"Cache-Control":"no-store"}});
   }
 
   if(action==="cancel"){
