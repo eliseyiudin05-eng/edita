@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	version = "1.0.27"
+	version = "1.0.28"
 	commit  = "local"
 )
 
@@ -69,7 +69,7 @@ func main() {
 
 	var profileReader httpapi.LearningPreferencesReader
 	var academyReader httpapi.AcademyProgressReader
-	var practiceWriter httpapi.PracticeSessionWriter
+	var practiceStore httpapi.PracticeSessionStore
 	var socialReader httpapi.SocialRankingReader
 	var socialFriendsReader httpapi.SocialFriendsReader
 	var socialGroupsReader httpapi.SocialGroupsReader
@@ -108,7 +108,7 @@ func main() {
 			logger.Error("practice client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		practiceWriter = practiceClient
+		practiceStore = practiceClient
 
 		socialClient, err := social.NewClient(
 			cfg.SupabaseURL,
@@ -162,7 +162,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Practice: practiceWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
+			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,

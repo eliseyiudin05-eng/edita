@@ -1,6 +1,7 @@
-import {NextRequest,NextResponse} from "next/server";
+import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {tryPracticeSessionSaveCanary} from "@/lib/go-practice-session-canary";
+import {comparePracticeSessionWithGo,normalizePracticeSessionResponse,practiceSessionShadowEnabled} from "@/lib/go-practice-session-shadow";
 
 function bearer(req:NextRequest){
   const value=req.headers.get("authorization");
@@ -22,7 +23,10 @@ export async function GET(req:NextRequest){
     .eq("user_id",a.user.id)
     .maybeSingle();
   if(error)return NextResponse.json({error:"Ошибка загрузки тренировки."},{status:503});
-  return NextResponse.json({session:data||null});
+  const legacy=normalizePracticeSessionResponse(data);
+  if(!legacy)return NextResponse.json({error:"Данные тренировки повреждены."},{status:500});
+  if(practiceSessionShadowEnabled())after(()=>comparePracticeSessionWithGo(a.token,legacy));
+  return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(req:NextRequest){
