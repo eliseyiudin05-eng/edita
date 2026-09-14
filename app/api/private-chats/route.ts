@@ -1,7 +1,8 @@
-import {NextRequest,NextResponse} from "next/server";
+import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {findPrivateChatBlockReason,privateChatBlockMessage} from "@/lib/private-chat-moderation";
 import {ensurePrivateConversation} from "@/lib/private-chat-server";
+import {comparePrivateChatThreadWithGo,normalizePrivateChatThread,privateChatShadowEnabled} from "@/lib/go-private-chat-shadow";
 
 function accessToken(req:NextRequest){
   const value=req.headers.get("authorization");
@@ -9,14 +10,15 @@ function accessToken(req:NextRequest){
 }
 
 async function authenticate(req:NextRequest){
-  const user=await getUserFromAccessToken(accessToken(req));
+  const token=accessToken(req);
+  const user=await getUserFromAccessToken(token);
   const service=getSupabaseServiceClient();
   if(!user||!service)return null;
   const {data:profile}=await service.from("profiles")
     .select("id,role,display_name,username")
     .eq("id",user.id)
     .maybeSingle();
-  return profile?{user,service,profile}:null;
+  return profile?{user,service,profile,token}:null;
 }
 
 function canOpen(conversation:any,userId:string){
@@ -40,9 +42,13 @@ export async function GET(req:NextRequest){
       .select("id,conversation_id,sender_id,body,created_at")
       .eq("conversation_id",conversation.id)
       .order("created_at",{ascending:true})
+      .order("id",{ascending:true})
       .limit(200);
     if(error)return NextResponse.json({error:"Ошибка загрузки сообщений."},{status:500});
-    return NextResponse.json({viewerId:auth.user.id,conversation,messages:messages||[]});
+    const result=normalizePrivateChatThread({viewerId:auth.user.id,conversation,messages:messages||[]});
+    if(!result)return NextResponse.json({error:"Ошибка контракта закрытого чата."},{status:503});
+    if(privateChatShadowEnabled())after(()=>comparePrivateChatThreadWithGo(auth.token!,conversationId,result));
+    return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
   }
 
   const {data:conversations,error}=await auth.service.from("private_conversations")
