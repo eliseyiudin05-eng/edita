@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	version = "2.0.0-alpha.3"
+	version = "2.0.0-alpha.4"
 	commit  = "local"
 )
 
@@ -106,6 +106,14 @@ func main() {
 	var guardianVerificationReader httpapi.GuardianVerificationReader
 	var privateChatReader httpapi.PrivateChatReader
 	var aiHistoryReader httpapi.AIHistoryReader
+	if databasePool != nil {
+		profileReader = profile.NewPostgresRepository(databasePool.DB())
+		academyReader = academy.NewPostgresRepository(databasePool.DB())
+		practiceStore = practice.NewPostgresRepository(databasePool.DB())
+		planInterestWriter = plans.NewPostgresRepository(databasePool.DB())
+		aiFeedbackWriter = aifeedback.NewPostgresRepository(databasePool.DB())
+		aiHistoryReader = aihistory.NewPostgresRepository(databasePool.DB())
+	}
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
 			cfg.SupabaseURL,
@@ -116,7 +124,9 @@ func main() {
 			logger.Error("profile client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		profileReader = client
+		if profileReader == nil {
+			profileReader = client
+		}
 
 		academyClient, err := academy.NewClient(
 			cfg.SupabaseURL,
@@ -127,7 +137,9 @@ func main() {
 			logger.Error("academy client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		academyReader = academyClient
+		if academyReader == nil {
+			academyReader = academyClient
+		}
 
 		practiceClient, err := practice.NewClient(
 			cfg.SupabaseURL,
@@ -138,7 +150,9 @@ func main() {
 			logger.Error("practice client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		practiceStore = practiceClient
+		if practiceStore == nil {
+			practiceStore = practiceClient
+		}
 
 		plansClient, err := plans.NewClient(
 			cfg.SupabaseURL,
@@ -149,7 +163,9 @@ func main() {
 			logger.Error("plan interest client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		planInterestWriter = plansClient
+		if planInterestWriter == nil {
+			planInterestWriter = plansClient
+		}
 
 		aiFeedbackClient, err := aifeedback.NewClient(
 			cfg.SupabaseURL,
@@ -160,7 +176,9 @@ func main() {
 			logger.Error("AI feedback client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		aiFeedbackWriter = aiFeedbackClient
+		if aiFeedbackWriter == nil {
+			aiFeedbackWriter = aiFeedbackClient
+		}
 
 		socialClient, err := social.NewClient(
 			cfg.SupabaseURL,
@@ -250,7 +268,9 @@ func main() {
 			logger.Error("AI history client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		aiHistoryReader = aiHistoryClient
+		if aiHistoryReader == nil {
+			aiHistoryReader = aiHistoryClient
+		}
 	}
 
 	server := &http.Server{
