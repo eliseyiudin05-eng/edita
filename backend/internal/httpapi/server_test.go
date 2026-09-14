@@ -20,6 +20,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/editorverification"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/guardianverification"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
@@ -30,7 +31,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.36",
+		Version:      "1.0.37",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -64,7 +65,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.36"`) {
+	if !strings.Contains(body, `"version":"1.0.37"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -194,6 +195,19 @@ type fakeEditorVerificationReader struct {
 	err     error
 	token   string
 	subject string
+}
+
+type fakeGuardianVerificationReader struct {
+	result  guardianverification.Verification
+	err     error
+	token   string
+	subject string
+}
+
+func (reader *fakeGuardianVerificationReader) GetVerification(_ context.Context, token, subject string) (guardianverification.Verification, error) {
+	reader.token = token
+	reader.subject = subject
+	return reader.result, reader.err
 }
 
 func (reader *fakeEditorVerificationReader) GetVerification(_ context.Context, token, subject string) (editorverification.Verification, error) {
@@ -884,6 +898,41 @@ func TestEditorVerificationRequiresAuthAndOwnerScopedRead(t *testing.T) {
 	}
 	if strings.Contains(response.Body.String(), "123e4567-e89b-12d3-a456-426614174001") || strings.Contains(response.Body.String(), "user_id") {
 		t.Fatalf("response exposes owner identity: %s", response.Body.String())
+	}
+}
+
+func TestGuardianVerificationRequiresAuthAndOmitsPII(t *testing.T) {
+	reader := &fakeGuardianVerificationReader{result: guardianverification.Verification{Needed: true, Request: &guardianverification.VerificationRequest{Status: "pending"}}}
+	handler := New(Options{
+		Logger:               slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:                 claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174001", Role: "authenticated"}},
+		GuardianVerification: reader,
+		DependencyTimeout:    time.Second,
+	})
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/v1/guardian/verification", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d", unauthorized.Code)
+	}
+	invalid := httptest.NewRecorder()
+	invalidRequest := httptest.NewRequest(http.MethodGet, "/v1/guardian/verification?user_id=other", nil)
+	invalidRequest.Header.Set("Authorization", "Bearer signed.token.value")
+	handler.ServeHTTP(invalid, invalidRequest)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid query status = %d", invalid.Code)
+	}
+	request := httptest.NewRequest(http.MethodGet, "/v1/guardian/verification", nil)
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "123e4567-e89b-12d3-a456-426614174001" {
+		t.Fatalf("unexpected response: status=%d token=%q subject=%q body=%s", response.Code, reader.token, reader.subject, response.Body.String())
+	}
+	for _, forbidden := range []string{"123e4567-e89b-12d3-a456-426614174001", "user_id", "guardian_email", "guardian_name", "relationship", "method"} {
+		if strings.Contains(response.Body.String(), forbidden) {
+			t.Fatalf("response exposes sensitive value %q: %s", forbidden, response.Body.String())
+		}
 	}
 }
 

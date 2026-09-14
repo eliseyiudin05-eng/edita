@@ -1,5 +1,6 @@
-import {NextRequest,NextResponse} from "next/server";
+import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
+import {compareGuardianVerificationWithGo,guardianVerificationShadowEnabled,normalizeGuardianVerification} from "@/lib/go-guardian-verification-shadow";
 
 function tokenFrom(req:NextRequest){
   const bearer=req.headers.get("authorization");
@@ -7,7 +8,8 @@ function tokenFrom(req:NextRequest){
 }
 
 export async function GET(req:NextRequest){
-  const user=await getUserFromAccessToken(tokenFrom(req));
+  const accessToken=tokenFrom(req);
+  const user=await getUserFromAccessToken(accessToken);
   const service=getSupabaseServiceClient();
   if(!user||!service)return NextResponse.json({error:"Нужен вход в аккаунт."},{status:401});
 
@@ -16,17 +18,25 @@ export async function GET(req:NextRequest){
     .eq("id",user.id).maybeSingle();
 
   const ageGroup=profile?.onboarding?.ageGroup||"18+";
+  let request:null|{status:string;review_note:string|null}=null;
   if(profile?.role!=="editor"||ageGroup==="18+"){
-    return NextResponse.json({needed:false,verified:Boolean(profile?.guardian_verified),request:null});
+    const result=normalizeGuardianVerification({needed:false,verified:Boolean(profile?.guardian_verified),request});
+    if(!result)return NextResponse.json({error:"Не удалось загрузить статус подтверждения."},{status:503});
+    if(guardianVerificationShadowEnabled())after(()=>compareGuardianVerificationWithGo(accessToken!,result));
+    return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
   }
 
-  const {data:request}=await service.from("guardian_verification_requests")
-    .select("id,guardian_name,guardian_email,relationship,method,status,review_note,created_at,reviewed_at")
+  const {data}=await service.from("guardian_verification_requests")
+    .select("status,review_note")
     .eq("user_id",user.id)
     .order("created_at",{ascending:false})
     .limit(1).maybeSingle();
 
-  return NextResponse.json({needed:true,verified:Boolean(profile?.guardian_verified),request:request||null});
+  request=data||null;
+  const result=normalizeGuardianVerification({needed:true,verified:Boolean(profile?.guardian_verified),request});
+  if(!result)return NextResponse.json({error:"Не удалось загрузить статус подтверждения."},{status:503});
+  if(guardianVerificationShadowEnabled())after(()=>compareGuardianVerificationWithGo(accessToken!,result));
+  return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(req:NextRequest){
