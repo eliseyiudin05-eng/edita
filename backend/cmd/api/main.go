@@ -18,12 +18,13 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/config"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/database"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/httpapi"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
 )
 
 var (
-	version = "1.0.26"
+	version = "1.0.27"
 	commit  = "local"
 )
 
@@ -68,6 +69,7 @@ func main() {
 
 	var profileReader httpapi.LearningPreferencesReader
 	var academyReader httpapi.AcademyProgressReader
+	var practiceWriter httpapi.PracticeSessionWriter
 	var socialReader httpapi.SocialRankingReader
 	var socialFriendsReader httpapi.SocialFriendsReader
 	var socialGroupsReader httpapi.SocialGroupsReader
@@ -96,6 +98,17 @@ func main() {
 			os.Exit(1)
 		}
 		academyReader = academyClient
+
+		practiceClient, err := practice.NewClient(
+			cfg.SupabaseURL,
+			cfg.SupabasePublishableKey,
+			&http.Client{Timeout: cfg.AcademyHTTPTimeout},
+		)
+		if err != nil {
+			logger.Error("practice client configuration failed", "error", err)
+			os.Exit(1)
+		}
+		practiceWriter = practiceClient
 
 		socialClient, err := social.NewClient(
 			cfg.SupabaseURL,
@@ -149,7 +162,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
+			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Practice: practiceWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,

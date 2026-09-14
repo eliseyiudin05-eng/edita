@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.26)
+## Go migration boundary (v1.0.27)
 
 - Most production writes and all business decisions remain in Next.js/Supabase.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
@@ -101,6 +101,8 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Cancellation is idempotent across Go and legacy, so an ambiguous failure can retry safely. Sending friendship requests remains outside Go.
 - Incoming friendship acceptance and decline have a separate disabled-by-default 1–10% canary. UPDATE is limited to `status` and `responded_at`, while RLS `USING` and `WITH CHECK` bind both old and new rows to the verified addressee.
 - Repeating the same response is idempotent; switching a completed decision is forbidden. Sending friendship requests remains outside Go.
+- Practice-session saves have a separate disabled-by-default 1–10% canary. Go accepts only a bounded scenario, at most 50 messages and a bounded result, then derives `user_id` solely from the verified JWT subject.
+- The practice upsert uses the user's token and publishable key under owner-only SELECT/INSERT/UPDATE RLS. Column grants prevent ownership changes and Data API deletion; ambiguous failures safely retry through the idempotent legacy path.
 - The Go profile endpoint derives identity only from a locally verified access token, forwards that token to the Supabase Data API and filters on the same subject; the existing profile RLS policy remains active.
 - The profile response omits user identity and every unrelated profile/onboarding field.
 - Go connects to PostgreSQL through a bounded pool and requires encrypted database transport in production.

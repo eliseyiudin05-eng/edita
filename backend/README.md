@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.26
+## Stage v1.0.27
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -22,6 +22,7 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - `GET /v1/social/friends` reads at most 200 relations visible to the verified JWT subject under participant-only RLS;
 - `POST /v1/social/friends/cancel` idempotently deletes only the verified requester's pending relation;
 - `POST /v1/social/friends/respond` idempotently accepts or declines only the verified addressee's pending relation;
+- `POST /v1/practice/session` idempotently saves only the verified user's bounded training state under owner-only RLS;
 - friend-list output omits both participant UUIDs and keeps only the relationship ID required by the existing mutation route;
 - `GET /v1/social/groups` reads at most 20 groups and 500 members visible to the verified JWT subject under member-only RLS;
 - group profile lookups are chunked, and group creation, joining, and messages remain outside Go;
@@ -37,7 +38,7 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - `POST /v1/ai/conversations` idempotently gets or creates one owner-bound conversation under user RLS;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-Next.js remains the gateway and primary write authority. Profile, academy progress, social ranking, friend-list, study-group, business-verification, private-chat and AI-history reads can independently compare legacy and Go responses in shadow mode. Mature read routes may route a bounded 1–10% read-only canary to Go. Separate disabled-by-default canaries may route up to 10% of idempotent AI-history clears and conversation creation to Go; message writes and all financial requests remain outside Go.
+Next.js remains the gateway and primary write authority. Profile, academy progress, social ranking, friend-list, study-group, business-verification, private-chat and AI-history reads can independently compare legacy and Go responses in shadow mode. Mature read routes may route a bounded 1–10% read-only canary to Go. Separate disabled-by-default canaries may route up to 10% of supported idempotent writes, including practice-session saves; message writes and all financial requests remain outside Go.
 
 ## Run locally
 
@@ -65,6 +66,7 @@ Endpoints:
 - `GET /v1/ai/history?scope=<scope>` — returns one existing conversation history visible to its authenticated owner.
 - `DELETE /v1/ai/history?scope=<scope>` — idempotently clears messages from one conversation owned by the authenticated user.
 - `POST /v1/ai/conversations` — idempotently gets or creates one conversation owned by the authenticated user.
+- `POST /v1/practice/session` — idempotently saves the authenticated user's bounded training state.
 
 For a persistent IPv4-only Go service, use the Supabase session pooler URL (port `5432`). For a direct IPv6 connection, use the direct URL. The transaction pooler (port `6543`) is also supported; the driver automatically disables prepared statements for that mode. Keep the database password only in the deployment secret store.
 

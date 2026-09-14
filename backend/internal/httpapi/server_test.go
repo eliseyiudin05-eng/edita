@@ -18,6 +18,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
 )
@@ -26,7 +27,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.26",
+		Version:      "1.0.27",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -60,7 +61,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.26"`) {
+	if !strings.Contains(body, `"version":"1.0.27"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -98,6 +99,21 @@ type fakeAcademyReader struct {
 	err     error
 	token   string
 	subject string
+}
+
+type fakePracticeWriter struct {
+	result  practice.Response
+	err     error
+	token   string
+	subject string
+	session practice.Session
+}
+
+func (writer *fakePracticeWriter) SaveSession(_ context.Context, token, subject string, session practice.Session) (practice.Response, error) {
+	writer.token = token
+	writer.subject = subject
+	writer.session = session
+	return writer.result, writer.err
 }
 
 type fakeSocialReader struct {
@@ -228,6 +244,50 @@ func (reader *fakeAcademyReader) GetProgress(_ context.Context, token, subject s
 	reader.token = token
 	reader.subject = subject
 	return reader.result, reader.err
+}
+
+func TestPracticeSessionSaveUsesVerifiedSubject(t *testing.T) {
+	writer := &fakePracticeWriter{result: practice.Response{OK: true}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174000", Role: "authenticated"}},
+		Practice:          writer,
+		DependencyTimeout: time.Second,
+	})
+
+	unauthorized := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/v1/practice/session", strings.NewReader(`{"scenario":"brief","messages":[],"result":null}`))
+	request.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(unauthorized, request)
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d, want 401", unauthorized.Code)
+	}
+
+	response := httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodPost, "/v1/practice/session", strings.NewReader(`{"scenario":"brief","messages":[{"from":"user","text":"hello"}],"result":null}`))
+	request.Header.Set("Authorization", "Bearer access-token")
+	request.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || writer.token != "access-token" || writer.subject != "123e4567-e89b-12d3-a456-426614174000" || len(writer.session.Messages) != 1 {
+		t.Fatalf("status=%d token=%q subject=%q session=%+v body=%s", response.Code, writer.token, writer.subject, writer.session, response.Body.String())
+	}
+}
+
+func TestPracticeSessionSaveRejectsInvalidPayload(t *testing.T) {
+	writer := &fakePracticeWriter{result: practice.Response{OK: true}}
+	handler := New(Options{
+		Logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:     claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174000", Role: "authenticated"}},
+		Practice: writer,
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/v1/practice/session?user_id=other", strings.NewReader(`{"scenario":"brief","messages":[],"result":null}`))
+	request.Header.Set("Authorization", "Bearer access-token")
+	request.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d, want 400", response.Code)
+	}
 }
 
 func (reader *fakeProfileReader) GetLearningPreferences(_ context.Context, token, subject string) (profile.LearningPreferences, error) {

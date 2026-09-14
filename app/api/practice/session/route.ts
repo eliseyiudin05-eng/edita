@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
+import {tryPracticeSessionSaveCanary} from "@/lib/go-practice-session-canary";
 
 function bearer(req:NextRequest){
   const value=req.headers.get("authorization");
@@ -7,9 +8,10 @@ function bearer(req:NextRequest){
 }
 
 async function access(req:NextRequest){
-  const user=await getUserFromAccessToken(bearer(req));
+  const token=bearer(req);
+  const user=await getUserFromAccessToken(token);
   const service=getSupabaseServiceClient();
-  return user&&service?{user,service}:null;
+  return user&&service&&token?{user,service,token}:null;
 }
 
 export async function GET(req:NextRequest){
@@ -39,9 +41,13 @@ export async function POST(req:NextRequest){
     feedback:String(rawResult.feedback||"").slice(0,3000),
     better_answer:String(rawResult.better_answer||"").slice(0,3000)
   }:null;
+  const session={scenario,messages,result};
+  if(await tryPracticeSessionSaveCanary(a.token,session)){
+    return NextResponse.json({ok:true},{headers:{"Cache-Control":"no-store"}});
+  }
   const {error}=await a.service.from("practice_sessions").upsert({
-    user_id:a.user.id,scenario,messages,result,updated_at:new Date().toISOString()
+    user_id:a.user.id,...session,updated_at:new Date().toISOString()
   },{onConflict:"user_id"});
   if(error)return NextResponse.json({error:"Ошибка сохранения тренировки."},{status:503});
-  return NextResponse.json({ok:true});
+  return NextResponse.json({ok:true},{headers:{"Cache-Control":"no-store"}});
 }
