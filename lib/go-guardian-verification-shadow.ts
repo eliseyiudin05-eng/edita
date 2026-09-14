@@ -15,6 +15,8 @@ export function guardianVerificationShadowEnabled(){
   return process.env.GO_BACKEND_GUARDIAN_VERIFICATION_SHADOW_READS_ENABLED==="true"&&Boolean(endpoint());
 }
 
+export function goGuardianVerificationBackendConfigured(){return Boolean(endpoint())}
+
 export function normalizeGuardianVerification(value:unknown):GuardianVerificationResponse|null{
   if(!value||typeof value!=="object")return null;
   const row=value as Record<string,unknown>;
@@ -25,12 +27,16 @@ export function normalizeGuardianVerification(value:unknown):GuardianVerificatio
 }
 
 export async function compareGuardianVerificationWithGo(token:string,legacy:GuardianVerificationResponse){
-  const result=await readFromGo(token,shadowTimeout());
-  const outcome=result.ok?(JSON.stringify(result.value)===JSON.stringify(legacy)?"match":"mismatch"):result.outcome;
+  const result=await readGuardianVerificationFromGo(token,shadowTimeout());
+  const outcome=result.ok?(sameGuardianVerification(result.value,legacy)?"match":"mismatch"):result.outcome;
   console.info("go_guardian_verification_shadow",{route:"guardian_verification",outcome,duration_ms:result.durationMs});
 }
 
-async function readFromGo(token:string,timeoutMs:number):Promise<GoReadResult>{
+export function sameGuardianVerification(left:GuardianVerificationResponse,right:GuardianVerificationResponse){
+  return JSON.stringify(left)===JSON.stringify(right);
+}
+
+export async function readGuardianVerificationFromGo(token:string,timeoutMs:number):Promise<GoReadResult>{
   const started=Date.now();
   try{
     const target=endpoint();
