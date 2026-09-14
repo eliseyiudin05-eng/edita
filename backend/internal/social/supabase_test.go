@@ -131,6 +131,63 @@ func TestGetFriendshipsRejectsRelationOutsideVerifiedSubject(t *testing.T) {
 	}
 }
 
+func TestCancelFriendRequestUsesRequesterAndPendingFilters(t *testing.T) {
+	const viewer = "123e4567-e89b-12d3-a456-426614174000"
+	const other = "223e4567-e89b-12d3-a456-426614174001"
+	const relation = "323e4567-e89b-12d3-a456-426614174002"
+	requests := 0
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		if request.Header.Get("Authorization") != "Bearer access-token" || request.Header.Get("apikey") != "sb_publishable_test" {
+			t.Fatal("authentication headers missing")
+		}
+		if requests == 1 {
+			if request.Method != http.MethodGet || request.URL.Query().Get("id") != "eq."+relation || request.URL.Query().Get("limit") != "1" {
+				t.Fatalf("unexpected ownership check: %s %s", request.Method, request.URL.String())
+			}
+			body := `[{"id":"` + relation + `","requester_id":"` + viewer + `","addressee_id":"` + other + `","status":"pending","created_at":"2026-09-13T22:00:00Z"}]`
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+		}
+		query := request.URL.Query()
+		if request.Method != http.MethodDelete || query.Get("id") != "eq."+relation || query.Get("requester_id") != "eq."+viewer || query.Get("status") != "eq.pending" || request.Header.Get("Prefer") != "return=representation" {
+			t.Fatalf("delete is not explicitly scoped: %s %s headers=%v", request.Method, request.URL.String(), request.Header)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`[{"id":"` + relation + `"}]`)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.CancelFriendRequest(context.Background(), "access-token", viewer, relation); err != nil || requests != 2 {
+		t.Fatalf("error=%v requests=%d", err, requests)
+	}
+}
+
+func TestCancelFriendRequestIsIdempotentWhenRelationIsAbsent(t *testing.T) {
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`[]`)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.CancelFriendRequest(context.Background(), "access-token", "123e4567-e89b-12d3-a456-426614174000", "323e4567-e89b-12d3-a456-426614174002"); err != nil {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestCancelFriendRequestRejectsAddressee(t *testing.T) {
+	const viewer = "123e4567-e89b-12d3-a456-426614174000"
+	body := `[{"id":"323e4567-e89b-12d3-a456-426614174002","requester_id":"223e4567-e89b-12d3-a456-426614174001","addressee_id":"` + viewer + `","status":"pending","created_at":"2026-09-13T22:00:00Z"}]`
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.CancelFriendRequest(context.Background(), "access-token", viewer, "323e4567-e89b-12d3-a456-426614174002"); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
+	}
+}
+
 func TestGetGroupsUsesVerifiedMembershipAndBoundedQueries(t *testing.T) {
 	const viewer = "123e4567-e89b-12d3-a456-426614174000"
 	const other = "223e4567-e89b-12d3-a456-426614174001"

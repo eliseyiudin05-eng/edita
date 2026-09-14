@@ -47,6 +47,7 @@ type SocialRankingReader interface {
 
 type SocialFriendsReader interface {
 	GetFriendships(context.Context, string, string) (social.Friendships, error)
+	CancelFriendRequest(context.Context, string, string, string) error
 }
 
 type SocialGroupsReader interface {
@@ -154,6 +155,7 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/academy/progress", s.academyProgress)
 	mux.HandleFunc("/v1/social/ranking", s.socialRanking)
 	mux.HandleFunc("/v1/social/friends", s.socialFriendships)
+	mux.HandleFunc("/v1/social/friends/cancel", s.socialFriendshipCancel)
 	mux.HandleFunc("/v1/social/groups", s.socialGroupsList)
 	mux.HandleFunc("/v1/business/verification", s.businessVerification)
 	mux.HandleFunc("/v1/private-chats/thread", s.privateChatThread)
@@ -162,6 +164,69 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/ai/conversations", s.aiConversationEnsure)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) socialFriendshipCancel(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.auth == nil || s.socialFriends == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "social_friends_service_unavailable", "Friendship cancellation is temporarily unavailable.")
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	var input struct {
+		ID string `json:"id"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || !social.ValidRelationID(input.ID) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid friendship relation ID is required.")
+		return
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid friendship relation ID is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	err = s.socialFriends.CancelFriendRequest(ctx, token, claims.Subject, input.ID)
+	cancel()
+	if errors.Is(err, social.ErrForbidden) {
+		writeError(w, r, http.StatusForbidden, "friendship_cancel_forbidden", "Only the requester can cancel a pending friendship request.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "friendship_cancel_unavailable", "The friendship request could not be cancelled.")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 func (s *server) aiConversationEnsure(w http.ResponseWriter, r *http.Request) {

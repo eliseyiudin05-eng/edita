@@ -2,6 +2,7 @@ import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {compareSocialFriendsWithGo,normalizeSocialFriends,socialFriendsShadowEnabled} from "@/lib/go-social-friends-shadow";
 import {recordSocialFriendsCanaryComparison,socialFriendsCanaryEnabled,trySocialFriendsCanary} from "@/lib/go-social-friends-canary";
+import {tryFriendshipCancelCanary} from "@/lib/go-social-friend-cancel-canary";
 
 function token(req:NextRequest){
   const h=req.headers.get("authorization");
@@ -98,8 +99,14 @@ export async function POST(req:NextRequest){
   }
 
   const id=String(body?.id||"");
+  if(action==="cancel"&&await tryFriendshipCancelCanary(a.token,id)){
+    return NextResponse.json({ok:true},{headers:{"Cache-Control":"no-store"}});
+  }
   const {data:rel}=await a.service.from("friendships").select("*").eq("id",id).maybeSingle();
-  if(!rel)return NextResponse.json({error:"Запрос отсутствует."},{status:404});
+  if(!rel){
+    if(action==="cancel")return NextResponse.json({ok:true},{headers:{"Cache-Control":"no-store"}});
+    return NextResponse.json({error:"Запрос отсутствует."},{status:404});
+  }
 
   if(action==="accept"||action==="decline"){
     if(rel.addressee_id!==a.user.id||rel.status!=="pending")return NextResponse.json({error:"Нет доступа."},{status:403});
@@ -112,7 +119,7 @@ export async function POST(req:NextRequest){
   if(action==="cancel"){
     if(rel.requester_id!==a.user.id||rel.status!=="pending")return NextResponse.json({error:"Нет доступа."},{status:403});
     await a.service.from("friendships").delete().eq("id",id);
-    return NextResponse.json({ok:true});
+    return NextResponse.json({ok:true},{headers:{"Cache-Control":"no-store"}});
   }
 
   return NextResponse.json({error:"Неизвестное действие."},{status:400});
