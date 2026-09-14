@@ -26,7 +26,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.22",
+		Version:      "1.0.23",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -60,7 +60,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.22"`) {
+	if !strings.Contains(body, `"version":"1.0.23"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -152,6 +152,13 @@ func (reader *fakeAIHistoryReader) ClearHistory(_ context.Context, token, subjec
 	reader.scope = scope
 	reader.cleared = true
 	return reader.clearErr
+}
+
+func (reader *fakeAIHistoryReader) EnsureConversation(_ context.Context, token, subject string, input aihistory.EnsureConversationInput) (aihistory.Conversation, error) {
+	reader.token = token
+	reader.subject = subject
+	reader.scope = input.ScopeKey
+	return reader.result.Conversation, reader.err
 }
 
 func (reader *fakeAIHistoryReader) GetHistory(_ context.Context, token, subject, scope string) (aihistory.History, error) {
@@ -562,6 +569,37 @@ func TestAIHistoryDeleteRequiresAuthAndOwnerScopedQuery(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || !reader.cleared || reader.token != "signed.token.value" || reader.subject != "123e4567-e89b-12d3-a456-426614174001" || reader.scope != "main" || response.Body.String() != "{\"ok\":true}\n" {
 		t.Fatalf("unexpected response or reader arguments: status=%d cleared=%v token=%q subject=%q scope=%q body=%s", response.Code, reader.cleared, reader.token, reader.subject, reader.scope, response.Body.String())
+	}
+}
+
+func TestAIConversationEnsureRequiresAuthAndRejectsExtraInput(t *testing.T) {
+	reader := &fakeAIHistoryReader{result: aihistory.History{Conversation: aihistory.Conversation{ID: "223e4567-e89b-12d3-a456-426614174002", ScopeKey: "main", Title: "Помощник", UpdatedAt: "2026-09-14T00:00:00Z"}}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174001", Role: "authenticated"}},
+		AIHistory:         reader,
+		DependencyTimeout: time.Second,
+	})
+
+	invalid := httptest.NewRecorder()
+	invalidRequest := httptest.NewRequest(http.MethodPost, "/v1/ai/conversations", strings.NewReader(`{"scope_key":"main","title":"Помощник","user_id":"other"}`))
+	invalidRequest.Header.Set("Authorization", "Bearer signed.token.value")
+	invalidRequest.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(invalid, invalidRequest)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid status = %d body=%s", invalid.Code, invalid.Body.String())
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/v1/ai/conversations", strings.NewReader(`{"scope_key":"main","title":"Помощник","lesson_slug":null}`))
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "123e4567-e89b-12d3-a456-426614174001" || reader.scope != "main" {
+		t.Fatalf("unexpected response: status=%d token=%q subject=%q scope=%q body=%s", response.Code, reader.token, reader.subject, reader.scope, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "123e4567-e89b-12d3-a456-426614174001") || strings.Contains(response.Body.String(), "user_id") {
+		t.Fatalf("response exposes owner identity: %s", response.Body.String())
 	}
 }
 

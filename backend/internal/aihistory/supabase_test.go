@@ -121,6 +121,56 @@ func TestClearHistoryIsIdempotentWhenConversationIsMissing(t *testing.T) {
 	}
 }
 
+func TestEnsureConversationCreatesWithOwnerTokenAndBoundedFields(t *testing.T) {
+	const subject = "123e4567-e89b-12d3-a456-426614174001"
+	const conversation = "223e4567-e89b-12d3-a456-426614174002"
+	requests := 0
+	lesson := "cutting"
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		if request.Header.Get("Authorization") != "Bearer access-token" || request.Header.Get("apikey") != "sb_publishable_test" {
+			t.Fatal("authentication headers missing")
+		}
+		if requests == 1 {
+			if request.Method != http.MethodGet || request.URL.Query().Get("user_id") != "eq."+subject || request.URL.Query().Get("scope_key") != "eq.lesson:cutting" || request.URL.Query().Get("limit") != "1" {
+				t.Fatalf("unsafe lookup: %s %s", request.Method, request.URL.String())
+			}
+			return response(`[]`), nil
+		}
+		if request.Method != http.MethodPost || request.Header.Get("Content-Type") != "application/json" || request.Header.Get("Prefer") != "return=representation" || request.URL.Query().Get("select") != "id,user_id,scope_key,title,lesson_slug,updated_at" {
+			t.Fatalf("unsafe insert: %s %s", request.Method, request.URL.String())
+		}
+		body, _ := io.ReadAll(request.Body)
+		if !strings.Contains(string(body), `"user_id":"`+subject+`"`) || !strings.Contains(string(body), `"scope_key":"lesson:cutting"`) {
+			t.Fatalf("unsafe insert body: %s", body)
+		}
+		return &http.Response{StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader(`[{"id":"` + conversation + `","user_id":"` + subject + `","scope_key":"lesson:cutting","title":"Монтаж","lesson_slug":"cutting","updated_at":"2026-09-14T00:00:00Z"}]`)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := client.EnsureConversation(context.Background(), "access-token", subject, EnsureConversationInput{ScopeKey: "lesson:cutting", Title: "Монтаж", LessonSlug: &lesson})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requests != 2 || got.ID != conversation || got.ScopeKey != "lesson:cutting" || got.Title != "Монтаж" {
+		t.Fatalf("unexpected conversation: %+v", got)
+	}
+}
+
+func TestEnsureConversationRejectsInvalidInputWithoutRequest(t *testing.T) {
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		t.Fatal("request should not be sent")
+		return nil, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.EnsureConversation(context.Background(), "access-token", "123e4567-e89b-12d3-a456-426614174001", EnsureConversationInput{ScopeKey: "main", Title: ""}); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("error = %v, want ErrUnavailable", err)
+	}
+}
+
 func response(body string) *http.Response {
 	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}
 }

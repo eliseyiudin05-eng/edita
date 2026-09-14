@@ -1,6 +1,7 @@
 package aihistory
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -39,6 +40,12 @@ type Conversation struct {
 	Title      string  `json:"title"`
 	LessonSlug *string `json:"lesson_slug"`
 	UpdatedAt  string  `json:"updated_at"`
+}
+
+type EnsureConversationInput struct {
+	ScopeKey   string  `json:"scope_key"`
+	Title      string  `json:"title"`
+	LessonSlug *string `json:"lesson_slug"`
 }
 
 type Message struct {
@@ -203,6 +210,80 @@ func (c *Client) ClearHistory(ctx context.Context, accessToken, subject, scope s
 	return nil
 }
 
+func (c *Client) EnsureConversation(ctx context.Context, accessToken, subject string, input EnsureConversationInput) (Conversation, error) {
+	subject = strings.ToLower(strings.TrimSpace(subject))
+	if c == nil || strings.TrimSpace(accessToken) == "" || !validUUID(subject) || !ValidEnsureConversationInput(input) {
+		return Conversation{}, ErrUnavailable
+	}
+	if existing, found, err := c.findConversation(ctx, accessToken, subject, input.ScopeKey); err != nil {
+		return Conversation{}, err
+	} else if found {
+		return publicConversation(existing), nil
+	}
+
+	payload, err := json.Marshal(map[string]any{"user_id": subject, "scope_key": input.ScopeKey, "title": input.Title, "lesson_slug": input.LessonSlug})
+	if err != nil {
+		return Conversation{}, ErrUnavailable
+	}
+	query := url.Values{}
+	query.Set("select", "id,user_id,scope_key,title,lesson_slug,updated_at")
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.conversationsEndpoint+"?"+query.Encode(), bytes.NewReader(payload))
+	if err != nil {
+		return Conversation{}, ErrUnavailable
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	request.Header.Set("apikey", c.publishableKey)
+	request.Header.Set("Prefer", "return=representation")
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return Conversation{}, ErrUnavailable
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusConflict {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		existing, found, lookupErr := c.findConversation(ctx, accessToken, subject, input.ScopeKey)
+		if lookupErr != nil || !found {
+			return Conversation{}, ErrUnavailable
+		}
+		return publicConversation(existing), nil
+	}
+	if response.StatusCode != http.StatusCreated {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		return Conversation{}, ErrUnavailable
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, 32*1024+1))
+	var rows []conversationRow
+	if err != nil || len(body) > 32*1024 || json.Unmarshal(body, &rows) != nil || len(rows) != 1 || !validConversation(rows[0], subject, input.ScopeKey) {
+		return Conversation{}, ErrUnavailable
+	}
+	return publicConversation(rows[0]), nil
+}
+
+func (c *Client) findConversation(ctx context.Context, accessToken, subject, scope string) (conversationRow, bool, error) {
+	query := url.Values{}
+	query.Set("select", "id,user_id,scope_key,title,lesson_slug,updated_at")
+	query.Set("user_id", "eq."+subject)
+	query.Set("scope_key", "eq."+scope)
+	query.Set("limit", "1")
+	var rows []conversationRow
+	if err := c.getJSON(ctx, c.conversationsEndpoint+"?"+query.Encode(), accessToken, &rows); err != nil || len(rows) > 1 {
+		return conversationRow{}, false, ErrUnavailable
+	}
+	if len(rows) == 0 {
+		return conversationRow{}, false, nil
+	}
+	if !validConversation(rows[0], subject, scope) {
+		return conversationRow{}, false, ErrUnavailable
+	}
+	return rows[0], true, nil
+}
+
+func publicConversation(value conversationRow) Conversation {
+	return Conversation{ID: strings.ToLower(value.ID), ScopeKey: value.ScopeKey, Title: value.Title, LessonSlug: value.LessonSlug, UpdatedAt: value.UpdatedAt}
+}
+
 func (c *Client) getJSON(ctx context.Context, endpoint, accessToken string, target any) error {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -238,7 +319,10 @@ func validMessage(value messageRow, conversation conversationRow, subject string
 }
 
 func ValidScope(value string) bool { return scopePattern.MatchString(value) }
-func validUUID(value string) bool  { return uuidPattern.MatchString(strings.ToLower(value)) }
+func ValidEnsureConversationInput(value EnsureConversationInput) bool {
+	return ValidScope(value.ScopeKey) && validText(value.Title, 1, 120) && validOptionalText(value.LessonSlug, 120)
+}
+func validUUID(value string) bool { return uuidPattern.MatchString(strings.ToLower(value)) }
 func validText(value string, minimum, maximum int) bool {
 	length := utf8.RuneCountInString(value)
 	return utf8.ValidString(value) && length >= minimum && length <= maximum

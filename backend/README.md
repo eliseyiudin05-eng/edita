@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.22
+## Stage v1.0.23
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -31,9 +31,10 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - `GET /v1/ai/history` reads one owner-bound existing conversation and at most 80 messages under user RLS;
 - AI-history output omits owner IDs, database roles and message metadata, with a 2 MiB upstream response cap;
 - `DELETE /v1/ai/history` idempotently clears messages from one owner-bound conversation under user RLS without deleting the conversation;
+- `POST /v1/ai/conversations` idempotently gets or creates one owner-bound conversation under user RLS;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-Next.js remains the gateway and primary write authority. Profile, academy progress, social ranking, friend-list, study-group, business-verification, private-chat and AI-history reads can independently compare legacy and Go responses in shadow mode. Mature read routes may route a bounded 1–10% read-only canary to Go. A separate disabled-by-default canary may route up to 10% of idempotent AI-history clears to Go; every other write and all financial requests remain outside Go.
+Next.js remains the gateway and primary write authority. Profile, academy progress, social ranking, friend-list, study-group, business-verification, private-chat and AI-history reads can independently compare legacy and Go responses in shadow mode. Mature read routes may route a bounded 1–10% read-only canary to Go. Separate disabled-by-default canaries may route up to 10% of idempotent AI-history clears and conversation creation to Go; message writes and all financial requests remain outside Go.
 
 ## Run locally
 
@@ -60,6 +61,7 @@ Endpoints:
 - `GET /v1/private-chats` — returns a bounded conversation list visible to the authenticated participant.
 - `GET /v1/ai/history?scope=<scope>` — returns one existing conversation history visible to its authenticated owner.
 - `DELETE /v1/ai/history?scope=<scope>` — idempotently clears messages from one conversation owned by the authenticated user.
+- `POST /v1/ai/conversations` — idempotently gets or creates one conversation owned by the authenticated user.
 
 For a persistent IPv4-only Go service, use the Supabase session pooler URL (port `5432`). For a direct IPv6 connection, use the direct URL. The transaction pooler (port `6543`) is also supported; the driver automatically disables prepared statements for that mode. Keep the database password only in the deployment secret store.
 
@@ -86,3 +88,5 @@ For private-chat list shadow reads, deploy Go and keep `GO_BACKEND_PRIVATE_CHAT_
 For AI-history shadow reads, deploy Go and keep `GO_BACKEND_AI_HISTORY_SHADOW_READS_ENABLED=false` until the service is healthy. Enabling it compares the owner-visible result with `/v1/ai/history` only after Next.js has created a missing conversation if necessary and sent the legacy response. `GO_BACKEND_AI_HISTORY_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. Go forwards the user's token with the publishable key and explicitly filters both tables by the verified subject. The contract is capped at one conversation, 80 messages and 2 MiB; owner IDs, database roles and metadata are removed. Logs omit tokens, UUIDs, scopes, titles and message content. After stable comparisons, disable shadow mode, enable `GO_BACKEND_AI_HISTORY_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_AI_HISTORY_CANARY_PERCENT=1`. The percentage is hard-limited to 10. Timeout, malformed/oversized response, excessive latency, or an open circuit falls back within the same request. A 20% unhealthy rate in a 10–20 result window pauses the canary locally for five minutes; a mismatch opens it immediately. A missing conversation falls back to legacy creation without counting as a Go health failure. The environment flag is the global kill switch.
 
 For AI-history deletion, keep `GO_BACKEND_AI_HISTORY_DELETE_CANARY_ENABLED=false` until the read canary is healthy. Then begin at `GO_BACKEND_AI_HISTORY_DELETE_CANARY_PERCENT=1`, with a hard maximum of 10. Go verifies the token, derives the owner from its subject, forwards that user token with the publishable key, and applies explicit owner and conversation filters. It deletes only messages and preserves the conversation, matching legacy behavior. The operation is idempotent: timeout, error, malformed response or excessive latency safely retries through legacy in the same request. A 20% failure rate in a 10–20 result window opens a five-minute circuit; the flag is the global kill switch. Logs omit tokens, identities, scopes and message content. Message creation, feedback, attachments and model calls remain in Next.js/Supabase in v1.0.22.
+
+For AI-conversation creation, keep `GO_BACKEND_AI_CONVERSATION_CANARY_ENABLED=false` until AI-history writes are healthy, then begin at `GO_BACKEND_AI_CONVERSATION_CANARY_PERCENT=1`, capped at 10. The endpoint accepts only bounded scope, title and optional lesson slug fields. Identity comes solely from the verified token subject, and the user's token plus publishable key preserve owner-only RLS. Existing conversations are returned unchanged; a concurrent unique-key conflict is resolved by another owner-scoped read. Error, timeout, malformed response or excessive latency falls back to the idempotent legacy get-or-create operation in the same request. The five-minute circuit breaker opens at a 20% failure rate after at least 10 results. Logs omit all conversation data. Message writes, model calls, feedback, attachments and Points remain outside Go in v1.0.23.
