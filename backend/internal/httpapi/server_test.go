@@ -27,7 +27,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.27",
+		Version:      "1.0.28",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -61,7 +61,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.27"`) {
+	if !strings.Contains(body, `"version":"1.0.28"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -102,14 +102,21 @@ type fakeAcademyReader struct {
 }
 
 type fakePracticeWriter struct {
-	result  practice.Response
+	result  practice.SaveResponse
+	read    practice.ReadResponse
 	err     error
 	token   string
 	subject string
 	session practice.Session
 }
 
-func (writer *fakePracticeWriter) SaveSession(_ context.Context, token, subject string, session practice.Session) (practice.Response, error) {
+func (writer *fakePracticeWriter) GetSession(_ context.Context, token, subject string) (practice.ReadResponse, error) {
+	writer.token = token
+	writer.subject = subject
+	return writer.read, writer.err
+}
+
+func (writer *fakePracticeWriter) SaveSession(_ context.Context, token, subject string, session practice.Session) (practice.SaveResponse, error) {
 	writer.token = token
 	writer.subject = subject
 	writer.session = session
@@ -246,8 +253,27 @@ func (reader *fakeAcademyReader) GetProgress(_ context.Context, token, subject s
 	return reader.result, reader.err
 }
 
+func TestPracticeSessionReadUsesVerifiedSubject(t *testing.T) {
+	writer := &fakePracticeWriter{read: practice.ReadResponse{Session: &practice.StoredSession{
+		Session: practice.Session{Scenario: "brief", Messages: []practice.Message{}}, UpdatedAt: "2026-09-14T10:00:00Z",
+	}}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174000", Role: "authenticated"}},
+		Practice:          writer,
+		DependencyTimeout: time.Second,
+	})
+	request := httptest.NewRequest(http.MethodGet, "/v1/practice/session", nil)
+	request.Header.Set("Authorization", "Bearer access-token")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || writer.token != "access-token" || writer.subject != "123e4567-e89b-12d3-a456-426614174000" || strings.Contains(response.Body.String(), writer.subject) {
+		t.Fatalf("status=%d token=%q subject=%q body=%s", response.Code, writer.token, writer.subject, response.Body.String())
+	}
+}
+
 func TestPracticeSessionSaveUsesVerifiedSubject(t *testing.T) {
-	writer := &fakePracticeWriter{result: practice.Response{OK: true}}
+	writer := &fakePracticeWriter{result: practice.SaveResponse{OK: true}}
 	handler := New(Options{
 		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Auth:              claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174000", Role: "authenticated"}},
@@ -274,7 +300,7 @@ func TestPracticeSessionSaveUsesVerifiedSubject(t *testing.T) {
 }
 
 func TestPracticeSessionSaveRejectsInvalidPayload(t *testing.T) {
-	writer := &fakePracticeWriter{result: practice.Response{OK: true}}
+	writer := &fakePracticeWriter{result: practice.SaveResponse{OK: true}}
 	handler := New(Options{
 		Logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Auth:     claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174000", Role: "authenticated"}},

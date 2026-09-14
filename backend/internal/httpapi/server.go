@@ -42,8 +42,9 @@ type AcademyProgressReader interface {
 	GetProgress(context.Context, string, string) (academy.Progress, error)
 }
 
-type PracticeSessionWriter interface {
-	SaveSession(context.Context, string, string, practice.Session) (practice.Response, error)
+type PracticeSessionStore interface {
+	GetSession(context.Context, string, string) (practice.ReadResponse, error)
+	SaveSession(context.Context, string, string, practice.Session) (practice.SaveResponse, error)
 }
 
 type SocialRankingReader interface {
@@ -86,7 +87,7 @@ type Options struct {
 	Auth              TokenVerifier
 	Profiles          LearningPreferencesReader
 	Academy           AcademyProgressReader
-	Practice          PracticeSessionWriter
+	Practice          PracticeSessionStore
 	Social            SocialRankingReader
 	SocialFriends     SocialFriendsReader
 	SocialGroups      SocialGroupsReader
@@ -106,7 +107,7 @@ type server struct {
 	auth              TokenVerifier
 	profiles          LearningPreferencesReader
 	academy           AcademyProgressReader
-	practice          PracticeSessionWriter
+	practice          PracticeSessionStore
 	social            SocialRankingReader
 	socialFriends     SocialFriendsReader
 	socialGroups      SocialGroupsReader
@@ -162,7 +163,7 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/diagnostics/auth", s.authDiagnostic)
 	mux.HandleFunc("/v1/profile/learning-preferences", s.learningPreferences)
 	mux.HandleFunc("/v1/academy/progress", s.academyProgress)
-	mux.HandleFunc("/v1/practice/session", s.practiceSessionSave)
+	mux.HandleFunc("/v1/practice/session", s.practiceSession)
 	mux.HandleFunc("/v1/social/ranking", s.socialRanking)
 	mux.HandleFunc("/v1/social/friends", s.socialFriendships)
 	mux.HandleFunc("/v1/social/friends/cancel", s.socialFriendshipCancel)
@@ -177,16 +178,18 @@ func New(options Options) http.Handler {
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
 }
 
-func (s *server) practiceSessionSave(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodPost) {
+func (s *server) practiceSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
 		return
 	}
 	if s.auth == nil || s.practice == nil {
 		writeError(w, r, http.StatusServiceUnavailable, "practice_service_unavailable", "Practice session saving is temporarily unavailable.")
 		return
 	}
-	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
-		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+	if r.URL.RawQuery != "" || (r.Method == http.MethodPost && !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json")) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not accepted and writes require a JSON body.")
 		return
 	}
 	token, ok := bearerToken(r.Header.Get("Authorization"))
@@ -195,19 +198,21 @@ func (s *server) practiceSessionSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input practice.Session
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&input); err != nil || !practice.ValidSession(input) {
-		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid bounded practice session is required.")
-		return
-	}
-	var extra any
-	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
-		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid bounded practice session is required.")
-		return
-	}
-	if input.Messages == nil {
-		input.Messages = []practice.Message{}
+	if r.Method == http.MethodPost {
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&input); err != nil || !practice.ValidSession(input) {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid bounded practice session is required.")
+			return
+		}
+		var extra any
+		if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid bounded practice session is required.")
+			return
+		}
+		if input.Messages == nil {
+			input.Messages = []practice.Message{}
+		}
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
 	claims, err := s.auth.Verify(ctx, token)
@@ -227,6 +232,16 @@ func (s *server) practiceSessionSave(w http.ResponseWriter, r *http.Request) {
 	}
 	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
 		state.authenticated = true
+	}
+	if r.Method == http.MethodGet {
+		result, err := s.practice.GetSession(ctx, token, claims.Subject)
+		cancel()
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "practice_read_unavailable", "The practice session could not be loaded.")
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+		return
 	}
 	result, err := s.practice.SaveSession(ctx, token, claims.Subject, input)
 	cancel()

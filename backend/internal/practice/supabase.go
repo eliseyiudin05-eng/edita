@@ -19,7 +19,10 @@ var ErrUnavailable = errors.New("practice session service unavailable")
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
-const maxResponseBytes = 8 * 1024
+const (
+	maxErrorResponseBytes = 8 * 1024
+	maxReadResponseBytes  = 256 * 1024
+)
 
 type Message struct {
 	From string `json:"from"`
@@ -39,8 +42,17 @@ type Session struct {
 	Result   *Result   `json:"result"`
 }
 
-type Response struct {
+type SaveResponse struct {
 	OK bool `json:"ok"`
+}
+
+type StoredSession struct {
+	Session
+	UpdatedAt string `json:"updated_at"`
+}
+
+type ReadResponse struct {
+	Session *StoredSession `json:"session"`
 }
 
 type Client struct {
@@ -88,10 +100,62 @@ func ValidSession(value Session) bool {
 		!math.IsNaN(value.Result.Score) && !math.IsInf(value.Result.Score, 0) && value.Result.Score >= 0 && value.Result.Score <= 100
 }
 
-func (c *Client) SaveSession(ctx context.Context, accessToken, subject string, session Session) (Response, error) {
+func (c *Client) GetSession(ctx context.Context, accessToken, subject string) (ReadResponse, error) {
+	subject = strings.ToLower(strings.TrimSpace(subject))
+	if c == nil || strings.TrimSpace(accessToken) == "" || !uuidPattern.MatchString(subject) {
+		return ReadResponse{}, ErrUnavailable
+	}
+	query := url.Values{}
+	query.Set("select", "user_id,scenario,messages,result,updated_at")
+	query.Set("user_id", "eq."+subject)
+	query.Set("limit", "1")
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.endpoint+"?"+query.Encode(), nil)
+	if err != nil {
+		return ReadResponse{}, ErrUnavailable
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	request.Header.Set("apikey", c.publishableKey)
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return ReadResponse{}, ErrUnavailable
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, maxErrorResponseBytes))
+		return ReadResponse{}, ErrUnavailable
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxReadResponseBytes+1))
+	if err != nil || len(body) > maxReadResponseBytes {
+		return ReadResponse{}, ErrUnavailable
+	}
+	var rows []struct {
+		UserID string `json:"user_id"`
+		StoredSession
+	}
+	if json.Unmarshal(body, &rows) != nil || len(rows) > 1 {
+		return ReadResponse{}, ErrUnavailable
+	}
+	if len(rows) == 0 {
+		return ReadResponse{Session: nil}, nil
+	}
+	row := rows[0]
+	if strings.ToLower(row.UserID) != subject || !ValidSession(row.Session) {
+		return ReadResponse{}, ErrUnavailable
+	}
+	if _, err := time.Parse(time.RFC3339Nano, row.UpdatedAt); err != nil {
+		return ReadResponse{}, ErrUnavailable
+	}
+	if row.Messages == nil {
+		row.Messages = []Message{}
+	}
+	return ReadResponse{Session: &row.StoredSession}, nil
+}
+
+func (c *Client) SaveSession(ctx context.Context, accessToken, subject string, session Session) (SaveResponse, error) {
 	subject = strings.ToLower(strings.TrimSpace(subject))
 	if c == nil || strings.TrimSpace(accessToken) == "" || !uuidPattern.MatchString(subject) || !ValidSession(session) {
-		return Response{}, ErrUnavailable
+		return SaveResponse{}, ErrUnavailable
 	}
 	if session.Messages == nil {
 		session.Messages = []Message{}
@@ -107,13 +171,13 @@ func (c *Client) SaveSession(ctx context.Context, accessToken, subject string, s
 		Result: session.Result, UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	})
 	if err != nil {
-		return Response{}, ErrUnavailable
+		return SaveResponse{}, ErrUnavailable
 	}
 	query := url.Values{}
 	query.Set("on_conflict", "user_id")
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint+"?"+query.Encode(), bytes.NewReader(payload))
 	if err != nil {
-		return Response{}, ErrUnavailable
+		return SaveResponse{}, ErrUnavailable
 	}
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Content-Type", "application/json")
@@ -122,12 +186,12 @@ func (c *Client) SaveSession(ctx context.Context, accessToken, subject string, s
 	request.Header.Set("Prefer", "resolution=merge-duplicates,return=minimal")
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		return Response{}, ErrUnavailable
+		return SaveResponse{}, ErrUnavailable
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusCreated && response.StatusCode != http.StatusOK && response.StatusCode != http.StatusNoContent {
-		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, maxResponseBytes))
-		return Response{}, ErrUnavailable
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, maxErrorResponseBytes))
+		return SaveResponse{}, ErrUnavailable
 	}
-	return Response{OK: true}, nil
+	return SaveResponse{OK: true}, nil
 }
