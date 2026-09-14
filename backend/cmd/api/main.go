@@ -15,6 +15,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/aihistory"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/businessdiscussion"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/config"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/database"
@@ -28,7 +29,7 @@ import (
 )
 
 var (
-	version = "1.0.38"
+	version = "1.0.39"
 	commit  = "local"
 )
 
@@ -80,6 +81,7 @@ func main() {
 	var socialFriendsReader httpapi.SocialFriendsReader
 	var socialGroupsReader httpapi.SocialGroupsReader
 	var businessReader httpapi.BusinessVerificationReader
+	var businessDiscussionReader httpapi.BusinessDiscussionReader
 	var editorVerificationReader httpapi.EditorVerificationReader
 	var guardianVerificationReader httpapi.GuardianVerificationReader
 	var privateChatReader httpapi.PrivateChatReader
@@ -164,6 +166,17 @@ func main() {
 		}
 		businessReader = businessClient
 
+		businessDiscussionClient, err := businessdiscussion.NewClient(
+			cfg.SupabaseURL,
+			cfg.SupabasePublishableKey,
+			&http.Client{Timeout: cfg.BusinessHTTPTimeout},
+		)
+		if err != nil {
+			logger.Error("business discussion client configuration failed", "error", err)
+			os.Exit(1)
+		}
+		businessDiscussionReader = businessDiscussionClient
+
 		editorVerificationClient, err := editorverification.NewClient(
 			cfg.SupabaseURL,
 			cfg.SupabasePublishableKey,
@@ -214,7 +227,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, AIFeedback: aiFeedbackWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, EditorVerification: editorVerificationReader, GuardianVerification: guardianVerificationReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
+			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, AIFeedback: aiFeedbackWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, BusinessDiscussion: businessDiscussionReader, EditorVerification: editorVerificationReader, GuardianVerification: guardianVerificationReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
