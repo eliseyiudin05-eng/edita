@@ -89,6 +89,7 @@ type BusinessDiscussionStore interface {
 type EditorDiscussionStore interface {
 	GetDiscussion(context.Context, string, string) (editordiscussion.Discussion, error)
 	CreateMessage(context.Context, string, string, editordiscussion.CreateMessageInput) (editordiscussion.CreateMessageResponse, error)
+	Enroll(context.Context, string, string) (editordiscussion.EnrollResponse, error)
 }
 
 type EditorVerificationReader interface {
@@ -227,6 +228,7 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/business/verification", s.businessVerification)
 	mux.HandleFunc("/v1/community/business-discussion", s.businessDiscussionList)
 	mux.HandleFunc("/v1/community/editor-discussion", s.editorDiscussionList)
+	mux.HandleFunc("/v1/community/editor-discussion/enroll", s.editorDiscussionEnroll)
 	mux.HandleFunc("/v1/editor/verification", s.editorVerificationStatus)
 	mux.HandleFunc("/v1/guardian/verification", s.guardianVerificationStatus)
 	mux.HandleFunc("/v1/private-chats/thread", s.privateChatThread)
@@ -1061,6 +1063,51 @@ func (s *server) editorDiscussionList(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		writeError(w, r, http.StatusServiceUnavailable, "editor_discussion_service_unavailable", "Editor discussion is temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) editorDiscussionEnroll(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if r.URL.RawQuery != "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not allowed.")
+		return
+	}
+	if s.auth == nil || s.editorDiscussion == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "editor_discussion_service_unavailable", "Editor discussion is temporarily unavailable.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.editorDiscussion.Enroll(ctx, token, claims.Subject)
+	cancel()
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "editor_discussion_enrollment_unavailable", "Editor discussion enrollment is temporarily unavailable.")
 		return
 	}
 	writeJSON(w, http.StatusOK, result)

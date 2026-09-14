@@ -41,6 +41,10 @@ type CreateMessageResponse struct {
 	OK bool `json:"ok"`
 }
 
+type EnrollResponse struct {
+	OK bool `json:"ok"`
+}
+
 type Message struct {
 	ID        string  `json:"id"`
 	Content   string  `json:"content"`
@@ -230,6 +234,51 @@ func (c *Client) CreateMessage(ctx context.Context, accessToken, subject string,
 		return CreateMessageResponse{}, ErrConflict
 	}
 	return CreateMessageResponse{OK: true}, nil
+}
+
+func (c *Client) Enroll(ctx context.Context, accessToken, subject string) (EnrollResponse, error) {
+	subject = strings.ToLower(strings.TrimSpace(subject))
+	if c == nil || strings.TrimSpace(accessToken) == "" || !uuidPattern.MatchString(subject) {
+		return EnrollResponse{}, ErrUnavailable
+	}
+	payload, err := json.Marshal(membershipRow{TopicKey: topic, UserID: subject})
+	if err != nil {
+		return EnrollResponse{}, ErrUnavailable
+	}
+	query := url.Values{}
+	query.Set("on_conflict", "topic_key,user_id")
+	query.Set("select", "topic_key,user_id")
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.membersEndpoint+"?"+query.Encode(), bytes.NewReader(payload))
+	if err != nil {
+		return EnrollResponse{}, ErrUnavailable
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Prefer", "resolution=ignore-duplicates,return=representation")
+	c.authorize(request, accessToken)
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return EnrollResponse{}, ErrUnavailable
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		return EnrollResponse{}, ErrUnavailable
+	}
+	var rows []membershipRow
+	if err := decodeBounded(response.Body, 8*1024, &rows); err != nil || len(rows) > 1 {
+		return EnrollResponse{}, ErrUnavailable
+	}
+	if len(rows) == 0 {
+		if err := c.requireMembership(ctx, accessToken, subject); err != nil {
+			return EnrollResponse{}, err
+		}
+		return EnrollResponse{OK: true}, nil
+	}
+	if rows[0].TopicKey != topic || strings.ToLower(rows[0].UserID) != subject {
+		return EnrollResponse{}, ErrUnavailable
+	}
+	return EnrollResponse{OK: true}, nil
 }
 
 func (c *Client) requireMembership(ctx context.Context, accessToken, subject string) error {

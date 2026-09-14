@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.45)
+## Go migration boundary (v1.0.46)
 
 - Most production writes and all business decisions remain in Next.js/Supabase.
 - Simple AI feedback may use a disabled-by-default 1–10% Go canary after owner and assistant-message verification; feedback that queues learning candidates always remains on the legacy server path.
@@ -69,6 +69,8 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Editor-discussion reads may use a separate disabled-by-default 1–10% Go canary after shadow validation. Invalid, slow or failed responses fall back to the already computed legacy feed; mismatch or repeated failures open the five-minute circuit.
 - Editor-discussion writes may use a separate disabled-by-default 1–10% Go canary after legacy membership enrollment and content moderation. A single server-generated UUID is reused by Go and legacy fallback to make ambiguous retries idempotent.
 - Go fixes editor-discussion author, topic and status from the verified JWT and server constants. Column-scoped INSERT grants plus permissive and restrictive membership policies prevent cross-user and cross-topic writes.
+- Editor-discussion enrollment may use a disabled-by-default 1–10% Go canary. Go fixes both the JWT-owned user and topic, while column grants and dual RLS policies prevent enrollment of another account or another topic.
+- Enrollment is idempotent through the existing composite primary key; every Go failure falls back to the current service-role upsert in the same request.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
 - Shadow reads remain available. A separate, disabled-by-default canary may serve at most 10% of this one read-only route from Go.
 - Every canary failure, timeout, oversized or malformed response, or response above the configured latency ceiling falls back to the existing Supabase read in the same request.

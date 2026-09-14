@@ -167,6 +167,53 @@ func TestCreateMessageVerifiesExistingRowAndRejectsConflict(t *testing.T) {
 	}
 }
 
+func TestEnrollUsesVerifiedSubjectAndFixedTopic(t *testing.T) {
+	const subject = "123e4567-e89b-12d3-a456-426614174001"
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.Method != http.MethodPost || request.URL.Path != "/rest/v1/discussion_members" || request.URL.Query().Get("on_conflict") != "topic_key,user_id" {
+			t.Fatalf("unsafe enrollment request: %s %s", request.Method, request.URL.String())
+		}
+		if request.Header.Get("Authorization") != "Bearer access-token" || request.Header.Get("apikey") != "sb_publishable_test" || request.Header.Get("Prefer") != "resolution=ignore-duplicates,return=representation" {
+			t.Fatal("safe enrollment headers missing")
+		}
+		body, _ := io.ReadAll(request.Body)
+		var payload membershipRow
+		if json.Unmarshal(body, &payload) != nil || payload.TopicKey != topic || payload.UserID != subject {
+			t.Fatalf("unsafe enrollment payload: %s", body)
+		}
+		return response(`[{"topic_key":"editors-in-cinema","user_id":"` + subject + `"}]`), nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := client.Enroll(context.Background(), "access-token", subject)
+	if err != nil || !got.OK {
+		t.Fatalf("result=%+v error=%v", got, err)
+	}
+}
+
+func TestEnrollVerifiesExistingMembershipAfterRetry(t *testing.T) {
+	const subject = "123e4567-e89b-12d3-a456-426614174001"
+	requests := 0
+	client, err := NewClient("https://project.supabase.co", "key", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		if requests == 1 {
+			return response(`[]`), nil
+		}
+		if request.Method != http.MethodGet || request.URL.Query().Get("topic_key") != "eq.editors-in-cinema" || request.URL.Query().Get("user_id") != "eq."+subject {
+			t.Fatalf("retry verification is not owner-scoped: %s %s", request.Method, request.URL.String())
+		}
+		return response(`[{"topic_key":"editors-in-cinema","user_id":"` + subject + `"}]`), nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := client.Enroll(context.Background(), "token", subject)
+	if err != nil || !got.OK || requests != 2 {
+		t.Fatalf("result=%+v requests=%d error=%v", got, requests, err)
+	}
+}
+
 func response(body string) *http.Response {
 	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}
 }

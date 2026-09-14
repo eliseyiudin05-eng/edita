@@ -1,5 +1,5 @@
 begin;
-select plan(10);
+select plan(11);
 
 select ok(
   (select relrowsecurity from pg_class where oid='public.discussion_members'::regclass),
@@ -31,8 +31,10 @@ select ok(
 select ok(
   has_column_privilege('authenticated','public.discussion_members','topic_key','select')
   and has_column_privilege('authenticated','public.discussion_members','user_id','select')
+  and has_column_privilege('authenticated','public.discussion_members','topic_key','insert')
+  and has_column_privilege('authenticated','public.discussion_members','user_id','insert')
   and not has_column_privilege('authenticated','public.discussion_members','joined_at','select'),
-  'membership reads expose only the two required columns'
+  'membership reads and enrollment expose only the two required columns'
 );
 select ok(
   has_column_privilege('authenticated','public.discussion_messages','id','select')
@@ -59,6 +61,11 @@ select is(
   (select count(*)::integer from pg_policies where schemaname='public' and tablename='discussion_messages' and cmd='INSERT' and policyname like 'editor discussion%'),
   2,
   'message inserts have permissive and restrictive member boundaries'
+);
+select is(
+  (select count(*)::integer from pg_policies where schemaname='public' and tablename='discussion_members' and cmd='INSERT' and policyname like 'editor discussion%'),
+  2,
+  'membership enrollment has permissive and restrictive owner boundaries'
 );
 
 select * from finish();

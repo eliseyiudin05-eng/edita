@@ -5,6 +5,7 @@ import {moderateGroupMessage} from "@/lib/content-moderation";
 import {compareEditorDiscussionWithGo,editorDiscussionShadowEnabled,normalizeEditorDiscussion} from "@/lib/go-editor-discussion-shadow";
 import {editorDiscussionCanaryEnabled,recordEditorDiscussionCanaryComparison,tryEditorDiscussionCanary} from "@/lib/go-editor-discussion-canary";
 import {tryEditorDiscussionWriteCanary} from "@/lib/go-editor-discussion-write-canary";
+import {tryEditorDiscussionEnrollmentCanary} from "@/lib/go-editor-discussion-enrollment-canary";
 
 const TOPIC="editors-in-cinema";
 
@@ -20,7 +21,8 @@ async function authorized(req:NextRequest){
   return user&&service&&token?{user,service,token}:null;
 }
 
-async function enroll(service:any,userId:string){
+async function enroll(service:any,userId:string,token:string){
+  if(await tryEditorDiscussionEnrollmentCanary(token))return;
   const {error}=await service.from("discussion_members").upsert(
     {topic_key:TOPIC,user_id:userId},
     {onConflict:"topic_key,user_id"}
@@ -55,7 +57,7 @@ export async function GET(req:NextRequest){
   const auth=await authorized(req);
   if(!auth)return NextResponse.json({error:"Обсуждение доступно только после входа."},{status:401});
   try{
-    await enroll(auth.service,auth.user.id);
+    await enroll(auth.service,auth.user.id,auth.token);
     const legacy=normalizeEditorDiscussion({messages:await listMessages(auth.service)});
     if(!legacy)throw new Error("invalid discussion response");
     const canary=await tryEditorDiscussionCanary(auth.token);
@@ -83,7 +85,7 @@ export async function POST(req:NextRequest){
 
   const id=randomUUID();
   try{
-    await enroll(auth.service,auth.user.id);
+    await enroll(auth.service,auth.user.id,auth.token);
     const savedByGo=await tryEditorDiscussionWriteCanary(auth.token,id,content);
     if(!savedByGo){
       const {error}=await auth.service.from("discussion_messages").upsert({
