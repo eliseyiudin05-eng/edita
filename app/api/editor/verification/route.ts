@@ -1,5 +1,6 @@
-import {NextRequest,NextResponse} from "next/server";
+import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
+import {compareEditorVerificationWithGo,editorVerificationShadowEnabled,normalizeEditorVerification} from "@/lib/go-editor-verification-shadow";
 
 function token(req:NextRequest){
   const h=req.headers.get("authorization");
@@ -7,7 +8,8 @@ function token(req:NextRequest){
 }
 
 export async function GET(req:NextRequest){
-  const user=await getUserFromAccessToken(token(req));
+  const accessToken=token(req);
+  const user=await getUserFromAccessToken(accessToken);
   const service=getSupabaseServiceClient();
   if(!user||!service)return NextResponse.json({error:"Нужен вход."},{status:401});
 
@@ -22,13 +24,16 @@ export async function GET(req:NextRequest){
     .order("created_at",{ascending:false})
     .limit(1).maybeSingle();
 
-  return NextResponse.json({
+  const result=normalizeEditorVerification({
     emailVerified:Boolean(user.email_confirmed_at),
     ageGroup:profile?.onboarding?.ageGroup||"18+",
     guardianVerified:Boolean(profile?.guardian_verified),
     level:profile?.editor_verification_level||"basic",
     request:request||null
   });
+  if(!result)return NextResponse.json({error:"Не удалось загрузить статус проверки."},{status:503});
+  if(editorVerificationShadowEnabled())after(()=>compareEditorVerificationWithGo(accessToken!,result));
+  return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(req:NextRequest){

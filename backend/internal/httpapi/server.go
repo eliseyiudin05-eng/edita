@@ -20,6 +20,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/editorverification"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
@@ -77,6 +78,10 @@ type BusinessVerificationReader interface {
 	GetVerification(context.Context, string, string) (business.Verification, error)
 }
 
+type EditorVerificationReader interface {
+	GetVerification(context.Context, string, string) (editorverification.Verification, error)
+}
+
 type PrivateChatReader interface {
 	GetThread(context.Context, string, string, string) (chat.Thread, error)
 	ListConversations(context.Context, string, string) (chat.ConversationList, error)
@@ -89,47 +94,49 @@ type AIHistoryReader interface {
 }
 
 type Options struct {
-	Logger            *slog.Logger
-	Environment       string
-	Version           string
-	Commit            string
-	MaxBodyBytes      int64
-	DependencyTimeout time.Duration
-	Database          Pinger
-	Auth              TokenVerifier
-	Profiles          LearningPreferencesReader
-	Academy           AcademyProgressReader
-	Practice          PracticeSessionStore
-	Plans             PlanInterestWriter
-	AIFeedback        AIFeedbackWriter
-	Social            SocialRankingReader
-	SocialFriends     SocialFriendsReader
-	SocialGroups      SocialGroupsReader
-	Business          BusinessVerificationReader
-	PrivateChats      PrivateChatReader
-	AIHistory         AIHistoryReader
+	Logger             *slog.Logger
+	Environment        string
+	Version            string
+	Commit             string
+	MaxBodyBytes       int64
+	DependencyTimeout  time.Duration
+	Database           Pinger
+	Auth               TokenVerifier
+	Profiles           LearningPreferencesReader
+	Academy            AcademyProgressReader
+	Practice           PracticeSessionStore
+	Plans              PlanInterestWriter
+	AIFeedback         AIFeedbackWriter
+	Social             SocialRankingReader
+	SocialFriends      SocialFriendsReader
+	SocialGroups       SocialGroupsReader
+	Business           BusinessVerificationReader
+	EditorVerification EditorVerificationReader
+	PrivateChats       PrivateChatReader
+	AIHistory          AIHistoryReader
 }
 
 type server struct {
-	logger            *slog.Logger
-	environment       string
-	version           string
-	commit            string
-	maxBodyBytes      int64
-	dependencyTimeout time.Duration
-	database          Pinger
-	auth              TokenVerifier
-	profiles          LearningPreferencesReader
-	academy           AcademyProgressReader
-	practice          PracticeSessionStore
-	plans             PlanInterestWriter
-	aiFeedback        AIFeedbackWriter
-	social            SocialRankingReader
-	socialFriends     SocialFriendsReader
-	socialGroups      SocialGroupsReader
-	business          BusinessVerificationReader
-	privateChats      PrivateChatReader
-	aiHistory         AIHistoryReader
+	logger             *slog.Logger
+	environment        string
+	version            string
+	commit             string
+	maxBodyBytes       int64
+	dependencyTimeout  time.Duration
+	database           Pinger
+	auth               TokenVerifier
+	profiles           LearningPreferencesReader
+	academy            AcademyProgressReader
+	practice           PracticeSessionStore
+	plans              PlanInterestWriter
+	aiFeedback         AIFeedbackWriter
+	social             SocialRankingReader
+	socialFriends      SocialFriendsReader
+	socialGroups       SocialGroupsReader
+	business           BusinessVerificationReader
+	editorVerification EditorVerificationReader
+	privateChats       PrivateChatReader
+	aiHistory          AIHistoryReader
 }
 
 type contextKey string
@@ -153,25 +160,26 @@ func New(options Options) http.Handler {
 	}
 
 	s := &server{
-		logger:            logger,
-		environment:       options.Environment,
-		version:           options.Version,
-		commit:            options.Commit,
-		maxBodyBytes:      options.MaxBodyBytes,
-		dependencyTimeout: options.DependencyTimeout,
-		database:          options.Database,
-		auth:              options.Auth,
-		profiles:          options.Profiles,
-		academy:           options.Academy,
-		practice:          options.Practice,
-		plans:             options.Plans,
-		aiFeedback:        options.AIFeedback,
-		social:            options.Social,
-		socialFriends:     options.SocialFriends,
-		socialGroups:      options.SocialGroups,
-		business:          options.Business,
-		privateChats:      options.PrivateChats,
-		aiHistory:         options.AIHistory,
+		logger:             logger,
+		environment:        options.Environment,
+		version:            options.Version,
+		commit:             options.Commit,
+		maxBodyBytes:       options.MaxBodyBytes,
+		dependencyTimeout:  options.DependencyTimeout,
+		database:           options.Database,
+		auth:               options.Auth,
+		profiles:           options.Profiles,
+		academy:            options.Academy,
+		practice:           options.Practice,
+		plans:              options.Plans,
+		aiFeedback:         options.AIFeedback,
+		social:             options.Social,
+		socialFriends:      options.SocialFriends,
+		socialGroups:       options.SocialGroups,
+		business:           options.Business,
+		editorVerification: options.EditorVerification,
+		privateChats:       options.PrivateChats,
+		aiHistory:          options.AIHistory,
 	}
 
 	mux := http.NewServeMux()
@@ -191,6 +199,7 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/social/friends/respond", s.socialFriendshipRespond)
 	mux.HandleFunc("/v1/social/groups", s.socialGroupsList)
 	mux.HandleFunc("/v1/business/verification", s.businessVerification)
+	mux.HandleFunc("/v1/editor/verification", s.editorVerificationStatus)
 	mux.HandleFunc("/v1/private-chats/thread", s.privateChatThread)
 	mux.HandleFunc("/v1/private-chats", s.privateChatList)
 	mux.HandleFunc("/v1/ai/history", s.aiHistoryRoute)
@@ -857,6 +866,55 @@ func (s *server) businessVerification(w http.ResponseWriter, r *http.Request) {
 	cancel()
 	if err != nil {
 		writeError(w, r, http.StatusServiceUnavailable, "business_service_unavailable", "Business verification is temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) editorVerificationStatus(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	if r.URL.RawQuery != "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not allowed.")
+		return
+	}
+	if s.auth == nil || s.editorVerification == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "editor_verification_service_unavailable", "Editor verification is temporarily unavailable.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.editorVerification.GetVerification(ctx, token, claims.Subject)
+	cancel()
+	if errors.Is(err, editorverification.ErrForbidden) {
+		writeError(w, r, http.StatusForbidden, "editor_role_required", "The editor role is required.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "editor_verification_service_unavailable", "Editor verification is temporarily unavailable.")
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
