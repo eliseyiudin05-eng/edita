@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	version = "2.0.0-alpha.4"
+	version = "2.0.0-alpha.5"
 	commit  = "local"
 )
 
@@ -113,6 +113,10 @@ func main() {
 		planInterestWriter = plans.NewPostgresRepository(databasePool.DB())
 		aiFeedbackWriter = aifeedback.NewPostgresRepository(databasePool.DB())
 		aiHistoryReader = aihistory.NewPostgresRepository(databasePool.DB())
+		socialRepository := social.NewPostgresRepository(databasePool.DB())
+		socialReader = socialRepository
+		socialFriendsReader = socialRepository
+		socialGroupsReader = socialRepository
 	}
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
@@ -189,9 +193,11 @@ func main() {
 			logger.Error("social client configuration failed", "error", err)
 			os.Exit(1)
 		}
-		socialReader = socialClient
-		socialFriendsReader = socialClient
-		socialGroupsReader = socialClient
+		if socialReader == nil {
+			socialReader = socialClient
+			socialFriendsReader = socialClient
+			socialGroupsReader = socialClient
+		}
 
 		businessClient, err := business.NewClient(
 			cfg.SupabaseURL,
