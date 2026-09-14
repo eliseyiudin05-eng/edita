@@ -16,6 +16,7 @@ import (
 
 var (
 	ErrForbidden   = errors.New("social operation forbidden")
+	ErrNotFound    = errors.New("social relation not found")
 	ErrUnavailable = errors.New("social service unavailable")
 )
 
@@ -38,6 +39,11 @@ type Ranking struct {
 
 type Friendships struct {
 	Relations []FriendRelation `json:"relations"`
+}
+
+type FriendshipResponse struct {
+	OK     bool   `json:"ok"`
+	Status string `json:"status"`
 }
 
 type FriendRelation struct {
@@ -493,6 +499,88 @@ func (c *Client) CancelFriendRequest(ctx context.Context, accessToken, subject, 
 		return ErrUnavailable
 	}
 	return nil
+}
+
+func (c *Client) RespondToFriendRequest(ctx context.Context, accessToken, subject, relationID, action string) (FriendshipResponse, error) {
+	subject = strings.ToLower(strings.TrimSpace(subject))
+	relationID = strings.ToLower(strings.TrimSpace(relationID))
+	status := ""
+	if action == "accept" {
+		status = "accepted"
+	} else if action == "decline" {
+		status = "declined"
+	}
+	if c == nil || strings.TrimSpace(accessToken) == "" || !uuidPattern.MatchString(subject) || !uuidPattern.MatchString(relationID) || status == "" {
+		return FriendshipResponse{}, ErrUnavailable
+	}
+
+	readQuery := url.Values{}
+	readQuery.Set("select", "id,requester_id,addressee_id,status,created_at")
+	readQuery.Set("id", "eq."+relationID)
+	readQuery.Set("limit", "1")
+	var rows []friendshipRow
+	if err := c.getJSON(ctx, c.friendsEndpoint+"?"+readQuery.Encode(), accessToken, &rows); err != nil || len(rows) > 1 {
+		return FriendshipResponse{}, ErrUnavailable
+	}
+	if len(rows) == 0 {
+		return FriendshipResponse{}, ErrNotFound
+	}
+	row := rows[0]
+	if !validFriendshipRow(row, subject) || strings.ToLower(row.AddresseeID) != subject {
+		return FriendshipResponse{}, ErrForbidden
+	}
+	if row.Status == status {
+		return FriendshipResponse{OK: true, Status: status}, nil
+	}
+	if row.Status != "pending" {
+		return FriendshipResponse{}, ErrForbidden
+	}
+
+	payload, err := json.Marshal(map[string]string{"status": status, "responded_at": time.Now().UTC().Format(time.RFC3339Nano)})
+	if err != nil {
+		return FriendshipResponse{}, ErrUnavailable
+	}
+	updateQuery := url.Values{}
+	updateQuery.Set("select", "id,status")
+	updateQuery.Set("id", "eq."+relationID)
+	updateQuery.Set("addressee_id", "eq."+subject)
+	updateQuery.Set("status", "eq.pending")
+	request, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.friendsEndpoint+"?"+updateQuery.Encode(), strings.NewReader(string(payload)))
+	if err != nil {
+		return FriendshipResponse{}, ErrUnavailable
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Prefer", "return=representation")
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	request.Header.Set("apikey", c.publishableKey)
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return FriendshipResponse{}, ErrUnavailable
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		return FriendshipResponse{}, ErrUnavailable
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, 16*1024+1))
+	if err != nil || len(body) > 16*1024 {
+		return FriendshipResponse{}, ErrUnavailable
+	}
+	var updated []struct {
+		ID     string `json:"id"`
+		Status string `json:"status"`
+	}
+	if json.Unmarshal(body, &updated) != nil || len(updated) > 1 {
+		return FriendshipResponse{}, ErrUnavailable
+	}
+	if len(updated) == 0 {
+		return FriendshipResponse{}, ErrForbidden
+	}
+	if strings.ToLower(updated[0].ID) != relationID || updated[0].Status != status {
+		return FriendshipResponse{}, ErrUnavailable
+	}
+	return FriendshipResponse{OK: true, Status: status}, nil
 }
 
 func (c *Client) getJSON(ctx context.Context, endpoint, accessToken string, destination any) error {

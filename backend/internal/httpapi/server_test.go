@@ -26,7 +26,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.25",
+		Version:      "1.0.26",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -60,7 +60,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.25"`) {
+	if !strings.Contains(body, `"version":"1.0.26"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -109,10 +109,12 @@ type fakeSocialReader struct {
 
 type fakeSocialFriendsReader struct {
 	result   social.Friendships
+	response social.FriendshipResponse
 	err      error
 	token    string
 	subject  string
 	cancelID string
+	action   string
 }
 
 type fakeSocialGroupsReader struct {
@@ -206,6 +208,14 @@ func (reader *fakeSocialFriendsReader) CancelFriendRequest(_ context.Context, to
 	reader.subject = subject
 	reader.cancelID = relationID
 	return reader.err
+}
+
+func (reader *fakeSocialFriendsReader) RespondToFriendRequest(_ context.Context, token, subject, relationID, action string) (social.FriendshipResponse, error) {
+	reader.token = token
+	reader.subject = subject
+	reader.cancelID = relationID
+	reader.action = action
+	return reader.response, reader.err
 }
 
 func (reader *fakeSocialReader) GetRanking(_ context.Context, token, subject string) (social.Ranking, error) {
@@ -427,6 +437,25 @@ func TestSocialFriendshipCancelUsesVerifiedSubjectAndRejectsExtraInput(t *testin
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "123e4567-e89b-12d3-a456-426614174000" || reader.cancelID != relationID || response.Body.String() != "{\"ok\":true}\n" {
 		t.Fatalf("unexpected cancellation: status=%d token=%q subject=%q cancelID=%q body=%s", response.Code, reader.token, reader.subject, reader.cancelID, response.Body.String())
+	}
+}
+
+func TestSocialFriendshipRespondUsesVerifiedSubject(t *testing.T) {
+	const relationID = "323e4567-e89b-12d3-a456-426614174002"
+	reader := &fakeSocialFriendsReader{response: social.FriendshipResponse{OK: true, Status: "accepted"}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174000", Role: "authenticated"}},
+		SocialFriends:     reader,
+		DependencyTimeout: time.Second,
+	})
+	request := httptest.NewRequest(http.MethodPost, "/v1/social/friends/respond", strings.NewReader(`{"id":"`+relationID+`","action":"accept"}`))
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.subject != "123e4567-e89b-12d3-a456-426614174000" || reader.cancelID != relationID || reader.action != "accept" || response.Body.String() != "{\"ok\":true,\"status\":\"accepted\"}\n" {
+		t.Fatalf("unexpected response: status=%d subject=%q id=%q action=%q body=%s", response.Code, reader.subject, reader.cancelID, reader.action, response.Body.String())
 	}
 }
 
