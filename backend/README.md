@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.31
+## Stage v1.0.32
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -12,6 +12,7 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - readiness checks the database without exposing connection details;
 - a protected diagnostic endpoint verifies authentication without returning user identity;
 - `GET /v1/profile/learning-preferences` reads only the JWT subject's profile through the Supabase Data API;
+- `GET /v1/profile/settings` reads only the editable, non-sensitive settings of the JWT subject's profile;
 - `POST /v1/profile/learning-preferences` updates only the editor's own onboarding preferences under RLS;
 - the user's bearer token is forwarded to Supabase so the existing `auth.uid() = id` RLS policy is enforced;
 - only `role`, `level`, `software`, and `goal` are returned; identity and unrelated onboarding fields are omitted;
@@ -59,6 +60,7 @@ Endpoints:
 - `GET /v1/meta` — non-sensitive build metadata.
 - `GET /v1/diagnostics/auth` — verifies `Authorization: Bearer <access-token>` and returns no claims or identity.
 - `GET /v1/profile/learning-preferences` — returns the authenticated user's normalized learning preferences.
+- `GET /v1/profile/settings` — returns the authenticated user's bounded editable profile settings without an owner ID.
 - `GET /v1/academy/progress` — returns the authenticated user's completed lesson slugs and derived XP.
 - `GET /v1/social/ranking` — returns a bounded ranking of public profiles without database identifiers.
 - `GET /v1/social/friends` — returns only the authenticated user's bounded friend list without participant UUIDs.

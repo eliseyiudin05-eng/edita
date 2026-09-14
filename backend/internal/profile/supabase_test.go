@@ -84,6 +84,38 @@ func TestGetLearningPreferencesDoesNotFollowRedirects(t *testing.T) {
 	}
 }
 
+func TestGetPublicSettingsUsesOwnerFilterAndOmitsIdentity(t *testing.T) {
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.Method != http.MethodGet || request.URL.Query().Get("id") != "eq.user-id" || request.URL.Query().Get("limit") != "1" {
+			t.Fatalf("unexpected owner query: %s %s", request.Method, request.URL.String())
+		}
+		if request.Header.Get("Authorization") != "Bearer access-token" || request.Header.Get("apikey") != "sb_publishable_test" {
+			t.Fatal("authentication headers missing")
+		}
+		body := `[{"id":"user-id","display_name":"Elisey","username":"elisey","school_name":"RUDN","avatar_url":"https://example.test/avatar.webp","show_school_publicly":true}]`
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := client.GetPublicSettings(context.Background(), "access-token", "user-id")
+	if err != nil || got.DisplayName != "Elisey" || got.Username != "elisey" || got.SchoolName != "RUDN" || !got.ShowSchoolPublicly {
+		t.Fatalf("settings=%+v error=%v", got, err)
+	}
+}
+
+func TestGetPublicSettingsRejectsUnexpectedIdentity(t *testing.T) {
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`[{"id":"other-user"}]`)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.GetPublicSettings(context.Background(), "access-token", "user-id"); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("error=%v, want ErrUnavailable", err)
+	}
+}
+
 func TestUpdateLearningPreferencesPreservesOnboardingAndUsesOwnerFilter(t *testing.T) {
 	requests := 0
 	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {

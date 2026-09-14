@@ -19,11 +19,13 @@ export default function ProfileEditor({onSaved}:{onSaved?:(profile:ProfileForm)=
       const supabase=getSupabaseBrowserClient();
       const {data:{user}}=await supabase.auth.getUser();
       if(!user){if(active){setMessage("Войди в аккаунт, чтобы изменить профиль.");setLoading(false)};return;}
-      const {data}=await supabase.from("profiles")
-        .select("display_name,username,school_name,avatar_url,show_school_publicly")
-        .eq("id",user.id).maybeSingle();
+      const {data:{session}}=await supabase.auth.getSession();
+      if(!session?.access_token){if(active){setMessage("Сессия закончилась. Войди снова.");setLoading(false)};return;}
+      const response=await fetch("/api/profile/settings",{headers:{Authorization:`Bearer ${session.access_token}`},cache:"no-store"});
+      const data=response.ok?await response.json().catch(()=>null):null;
       if(active){
-        setForm({displayName:data?.display_name||"",username:data?.username||"",schoolName:data?.school_name||"",avatarUrl:data?.avatar_url||"",showSchoolPublicly:Boolean(data?.show_school_publicly)});
+        if(!data)setMessage("Не удалось загрузить профиль.");
+        else setForm({displayName:data.displayName||"",username:data.username||"",schoolName:data.schoolName||"",avatarUrl:data.avatarUrl||"",showSchoolPublicly:Boolean(data.showSchoolPublicly)});
         setLoading(false);
       }
     }

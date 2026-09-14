@@ -37,6 +37,7 @@ type TokenVerifier interface {
 
 type LearningPreferencesReader interface {
 	GetLearningPreferences(context.Context, string, string) (profile.LearningPreferences, error)
+	GetPublicSettings(context.Context, string, string) (profile.PublicSettings, error)
 	UpdateLearningPreferences(context.Context, string, string, profile.Preferences) (profile.UpdateLearningPreferencesResponse, error)
 }
 
@@ -178,6 +179,7 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/meta", s.meta)
 	mux.HandleFunc("/v1/diagnostics/auth", s.authDiagnostic)
 	mux.HandleFunc("/v1/profile/learning-preferences", s.learningPreferences)
+	mux.HandleFunc("/v1/profile/settings", s.profileSettings)
 	mux.HandleFunc("/v1/academy/progress", s.academyProgress)
 	mux.HandleFunc("/v1/practice/session", s.practiceSession)
 	mux.HandleFunc("/v1/plans/interest", s.planInterest)
@@ -194,6 +196,55 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/ai/conversations", s.aiConversationEnsure)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) profileSettings(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	if s.auth == nil || s.profiles == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "profile_service_unavailable", "Profile settings are temporarily unavailable.")
+		return
+	}
+	if r.URL.RawQuery != "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not accepted.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.profiles.GetPublicSettings(ctx, token, claims.Subject)
+	cancel()
+	if errors.Is(err, profile.ErrNotFound) {
+		writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "profile_read_unavailable", "Profile settings could not be loaded.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *server) aiFeedbackRoute(w http.ResponseWriter, r *http.Request) {
