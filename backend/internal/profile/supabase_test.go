@@ -83,3 +83,49 @@ func TestGetLearningPreferencesDoesNotFollowRedirects(t *testing.T) {
 		t.Fatalf("requests = %d, redirect was followed", requests)
 	}
 }
+
+func TestUpdateLearningPreferencesPreservesOnboardingAndUsesOwnerFilter(t *testing.T) {
+	requests := 0
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		if request.URL.Query().Get("id") != "eq.user-id" || request.Header.Get("Authorization") != "Bearer access-token" {
+			t.Fatalf("owner filter or authentication missing: %s", request.URL.String())
+		}
+		if requests == 1 {
+			if request.Method != http.MethodGet {
+				t.Fatalf("method = %s, want GET", request.Method)
+			}
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`[{"id":"user-id","role":"editor","onboarding":{"ageGroup":"18+","level":"new"}}]`)), Header: make(http.Header)}, nil
+		}
+		if request.Method != http.MethodPatch || request.Header.Get("Prefer") != "return=representation" {
+			t.Fatalf("unexpected update request: method=%s headers=%v", request.Method, request.Header)
+		}
+		body, _ := io.ReadAll(request.Body)
+		for _, expected := range []string{`"ageGroup":"18+"`, `"level":"pro"`, `"software":"Resolve"`, `"goal":"work"`} {
+			if !strings.Contains(string(body), expected) {
+				t.Fatalf("update body %s does not contain %s", body, expected)
+			}
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`[{"id":"user-id","onboarding":{"ageGroup":"18+","level":"pro","software":"Resolve","goal":"work"}}]`)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := client.UpdateLearningPreferences(context.Background(), "access-token", "user-id", Preferences{Level: "pro", Software: "Resolve", Goal: "work"})
+	if err != nil || !got.OK || got.Onboarding["ageGroup"] != "18+" || requests != 2 {
+		t.Fatalf("result=%+v requests=%d error=%v", got, requests, err)
+	}
+}
+
+func TestUpdateLearningPreferencesRejectsNonEditor(t *testing.T) {
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`[{"id":"user-id","role":"business","onboarding":{}}]`)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.UpdateLearningPreferences(context.Background(), "access-token", "user-id", Preferences{}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("error = %v, want ErrForbidden", err)
+	}
+}

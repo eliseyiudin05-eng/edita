@@ -45,9 +45,9 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.23)
+## Go migration boundary (v1.0.24)
 
-- Production writes and business decisions remain in Next.js/Supabase.
+- Most production writes and all business decisions remain in Next.js/Supabase.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
 - Shadow reads remain available. A separate, disabled-by-default canary may serve at most 10% of this one read-only route from Go.
 - Every canary failure, timeout, oversized or malformed response, or response above the configured latency ceiling falls back to the existing Supabase read in the same request.
@@ -95,6 +95,8 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - The clear uses the verified user's token, publishable key, explicit owner filters and existing delete RLS. Because it is idempotent, ambiguous failures safely retry through legacy; a dedicated circuit breaker and kill switch provide rollback.
 - AI-conversation creation has a separate disabled-by-default 1–10% canary. Go accepts only bounded conversation fields and derives ownership solely from the verified JWT subject.
 - Conversation get-or-create is idempotent under the existing `(user_id, scope_key)` unique constraint. Ambiguous failures and concurrent insert conflicts safely resolve through owner-scoped reads or the legacy path.
+- Learning-preferences updates have a separate disabled-by-default 1–10% canary. Go derives the profile owner from the verified JWT and updates only that owner's `onboarding` under column grants and RLS.
+- The update preserves unrelated onboarding fields and is idempotent, so an ambiguous failure safely retries through legacy; logs omit identity and preference values.
 - The Go profile endpoint derives identity only from a locally verified access token, forwards that token to the Supabase Data API and filters on the same subject; the existing profile RLS policy remains active.
 - The profile response omits user identity and every unrelated profile/onboarding field.
 - Go connects to PostgreSQL through a bounded pool and requires encrypted database transport in production.

@@ -2,6 +2,7 @@ import {after,NextRequest,NextResponse} from "next/server";
 import {getProfileLearningPreferences,getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {compareLearningPreferencesWithGo,learningPreferencesShadowEnabled,normalizeLearningPreferences} from "@/lib/go-profile-shadow";
 import {learningPreferencesCanaryEnabled,recordLearningPreferencesCanaryComparison,tryLearningPreferencesCanary} from "@/lib/go-profile-canary";
+import {tryLearningPreferencesUpdateCanary} from "@/lib/go-profile-update-canary";
 
 function accessToken(req:NextRequest){
   const header=req.headers.get("authorization")||"";
@@ -39,7 +40,8 @@ export async function GET(req:NextRequest){
 }
 
 export async function POST(req:NextRequest){
-  const user=await getUserFromAccessToken(accessToken(req));
+	const token=accessToken(req);
+	const user=await getUserFromAccessToken(token);
   const service=getSupabaseServiceClient();
   if(!user||!service)return NextResponse.json({error:"Нужен вход."},{status:401});
 
@@ -48,6 +50,11 @@ export async function POST(req:NextRequest){
   const software=String(body?.software||"").slice(0,80);
   const goal=String(body?.goal||"").slice(0,80);
 
+  if(token){
+    const canary=await tryLearningPreferencesUpdateCanary(token,{level,software,goal});
+    if(canary)return NextResponse.json(canary,{headers:{"Cache-Control":"no-store"}});
+  }
+
   const {data:profile}=await service.from("profiles").select("role,onboarding").eq("id",user.id).maybeSingle();
   if(!profile)return NextResponse.json({error:"Профиль отсутствует."},{status:404});
   if(profile.role!=="editor")return NextResponse.json({error:"Эти настройки доступны только монтажёру."},{status:403});
@@ -55,5 +62,5 @@ export async function POST(req:NextRequest){
   const onboarding={...(profile.onboarding||{}),level,software,goal};
   const {error}=await service.from("profiles").update({onboarding}).eq("id",user.id);
   if(error)return NextResponse.json({error:error.message},{status:500});
-  return NextResponse.json({ok:true,onboarding});
+  return NextResponse.json({ok:true,onboarding},{headers:{"Cache-Control":"no-store"}});
 }
