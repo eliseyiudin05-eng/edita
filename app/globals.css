@@ -478,3 +478,30 @@ h1,h2,h3{text-wrap:balance}.landing p,.legal-page p{text-wrap:pretty}
 @media(max-width:1050px){.business-kpi-grid{grid-template-columns:1fr 1fr}.business-dashboard-grid{grid-template-columns:1fr}}
 @media(max-width:720px){.business-hero-panel{grid-template-columns:1fr;padding:22px}.business-score-orbit{width:130px;height:130px;justify-self:start}.business-score-orbit strong{font-size:38px}.business-kpi-grid{grid-template-columns:1fr 1fr}.business-kpi-grid article{min-height:135px;padding:16px}.business-quick-actions{grid-template-columns:1fr}.business-hero-panel .lesson-actions{display:grid}.business-hero-panel .btn{width:100%}}
 @media(max-width:430px){.business-kpi-grid{grid-template-columns:1fr}.business-kpi-grid article{min-height:120px}.business-hero-panel h2{font-size:30px}}
+
+/* v2.0.0-alpha.14: readable Cyrillic typography on narrow screens. */
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-kerning:normal;text-rendering:optimizeLegibility}
+
+@media(max-width:650px){
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  body{font-size:16px;line-height:1.55}
+  h1,h2,h3,.hero h1,.hero-new h1,.section h2,.business-band h2,.visual-grid h2,.page h1,.auth-card h1,.legal-shell h1,.pricing-shell>h1,.portfolio-hero h1,.onboarding-card h1,.upgrade-card h2,.review-upload h2,.tour-card h2,.business-hero-panel h2,.founder-line-inner strong{
+    letter-spacing:normal;
+    line-height:1.12;
+    overflow-wrap:break-word;
+  }
+  p,li,dd,summary,button,a,label,input,textarea,select,span,strong,small{
+    word-spacing:normal;
+  }
+  p,li,dd,.hero-copy,.section-lead,.sub,.card p,.feature-card p,.founder-line-inner p,.business-hero-panel p{
+    line-height:1.6;
+    overflow-wrap:anywhere;
+  }
+  .hero-new h1{font-size:clamp(40px,11.5vw,54px)}
+  .section h2,.business-band h2,.visual-grid h2{font-size:clamp(32px,9vw,44px)}
+  .hero-copy,.section-lead,.business-hero-panel p{font-size:16px}
+  .muted,.card p,.feature-card p,.steps-road p,.audience-grid p,.safety-grid p,.faq-grid p{font-size:15px}
+  .eyebrow,.section-kicker{font-size:12px;letter-spacing:.07em;line-height:1.45}
+  .btn,button,input,textarea,select{font-size:16px;line-height:1.35}
+  .simple-proof span,.tag,.brand-home small{letter-spacing:normal;line-height:1.35}
+}

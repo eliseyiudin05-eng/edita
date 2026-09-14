@@ -5,7 +5,7 @@ import BackToTop from "@/components/back-to-top";
 import {KIVRONIX_SITE_URL} from "@/lib/public-config";
 
 const siteUrl=KIVRONIX_SITE_URL;
-const siteDescription="Платформа для тех, кто хочет научиться монтировать видео с нуля. Простые уроки, задания, помощник, разбор роликов, конкурсы и вакансии. Ранний доступ открыт бесплатно.";
+const siteDescription="Платформа для обучения видеомонтажу и поиска монтажёров. Новички осваивают профессию, профессионалы находят проекты, а компании выбирают исполнителей по опыту и портфолио.";
 
 // A small inline safety net keeps the platform readable when a browser, VPN,
 // or stale cache temporarily fails to download Next.js' hashed CSS bundle.
@@ -13,7 +13,7 @@ const siteDescription="Платформа для тех, кто хочет на�
 // soon as the full stylesheet is available.
 const fallbackStyles=`
 :where(*){box-sizing:border-box}
-:where(body){margin:0;background:#f5f5f2;color:#111;font-family:Inter,Arial,sans-serif}
+:where(body){margin:0;background:#f5f5f2;color:#111;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.5}
 :where(a){color:inherit;text-decoration:none}
 :where(button,input,select,textarea){font:inherit}
 :where(.app){min-height:100vh;display:grid;grid-template-columns:220px 1fr}
@@ -47,18 +47,19 @@ const fallbackStyles=`
   :where(.grid){grid-template-columns:1fr}
   :where(.head){justify-content:space-between}
   :where(.mobile){display:block}
+  :where(h1,h2,h3,.page h1){letter-spacing:normal;line-height:1.12}
 }
 `;
 
 export const metadata: Metadata = {
   metadataBase:new URL(siteUrl),
   title:{
-    default:"KIVRONIX — обучение видеомонтажу с нуля",
+    default:"KIVRONIX — обучение и поиск монтажёров",
     template:"%s · KIVRONIX",
   },
   description:siteDescription,
   applicationName:"KIVRONIX",
-  keywords:["обучение видеомонтажу","монтаж видео с нуля","бесплатные уроки монтажа","работа видеомонтажёром","KIVRONIX"],
+  keywords:["обучение видеомонтажу","монтаж видео с нуля","профессиональный видеомонтажёр","найти монтажёра","работа видеомонтажёром","KIVRONIX"],
   authors:[{name:"KIVRONIX",url:siteUrl}],
   creator:"KIVRONIX",
   publisher:"KIVRONIX",
@@ -66,7 +67,7 @@ export const metadata: Metadata = {
   alternates:{canonical:"/"},
   manifest:"/manifest.webmanifest",
   openGraph:{
-    title:"KIVRONIX — научись монтировать видео с нуля",
+    title:"KIVRONIX — обучение и профессиональные монтажёры",
     description:siteDescription,
     url:siteUrl,
     siteName:"KIVRONIX",
@@ -76,7 +77,7 @@ export const metadata: Metadata = {
   },
   twitter:{
     card:"summary_large_image",
-    title:"KIVRONIX — научись монтировать видео с нуля",
+    title:"KIVRONIX — обучение и профессиональные монтажёры",
     description:siteDescription,
     images:["/images/kivronix-search-card.png"],
   },

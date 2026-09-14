@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v2.0.0-alpha.13
+## Stage v2.0.0-alpha.14
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -73,6 +73,7 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - business signup creates the corresponding company record in the same PostgreSQL transaction;
 - `GET|POST /v1/marketplace/jobs` lists, creates and applies to verified-company jobs directly in PostgreSQL;
 - accepting a job application atomically locks the job and wallet, reserves the full Points payment and creates its private conversation and funded work order;
+- mobile typography now uses readable system fonts, safe spacing and relaxed line heights; company-facing copy clearly distinguishes learners from experienced professionals without adding browser-side business logic;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
 The `backendGo` branch now prefers direct PostgreSQL repositories whenever `GO_BACKEND_DATABASE_URL` is configured. Legacy Supabase adapters remain only as a temporary rollback path while the browser gateway is being removed. Wallets, YooKassa top-ups, verified payment notifications, payout requests, signup/referral rewards, redemption, business campaigns and the job/application funding lifecycle are implemented directly in Go/PostgreSQL; challenges, administration and the remaining unsupported writes are still migration work.

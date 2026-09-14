@@ -25,7 +25,7 @@ const features=[
   ["Разбор твоего ролика","Загрузи видео и получи оценку кадров, понятный список правок и следующий шаг."],
   ["Практика с заказчиком","Потренируй цену, сроки, правки и ответы на сложные сообщения до первого заказа."],
   ["Закрытые чаты","После выбора монтажёра компания получает общий чат. Контакты, ссылки и мессенджеры остаются за его пределами."],
-  ["Путь к работе","Свои работы, проверенные компании, конкурсы, задания и вакансии собраны в одном кабинете."]
+  ["Путь к работе","Новички растут от урока к первым заказам, а опытные монтажёры показывают портфолио и находят новые проекты."]
 ];
 
 const faq=[
@@ -62,15 +62,15 @@ export default async function Home(){
       <div className="hero-grid">
         <div>
           <div className="eyebrow">ВСЁ О ВИДЕОМОНТАЖЕ В ОДНОМ МЕСТЕ</div>
-          <h1 className="structured-title">Научись монтировать.<span>Или найди монтажёра.</span></h1>
-          <p className="hero-copy"><strong>KIVRONIX — платформа, где каждый может научиться видеомонтажу или найти монтажёра для своей компании.</strong> Здесь новичок начинает с самых простых уроков, делает первые ролики и пробует себя в конкурсах. А компания публикует задание, смотрит работы участников и выбирает подходящего человека.</p>
+          <h1 className="structured-title">Научись монтировать.<span>Или найди профессионала.</span></h1>
+          <p className="hero-copy"><strong>KIVRONIX объединяет обучение видеомонтажу и профессиональный рынок исполнителей.</strong> Новички осваивают профессию с нуля и собирают первые работы, а опытные монтажёры приходят за новыми проектами. Компания может сравнить навыки, портфолио и результаты реальных заданий, чтобы выбрать специалиста нужного уровня.</p>
           <div className="hero-actions">
             <Link className="btn btn-primary" href="/signup/editor">Хочу научиться монтажу</Link>
             <Link className="btn btn-ghost" href="/signup/business">Найти монтажёра</Link>
           </div>
           <div className="simple-proof">
             <span>{curriculumStats.lessons} уроков и {curriculumStats.assignments} заданий</span>
-            <span>Для подростков и взрослых</span>
+            <span>Новички и профессионалы</span>
             <span>Основные функции бесплатно</span>
           </div>
         </div>
@@ -82,14 +82,14 @@ export default async function Home(){
     </section>
 
     <section className="founder-line">
-      <div className="shell founder-line-inner"><div><span>Что можно сделать в KIVRONIX</span><strong>Освоить монтаж с нуля, собрать свои работы и перейти к настоящим заданиям.</strong></div><p>Для старта хватит телефона, бесплатной программы и одного понятного урока.</p></div>
+      <div className="shell founder-line-inner"><div><span>Что можно сделать в KIVRONIX</span><strong>Освоить монтаж с нуля или использовать готовый опыт для поиска новых заказчиков.</strong></div><p>Компания видит не только начинающих участников, но и профессионалов с портфолио и подтверждёнными навыками.</p></div>
     </section>
 
     <section id="free" className="section shell beta-home-section">
       <div className="beta-home-head"><div><div className="section-kicker">ДОСТУПНО ДЛЯ КАЖДОГО</div><h2>KIVRONIX открыта бесплатно</h2><p>Создай обычный аккаунт и пользуйся основными функциями. Банковская карта не требуется.</p></div><div className="zero-price"><small>ДОСТУП</small><strong>0 ₽</strong><span>без карты</span></div></div>
       <div className="beta-plan-grid">
         <article><span>МОНТАЖЁРУ</span><h3>Учёба и полный разбор</h3><p>Все уроки, задания, помощник, разбор видео, прогресс, свои работы, конкурсы, друзья и вакансии.</p><b>Открыто сразу после входа</b></article>
-        <article className="pro"><span>КОМПАНИИ</span><h3>Поиск монтажёров</h3><p>Аналитика, публикация заданий и вакансий, выбор участника, бизнес-помощник и закрытые рабочие чаты.</p><b>Открыто бесплатно</b></article>
+        <article className="pro"><span>КОМПАНИИ</span><h3>Поиск монтажёров любого уровня</h3><p>Выбирайте перспективных новичков или опытных профессионалов по портфолио, навыкам и результатам заданий.</p><b>Открыто бесплатно</b></article>
       </div>
       <div className="beta-home-actions"><Link className="btn btn-dark" href="/signup/editor">Я монтажёр</Link><Link className="btn btn-ghost" href="/signup/business">Я представляю компанию</Link><Link className="btn btn-ghost" href="/pricing">Посмотреть будущие планы</Link></div>
     </section>
@@ -103,11 +103,11 @@ export default async function Home(){
 
     <section className="section shell audience-section">
       <div className="section-kicker">ОДНА ПЛАТФОРМА · РАЗНЫЕ ЦЕЛИ</div>
-      <h2>Понятный путь для новичка, монтажёра и компании</h2>
+      <h2>Новички, профессионалы и компании — в одной системе</h2>
       <div className="audience-grid">
-        <article><span>14–17</span><h3>Первый сильный навык</h3><p>Безопасный путь, понятные подсказки, учебные группы и практика в спокойном темпе.</p></article>
-        <article><span>18+</span><h3>Ролики и профессия</h3><p>Короткие видео, YouTube, свои работы, разговор с заказчиком и переход к профессиональным программам.</p></article>
-        <article><span>КОМПАНИИ</span><h3>Люди по настоящим работам</h3><p>Проверенные задания, примеры работ, сравнение навыков и защищённое общение после выбора монтажёра.</p></article>
+        <article><span>НАЧИНАЮЩИМ</span><h3>Понятный старт с нуля</h3><p>Пошаговые уроки, безопасная практика и первые работы для портфолио без лишней сложности.</p></article>
+        <article><span>ПРОФЕССИОНАЛАМ</span><h3>Новые проекты и заказчики</h3><p>Показывайте сильные работы, участвуйте в конкурсах и находите компании, которым нужен ваш уровень монтажа.</p></article>
+        <article><span>КОМПАНИЯМ</span><h3>Выбор по опыту и работам</h3><p>Сравнивайте начинающих и профессиональных монтажёров, их портфолио и результаты реальных заданий.</p></article>
       </div>
     </section>
 
@@ -142,7 +142,7 @@ export default async function Home(){
         <article><span>Урок</span><p>Короткое объяснение и картинка с нужной кнопкой.</p><b>Дальше</b><p>Маленькое задание закрепляет новый навык.</p></article>
         <article><span>Практика</span><p>Тренировка на понятном примере заказчика.</p><b>Дальше</b><p>Готовая работа пополняет твою личную страницу.</p></article>
         <article><span>Помощник</span><p>Помнит разговор, текущий урок и выбранную программу.</p><b>Дальше</b><p>Разбирает твой файл и ставит правки по важности.</p></article>
-        <article><span>Работа</span><p>Проверенная компания смотрит навыки и примеры работ.</p><b>Дальше</b><p>После выбора открывается закрытый чат внутри KIVRONIX.</p></article>
+        <article><span>Работа</span><p>Компания выбирает уровень специалиста и сравнивает навыки, опыт и портфолио.</p><b>Дальше</b><p>После выбора открывается закрытый чат внутри KIVRONIX.</p></article>
       </div>
       <p className="honest-claim">Наша цель проста: дать самый понятный связанный путь от первой кнопки до первой сильной работы.</p>
     </section>
@@ -180,7 +180,7 @@ export default async function Home(){
       <div className="faq-grid">{faq.map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div>
     </section>
 
-    <section className="final-cta"><div className="shell"><div className="eyebrow">KIVRONIX · БЕСПЛАТНО</div><h2>Открой первый урок или найди монтажёра</h2><p>Создание аккаунта занимает несколько минут. Банковская карта не требуется.</p><div className="hero-actions"><Link className="btn btn-lime" href="/signup/editor">Создать аккаунт</Link><Link className="btn btn-light" href="/signup/business">Кабинет компании</Link></div></div></section>
+    <section className="final-cta"><div className="shell"><div className="eyebrow">KIVRONIX · БЕСПЛАТНО</div><h2>Начни учиться или найди профессионального монтажёра</h2><p>Создание аккаунта занимает несколько минут. Банковская карта не требуется.</p><div className="hero-actions"><Link className="btn btn-lime" href="/signup/editor">Создать аккаунт</Link><Link className="btn btn-light" href="/signup/business">Кабинет компании</Link></div></div></section>
 
     <SiteFooter/>
   </main>;

@@ -13,7 +13,7 @@ export default function SignupChooser(){
       </Link>
       <Link className="signup-path" href="/signup/business">
         <span className="signup-icon">B</span>
-        <div><b>Я представляю бизнес</b><p>Хочу дать задание, найти монтажёра или опубликовать вакансию.</p><span>Регистрация бизнеса →</span></div>
+        <div><b>Я представляю бизнес</b><p>Хочу найти начинающего или профессионального монтажёра, дать задание либо опубликовать вакансию.</p><span>Регистрация бизнеса →</span></div>
       </Link>
       <Link className="signup-path" href="/signup/creator">
         <span className="signup-icon">@</span>
