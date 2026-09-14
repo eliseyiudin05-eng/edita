@@ -5,6 +5,7 @@ import {ensurePrivateConversation} from "@/lib/private-chat-server";
 import {comparePrivateChatThreadWithGo,normalizePrivateChatThread,privateChatShadowEnabled} from "@/lib/go-private-chat-shadow";
 import {privateChatCanaryEnabled,recordPrivateChatCanaryComparison,tryPrivateChatCanary} from "@/lib/go-private-chat-canary";
 import {comparePrivateChatListWithGo,normalizePrivateChatList,privateChatListShadowEnabled} from "@/lib/go-private-chat-list-shadow";
+import {privateChatListCanaryEnabled,recordPrivateChatListCanaryComparison,tryPrivateChatListCanary} from "@/lib/go-private-chat-list-canary";
 
 function accessToken(req:NextRequest){
   const value=req.headers.get("authorization");
@@ -115,9 +116,21 @@ export async function GET(req:NextRequest){
     return NextResponse.json(legacy.value,{headers:{"Cache-Control":"no-store"}});
   }
 
+  const listCanary=await tryPrivateChatListCanary(auth.token);
+  if(listCanary.attempted&&listCanary.value){
+    after(async()=>{
+      try{
+        recordPrivateChatListCanaryComparison(listCanary.value!,await readLegacyConversationList(auth));
+      }catch{
+        recordPrivateChatListCanaryComparison(listCanary.value!,null);
+      }
+    });
+    return NextResponse.json(listCanary.value,{headers:{"Cache-Control":"no-store"}});
+  }
+
   const legacy=await readLegacyConversationList(auth);
   if(!legacy)return NextResponse.json({error:"Ошибка загрузки чатов."},{status:500});
-  if(privateChatListShadowEnabled())after(()=>comparePrivateChatListWithGo(auth.token,legacy));
+  if(!privateChatListCanaryEnabled()&&privateChatListShadowEnabled())after(()=>comparePrivateChatListWithGo(auth.token,legacy));
   return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
 }
 
