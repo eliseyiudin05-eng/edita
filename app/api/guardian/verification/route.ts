@@ -1,6 +1,7 @@
 import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {compareGuardianVerificationWithGo,guardianVerificationShadowEnabled,normalizeGuardianVerification} from "@/lib/go-guardian-verification-shadow";
+import {guardianVerificationCanaryEnabled,recordGuardianVerificationCanaryComparison,tryGuardianVerificationCanary} from "@/lib/go-guardian-verification-canary";
 
 function tokenFrom(req:NextRequest){
   const bearer=req.headers.get("authorization");
@@ -18,24 +19,27 @@ export async function GET(req:NextRequest){
     .eq("id",user.id).maybeSingle();
 
   const ageGroup=profile?.onboarding?.ageGroup||"18+";
+  const needed=profile?.role==="editor"&&ageGroup!=="18+";
   let request:null|{status:string;review_note:string|null}=null;
-  if(profile?.role!=="editor"||ageGroup==="18+"){
-    const result=normalizeGuardianVerification({needed:false,verified:Boolean(profile?.guardian_verified),request});
-    if(!result)return NextResponse.json({error:"Не удалось загрузить статус подтверждения."},{status:503});
-    if(guardianVerificationShadowEnabled())after(()=>compareGuardianVerificationWithGo(accessToken!,result));
-    return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
+  if(needed){
+    const {data}=await service.from("guardian_verification_requests")
+      .select("status,review_note")
+      .eq("user_id",user.id)
+      .order("created_at",{ascending:false})
+      .limit(1).maybeSingle();
+    request=data||null;
   }
 
-  const {data}=await service.from("guardian_verification_requests")
-    .select("status,review_note")
-    .eq("user_id",user.id)
-    .order("created_at",{ascending:false})
-    .limit(1).maybeSingle();
-
-  request=data||null;
-  const result=normalizeGuardianVerification({needed:true,verified:Boolean(profile?.guardian_verified),request});
+  const result=normalizeGuardianVerification({needed,verified:Boolean(profile?.guardian_verified),request});
   if(!result)return NextResponse.json({error:"Не удалось загрузить статус подтверждения."},{status:503});
-  if(guardianVerificationShadowEnabled())after(()=>compareGuardianVerificationWithGo(accessToken!,result));
+  const canary=await tryGuardianVerificationCanary(accessToken!);
+  if(canary.attempted&&canary.value){
+    after(()=>recordGuardianVerificationCanaryComparison(canary.value!,result));
+    return NextResponse.json(canary.value,{headers:{"Cache-Control":"no-store"}});
+  }
+  if(!guardianVerificationCanaryEnabled()&&guardianVerificationShadowEnabled()){
+    after(()=>compareGuardianVerificationWithGo(accessToken!,result));
+  }
   return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
 }
 
