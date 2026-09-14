@@ -16,6 +16,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
 )
@@ -53,6 +54,10 @@ type BusinessVerificationReader interface {
 	GetVerification(context.Context, string, string) (business.Verification, error)
 }
 
+type PrivateChatReader interface {
+	GetThread(context.Context, string, string, string) (chat.Thread, error)
+}
+
 type Options struct {
 	Logger            *slog.Logger
 	Environment       string
@@ -68,6 +73,7 @@ type Options struct {
 	SocialFriends     SocialFriendsReader
 	SocialGroups      SocialGroupsReader
 	Business          BusinessVerificationReader
+	PrivateChats      PrivateChatReader
 }
 
 type server struct {
@@ -85,6 +91,7 @@ type server struct {
 	socialFriends     SocialFriendsReader
 	socialGroups      SocialGroupsReader
 	business          BusinessVerificationReader
+	privateChats      PrivateChatReader
 }
 
 type contextKey string
@@ -122,6 +129,7 @@ func New(options Options) http.Handler {
 		socialFriends:     options.SocialFriends,
 		socialGroups:      options.SocialGroups,
 		business:          options.Business,
+		privateChats:      options.PrivateChats,
 	}
 
 	mux := http.NewServeMux()
@@ -135,8 +143,55 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/social/friends", s.socialFriendships)
 	mux.HandleFunc("/v1/social/groups", s.socialGroupsList)
 	mux.HandleFunc("/v1/business/verification", s.businessVerification)
+	mux.HandleFunc("/v1/private-chats/thread", s.privateChatThread)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) privateChatThread(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	if s.auth == nil || s.privateChats == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "private_chat_service_unavailable", "Private chat is temporarily unavailable.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	conversationIDs, present := r.URL.Query()["conversationId"]
+	if !present || len(conversationIDs) != 1 || !chat.ValidConversationID(conversationIDs[0]) || len(r.URL.Query()) != 1 {
+		writeError(w, r, http.StatusBadRequest, "invalid_conversation", "A valid conversation ID is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.privateChats.GetThread(ctx, token, claims.Subject, conversationIDs[0])
+	cancel()
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "private_chat_service_unavailable", "Private chat is temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *server) businessVerification(w http.ResponseWriter, r *http.Request) {

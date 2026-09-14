@@ -13,6 +13,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/config"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/database"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/httpapi"
@@ -21,7 +22,7 @@ import (
 )
 
 var (
-	version = "1.0.15"
+	version = "1.0.16"
 	commit  = "local"
 )
 
@@ -70,6 +71,7 @@ func main() {
 	var socialFriendsReader httpapi.SocialFriendsReader
 	var socialGroupsReader httpapi.SocialGroupsReader
 	var businessReader httpapi.BusinessVerificationReader
+	var privateChatReader httpapi.PrivateChatReader
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
 			cfg.SupabaseURL,
@@ -116,6 +118,17 @@ func main() {
 			os.Exit(1)
 		}
 		businessReader = businessClient
+
+		privateChatClient, err := chat.NewClient(
+			cfg.SupabaseURL,
+			cfg.SupabasePublishableKey,
+			&http.Client{Timeout: cfg.PrivateChatHTTPTimeout},
+		)
+		if err != nil {
+			logger.Error("private chat client configuration failed", "error", err)
+			os.Exit(1)
+		}
+		privateChatReader = privateChatClient
 	}
 
 	server := &http.Server{
@@ -123,7 +136,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader,
+			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, PrivateChats: privateChatReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,

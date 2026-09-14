@@ -16,6 +16,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
 )
@@ -24,7 +25,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.15",
+		Version:      "1.0.16",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -58,7 +59,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.15"`) {
+	if !strings.Contains(body, `"version":"1.0.16"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -123,6 +124,21 @@ type fakeBusinessReader struct {
 	err     error
 	token   string
 	subject string
+}
+
+type fakePrivateChatReader struct {
+	result         chat.Thread
+	err            error
+	token          string
+	subject        string
+	conversationID string
+}
+
+func (reader *fakePrivateChatReader) GetThread(_ context.Context, token, subject, conversationID string) (chat.Thread, error) {
+	reader.token = token
+	reader.subject = subject
+	reader.conversationID = conversationID
+	return reader.result, reader.err
 }
 
 func (reader *fakeBusinessReader) GetVerification(_ context.Context, token, subject string) (business.Verification, error) {
@@ -366,6 +382,47 @@ func TestBusinessVerificationRequiresAuthAndOmitsInternalIdentifiers(t *testing.
 		if strings.Contains(response.Body.String(), forbidden) {
 			t.Fatalf("response exposes internal or verification data %q: %s", forbidden, response.Body.String())
 		}
+	}
+}
+
+func TestPrivateChatThreadRequiresAuthAndConversationID(t *testing.T) {
+	const conversationID = "323e4567-e89b-12d3-a456-426614174003"
+	reader := &fakePrivateChatReader{result: chat.Thread{
+		ViewerID: "123e4567-e89b-12d3-a456-426614174001",
+		Conversation: chat.Conversation{
+			ID: conversationID, EditorID: "223e4567-e89b-12d3-a456-426614174002",
+			BusinessOwnerID: "123e4567-e89b-12d3-a456-426614174001", Status: "active",
+			CompanyName: "KIVRONIX", Title: "Job", SourceKind: "job",
+		},
+		Messages: []chat.Message{},
+	}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174001", Role: "authenticated"}},
+		PrivateChats:      reader,
+		DependencyTimeout: time.Second,
+	})
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/v1/private-chats/thread?conversationId="+conversationID, nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d", unauthorized.Code)
+	}
+
+	invalid := httptest.NewRecorder()
+	invalidRequest := httptest.NewRequest(http.MethodGet, "/v1/private-chats/thread?conversationId="+conversationID+"&owner_id=other", nil)
+	invalidRequest.Header.Set("Authorization", "Bearer signed.token.value")
+	handler.ServeHTTP(invalid, invalidRequest)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid query status = %d", invalid.Code)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/private-chats/thread?conversationId="+conversationID, nil)
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "123e4567-e89b-12d3-a456-426614174001" || reader.conversationID != conversationID {
+		t.Fatalf("unexpected response or reader arguments: status=%d token=%q subject=%q conversation=%q body=%s", response.Code, reader.token, reader.subject, reader.conversationID, response.Body.String())
 	}
 }
 
