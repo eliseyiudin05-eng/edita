@@ -35,6 +35,14 @@ type UpdateLearningPreferencesResponse struct {
 	Onboarding map[string]any `json:"onboarding"`
 }
 
+type PublicSettings struct {
+	DisplayName        string `json:"displayName"`
+	Username           string `json:"username"`
+	SchoolName         string `json:"schoolName"`
+	AvatarURL          string `json:"avatarUrl"`
+	ShowSchoolPublicly bool   `json:"showSchoolPublicly"`
+}
+
 type Client struct {
 	endpoint       string
 	publishableKey string
@@ -45,6 +53,15 @@ type profileRow struct {
 	ID         string          `json:"id"`
 	Role       string          `json:"role"`
 	Onboarding json.RawMessage `json:"onboarding"`
+}
+
+type publicSettingsRow struct {
+	ID                 string  `json:"id"`
+	DisplayName        *string `json:"display_name"`
+	Username           *string `json:"username"`
+	SchoolName         *string `json:"school_name"`
+	AvatarURL          *string `json:"avatar_url"`
+	ShowSchoolPublicly bool    `json:"show_school_publicly"`
 }
 
 func NewClient(projectURL, publishableKey string, httpClient *http.Client) (*Client, error) {
@@ -124,6 +141,58 @@ func (c *Client) GetLearningPreferences(ctx context.Context, accessToken, subjec
 		return LearningPreferences{}, ErrUnavailable
 	}
 	return LearningPreferences{Role: row.Role, Preferences: preferences}, nil
+}
+
+func (c *Client) GetPublicSettings(ctx context.Context, accessToken, subject string) (PublicSettings, error) {
+	if c == nil || strings.TrimSpace(accessToken) == "" || strings.TrimSpace(subject) == "" {
+		return PublicSettings{}, ErrUnavailable
+	}
+	query := url.Values{}
+	query.Set("select", "id,display_name,username,school_name,avatar_url,show_school_publicly")
+	query.Set("id", "eq."+subject)
+	query.Set("limit", "1")
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.endpoint+"?"+query.Encode(), nil)
+	if err != nil {
+		return PublicSettings{}, ErrUnavailable
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	request.Header.Set("apikey", c.publishableKey)
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return PublicSettings{}, ErrUnavailable
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		return PublicSettings{}, ErrUnavailable
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, 64*1024+1))
+	if err != nil || len(body) > 64*1024 {
+		return PublicSettings{}, ErrUnavailable
+	}
+	var rows []publicSettingsRow
+	if json.Unmarshal(body, &rows) != nil || len(rows) > 1 {
+		return PublicSettings{}, ErrUnavailable
+	}
+	if len(rows) == 0 {
+		return PublicSettings{}, ErrNotFound
+	}
+	row := rows[0]
+	if row.ID != subject {
+		return PublicSettings{}, ErrUnavailable
+	}
+	result := PublicSettings{
+		DisplayName:        stringValue(row.DisplayName),
+		Username:           stringValue(row.Username),
+		SchoolName:         stringValue(row.SchoolName),
+		AvatarURL:          stringValue(row.AvatarURL),
+		ShowSchoolPublicly: row.ShowSchoolPublicly,
+	}
+	if utf8.RuneCountInString(result.DisplayName) > 120 || utf8.RuneCountInString(result.Username) > 30 || utf8.RuneCountInString(result.SchoolName) > 160 || len(result.AvatarURL) > 4096 || strings.ContainsAny(result.AvatarURL, "\r\n") {
+		return PublicSettings{}, ErrUnavailable
+	}
+	return result, nil
 }
 
 func (c *Client) UpdateLearningPreferences(ctx context.Context, accessToken, subject string, preferences Preferences) (UpdateLearningPreferencesResponse, error) {
@@ -225,6 +294,13 @@ func (c *Client) getProfileRow(ctx context.Context, accessToken, subject string)
 
 func validRole(role string) bool {
 	return role == "editor" || role == "business" || role == "admin"
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func validatePreferences(value Preferences) error {

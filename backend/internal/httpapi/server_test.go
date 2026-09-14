@@ -29,7 +29,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.31",
+		Version:      "1.0.32",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -63,7 +63,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.31"`) {
+	if !strings.Contains(body, `"version":"1.0.32"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -89,11 +89,12 @@ func (v claimsVerifier) Verify(context.Context, string) (auth.Claims, error) { r
 func (v claimsVerifier) Ready(context.Context) error                         { return v.err }
 
 type fakeProfileReader struct {
-	result  profile.LearningPreferences
-	updated profile.UpdateLearningPreferencesResponse
-	err     error
-	token   string
-	subject string
+	result   profile.LearningPreferences
+	settings profile.PublicSettings
+	updated  profile.UpdateLearningPreferencesResponse
+	err      error
+	token    string
+	subject  string
 }
 
 type fakeAcademyReader struct {
@@ -430,11 +431,43 @@ func (reader *fakeProfileReader) GetLearningPreferences(_ context.Context, token
 	return reader.result, reader.err
 }
 
+func (reader *fakeProfileReader) GetPublicSettings(_ context.Context, token, subject string) (profile.PublicSettings, error) {
+	reader.token = token
+	reader.subject = subject
+	return reader.settings, reader.err
+}
+
 func (reader *fakeProfileReader) UpdateLearningPreferences(_ context.Context, token, subject string, value profile.Preferences) (profile.UpdateLearningPreferencesResponse, error) {
 	reader.token = token
 	reader.subject = subject
 	reader.result.Preferences = value
 	return reader.updated, reader.err
+}
+
+func TestProfileSettingsRequiresAuthAndReadsVerifiedSubject(t *testing.T) {
+	reader := &fakeProfileReader{settings: profile.PublicSettings{DisplayName: "Elisey", Username: "elisey", SchoolName: "RUDN", ShowSchoolPublicly: true}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "verified-user", Role: "authenticated"}},
+		Profiles:          reader,
+		DependencyTimeout: time.Second,
+	})
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/v1/profile/settings", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d, want 401", unauthorized.Code)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/profile/settings", nil)
+	request.Header.Set("Authorization", "Bearer access-token")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "access-token" || reader.subject != "verified-user" {
+		t.Fatalf("status=%d token=%q subject=%q body=%s", response.Code, reader.token, reader.subject, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "verified-user") || !strings.Contains(response.Body.String(), `"username":"elisey"`) {
+		t.Fatalf("unexpected response: %s", response.Body.String())
+	}
 }
 
 func TestLearningPreferencesRequiresAuthAndReadsVerifiedSubject(t *testing.T) {
