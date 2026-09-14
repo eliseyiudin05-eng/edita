@@ -1,6 +1,7 @@
-import {NextRequest,NextResponse} from "next/server";
+import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {getOrCreateConversation,normalizeAiScope,readConversationMessages} from "@/lib/ai-history";
+import {aiHistoryShadowEnabled,compareAiHistoryWithGo,normalizeAiHistory} from "@/lib/go-ai-history-shadow";
 
 function bearer(req:NextRequest){
   const value=req.headers.get("authorization");
@@ -8,9 +9,10 @@ function bearer(req:NextRequest){
 }
 
 export async function GET(req:NextRequest){
-  const user=await getUserFromAccessToken(bearer(req));
+  const token=bearer(req);
+  const user=await getUserFromAccessToken(token);
   const service=getSupabaseServiceClient();
-  if(!user||!service)return NextResponse.json({error:"Нужен вход."},{status:401});
+  if(!user||!service||!token)return NextResponse.json({error:"Нужен вход."},{status:401});
 
   try{
     const scope=normalizeAiScope(req.nextUrl.searchParams.get("scope"));
@@ -18,7 +20,10 @@ export async function GET(req:NextRequest){
     const lessonSlug=scope.startsWith("lesson:")?scope.slice(7):null;
     const conversation=await getOrCreateConversation(service,user.id,scope,title,lessonSlug);
     const messages=await readConversationMessages(service,user.id,conversation.id);
-    return NextResponse.json({conversation,messages});
+    const history=normalizeAiHistory({conversation,messages},scope);
+    if(!history)return NextResponse.json({error:"История пока недоступна."},{status:503});
+    if(aiHistoryShadowEnabled())after(()=>compareAiHistoryWithGo(token,scope,history));
+    return NextResponse.json(history,{headers:{"Cache-Control":"no-store"}});
   }catch(error){
     console.error("AI history load error",error);
     return NextResponse.json({error:"История пока недоступна."},{status:503});

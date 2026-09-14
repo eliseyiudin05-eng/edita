@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.19
+## Stage v1.0.20
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -28,9 +28,11 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - every returned message is checked against the selected conversation and its two participants, with a 256 KiB response cap;
 - `GET /v1/private-chats` reads at most 100 participant-bound conversations, editor cards and related work orders under user RLS;
 - list output omits participant UUIDs and validates order ownership, Points totals, statuses and deliverable metadata;
+- `GET /v1/ai/history` reads one owner-bound existing conversation and at most 80 messages under user RLS;
+- AI-history output omits owner IDs, database roles and message metadata, with a 2 MiB upstream response cap;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-Next.js remains the gateway and write authority. Profile, academy progress, social ranking, friend-list, study-group, business-verification and private-chat reads can independently compare legacy and Go responses in shadow mode. Mature read routes may route a bounded 1–10% read-only canary to Go. Every migration mode is disabled by default, and no write or financial request is routed to Go.
+Next.js remains the gateway and write authority. Profile, academy progress, social ranking, friend-list, study-group, business-verification, private-chat and AI-history reads can independently compare legacy and Go responses in shadow mode. Mature read routes may route a bounded 1–10% read-only canary to Go. Every migration mode is disabled by default, and no write or financial request is routed to Go.
 
 ## Run locally
 
@@ -55,6 +57,7 @@ Endpoints:
 - `GET /v1/business/verification` — returns the authenticated owner's minimized business-verification status.
 - `GET /v1/private-chats/thread?conversationId=<uuid>` — returns one thread visible to the authenticated participant.
 - `GET /v1/private-chats` — returns a bounded conversation list visible to the authenticated participant.
+- `GET /v1/ai/history?scope=<scope>` — returns one existing conversation history visible to its authenticated owner.
 
 For a persistent IPv4-only Go service, use the Supabase session pooler URL (port `5432`). For a direct IPv6 connection, use the direct URL. The transaction pooler (port `6543`) is also supported; the driver automatically disables prepared statements for that mode. Keep the database password only in the deployment secret store.
 
@@ -77,3 +80,5 @@ For business-verification shadow reads, apply the owner-only request RLS migrati
 For private-chat thread shadow reads, deploy Go and keep `GO_BACKEND_PRIVATE_CHAT_SHADOW_READS_ENABLED=false` until the service is healthy. Enabling it compares one participant-visible thread with `/v1/private-chats/thread` after the legacy response is sent. `GO_BACKEND_PRIVATE_CHAT_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. Go forwards the user's token with the publishable key, explicitly filters the selected conversation by the verified subject, and validates every message against both participants. The contract is capped at one conversation, 200 messages and 256 KiB. Logs omit tokens, query values, UUIDs, names, message bodies and file metadata. After stable comparisons, disable shadow mode, enable `GO_BACKEND_PRIVATE_CHAT_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_PRIVATE_CHAT_CANARY_PERCENT=1`. The percentage is hard-limited to 10. Timeout, malformed/oversized response, excessive latency, or an open circuit falls back within the same request. A 20% unhealthy rate in a 10–20 result window pauses the canary locally for five minutes; a mismatch opens it immediately. The environment flag is the global kill switch. Message writes, moderation, Realtime, files, work delivery and Points remain in Next.js/Supabase in v1.0.17.
 
 For private-chat list shadow reads, deploy Go and keep `GO_BACKEND_PRIVATE_CHAT_LIST_SHADOW_READS_ENABLED=false` until the service is healthy. Enabling it compares the participant-visible list with `/v1/private-chats` after the legacy response is sent. `GO_BACKEND_PRIVATE_CHAT_LIST_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. Go forwards the user's token with the publishable key and explicitly filters conversations and work orders by the verified subject. The list is capped at 100 conversations; participant UUIDs are removed, and order totals, statuses and deliverable metadata are validated. Logs omit tokens, UUIDs, names, titles, statuses, Points and file metadata. After stable comparisons, disable shadow mode, enable `GO_BACKEND_PRIVATE_CHAT_LIST_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_PRIVATE_CHAT_LIST_CANARY_PERCENT=1`. The percentage is hard-limited to 10. Timeout, malformed/oversized response, excessive latency, or an open circuit falls back within the same request. A 20% unhealthy rate in a 10–20 result window pauses the list canary locally for five minutes; a mismatch opens it immediately. The environment flag is the global kill switch. All writes, moderation, Realtime, files, work delivery and Points remain in Next.js/Supabase in v1.0.19.
+
+For AI-history shadow reads, deploy Go and keep `GO_BACKEND_AI_HISTORY_SHADOW_READS_ENABLED=false` until the service is healthy. Enabling it compares the owner-visible result with `/v1/ai/history` only after Next.js has created a missing conversation if necessary and sent the legacy response. `GO_BACKEND_AI_HISTORY_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. Go forwards the user's token with the publishable key and explicitly filters both tables by the verified subject. The contract is capped at one conversation, 80 messages and 2 MiB; owner IDs, database roles and metadata are removed. Logs omit tokens, UUIDs, scopes, titles and message content. Conversation/message writes, deletion, feedback, attachments and model calls remain in Next.js/Supabase in v1.0.20.

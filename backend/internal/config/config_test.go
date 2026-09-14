@@ -85,9 +85,10 @@ func TestLoadAcceptsBoundedOverrides(t *testing.T) {
 	t.Setenv("GO_BACKEND_SHUTDOWN_TIMEOUT", "3s")
 	t.Setenv("GO_BACKEND_ACADEMY_HTTP_TIMEOUT", "2s")
 	t.Setenv("GO_BACKEND_SOCIAL_HTTP_TIMEOUT", "4s")
+	t.Setenv("GO_BACKEND_AI_HISTORY_HTTP_TIMEOUT", "2s")
 
 	cfg := Load()
-	if cfg.Address != "127.0.0.1:9090" || cfg.MaxBodyBytes != 2048 || cfg.ShutdownTimeout != 3*time.Second || cfg.AcademyHTTPTimeout != 2*time.Second || cfg.SocialHTTPTimeout != 4*time.Second {
+	if cfg.Address != "127.0.0.1:9090" || cfg.MaxBodyBytes != 2048 || cfg.ShutdownTimeout != 3*time.Second || cfg.AcademyHTTPTimeout != 2*time.Second || cfg.SocialHTTPTimeout != 4*time.Second || cfg.AIHistoryHTTPTimeout != 2*time.Second {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 }

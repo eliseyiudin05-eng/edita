@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/aihistory"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
@@ -59,6 +60,10 @@ type PrivateChatReader interface {
 	ListConversations(context.Context, string, string) (chat.ConversationList, error)
 }
 
+type AIHistoryReader interface {
+	GetHistory(context.Context, string, string, string) (aihistory.History, error)
+}
+
 type Options struct {
 	Logger            *slog.Logger
 	Environment       string
@@ -75,6 +80,7 @@ type Options struct {
 	SocialGroups      SocialGroupsReader
 	Business          BusinessVerificationReader
 	PrivateChats      PrivateChatReader
+	AIHistory         AIHistoryReader
 }
 
 type server struct {
@@ -93,6 +99,7 @@ type server struct {
 	socialGroups      SocialGroupsReader
 	business          BusinessVerificationReader
 	privateChats      PrivateChatReader
+	aiHistory         AIHistoryReader
 }
 
 type contextKey string
@@ -131,6 +138,7 @@ func New(options Options) http.Handler {
 		socialGroups:      options.SocialGroups,
 		business:          options.Business,
 		privateChats:      options.PrivateChats,
+		aiHistory:         options.AIHistory,
 	}
 
 	mux := http.NewServeMux()
@@ -146,8 +154,59 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/business/verification", s.businessVerification)
 	mux.HandleFunc("/v1/private-chats/thread", s.privateChatThread)
 	mux.HandleFunc("/v1/private-chats", s.privateChatList)
+	mux.HandleFunc("/v1/ai/history", s.aiHistoryRead)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) aiHistoryRead(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	if s.auth == nil || s.aiHistory == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "ai_history_service_unavailable", "AI history is temporarily unavailable.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	scopes, present := r.URL.Query()["scope"]
+	if !present || len(scopes) != 1 || !aihistory.ValidScope(scopes[0]) || len(r.URL.Query()) != 1 {
+		writeError(w, r, http.StatusBadRequest, "invalid_scope", "A valid AI history scope is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.aiHistory.GetHistory(ctx, token, claims.Subject, scopes[0])
+	cancel()
+	if errors.Is(err, aihistory.ErrNotFound) {
+		writeError(w, r, http.StatusNotFound, "ai_history_not_found", "AI history was not found.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "ai_history_service_unavailable", "AI history is temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *server) privateChatList(w http.ResponseWriter, r *http.Request) {

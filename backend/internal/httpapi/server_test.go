@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/aihistory"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
@@ -25,7 +26,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.19",
+		Version:      "1.0.20",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -59,7 +60,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.19"`) {
+	if !strings.Contains(body, `"version":"1.0.20"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -133,6 +134,21 @@ type fakePrivateChatReader struct {
 	token          string
 	subject        string
 	conversationID string
+}
+
+type fakeAIHistoryReader struct {
+	result  aihistory.History
+	err     error
+	token   string
+	subject string
+	scope   string
+}
+
+func (reader *fakeAIHistoryReader) GetHistory(_ context.Context, token, subject, scope string) (aihistory.History, error) {
+	reader.token = token
+	reader.subject = subject
+	reader.scope = scope
+	return reader.result, reader.err
 }
 
 func (reader *fakePrivateChatReader) ListConversations(_ context.Context, token, subject string) (chat.ConversationList, error) {
@@ -464,6 +480,46 @@ func TestPrivateChatListRequiresAuthAndRejectsQueryParameters(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "123e4567-e89b-12d3-a456-426614174001" {
 		t.Fatalf("unexpected response or reader arguments: status=%d token=%q subject=%q body=%s", response.Code, reader.token, reader.subject, response.Body.String())
+	}
+}
+
+func TestAIHistoryRequiresAuthAndOwnerScopedQuery(t *testing.T) {
+	reader := &fakeAIHistoryReader{result: aihistory.History{
+		Conversation: aihistory.Conversation{
+			ID: "223e4567-e89b-12d3-a456-426614174002", ScopeKey: "lesson:cutting", Title: "Монтаж", UpdatedAt: "2026-09-14T00:00:00Z",
+		},
+		Messages: []aihistory.Message{},
+	}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174001", Role: "authenticated"}},
+		AIHistory:         reader,
+		DependencyTimeout: time.Second,
+	})
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/v1/ai/history?scope=lesson:cutting", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d", unauthorized.Code)
+	}
+
+	invalid := httptest.NewRecorder()
+	invalidRequest := httptest.NewRequest(http.MethodGet, "/v1/ai/history?scope=lesson:cutting&user_id=other", nil)
+	invalidRequest.Header.Set("Authorization", "Bearer signed.token.value")
+	handler.ServeHTTP(invalid, invalidRequest)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid query status = %d", invalid.Code)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/ai/history?scope=lesson:cutting", nil)
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "123e4567-e89b-12d3-a456-426614174001" || reader.scope != "lesson:cutting" {
+		t.Fatalf("unexpected response or reader arguments: status=%d token=%q subject=%q scope=%q body=%s", response.Code, reader.token, reader.subject, reader.scope, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "123e4567-e89b-12d3-a456-426614174001") || strings.Contains(response.Body.String(), "user_id") {
+		t.Fatalf("response exposes owner identity: %s", response.Body.String())
 	}
 }
 

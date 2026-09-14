@@ -35,6 +35,7 @@ type Config struct {
 	SocialHTTPTimeout      time.Duration
 	BusinessHTTPTimeout    time.Duration
 	PrivateChatHTTPTimeout time.Duration
+	AIHistoryHTTPTimeout   time.Duration
 }
 
 func Load() Config {
@@ -71,6 +72,7 @@ func Load() Config {
 		SocialHTTPTimeout:      envDurationBounded("GO_BACKEND_SOCIAL_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
 		BusinessHTTPTimeout:    envDurationBounded("GO_BACKEND_BUSINESS_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
 		PrivateChatHTTPTimeout: envDurationBounded("GO_BACKEND_PRIVATE_CHAT_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
+		AIHistoryHTTPTimeout:   envDurationBounded("GO_BACKEND_AI_HISTORY_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
 	}
 }
 
