@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.52
+## Stage v2.0.0-alpha.9
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -57,9 +57,12 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - AI-history output omits owner IDs, database roles and message metadata, with a 2 MiB upstream response cap;
 - `DELETE /v1/ai/history` idempotently clears messages from one owner-bound conversation under user RLS without deleting the conversation;
 - `POST /v1/ai/conversations` idempotently gets or creates one owner-bound conversation under user RLS;
+- `GET /v1/finance/wallet` reads or initializes only the authenticated user's Points wallet in PostgreSQL;
+- `GET /v1/finance/payouts` returns at most 20 owner-bound payout requests without payment details;
+- `POST /v1/finance/payouts` creates one payout request after atomically checking the earnings balance and active requests;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-Next.js remains the gateway and primary write authority. Profile, profile-settings, academy progress, social ranking, friend-list, study-group, business-verification, editor-verification, guardian-verification, business-discussion, private-chat and AI-history reads can independently compare legacy and Go responses in shadow mode. Mature read routes, including profile settings, may route a bounded 1–10% read-only canary to Go. Separate disabled-by-default canaries may route up to 10% of supported idempotent writes, including profile-settings updates, practice-session saves, simple AI feedback, moderated discussion messages and private-chat messages; avatar uploads, queue-eligible feedback, unsupported writes and all financial requests remain outside Go.
+The `backendGo` branch now prefers direct PostgreSQL repositories whenever `GO_BACKEND_DATABASE_URL` is configured. Legacy Supabase adapters remain only as a temporary rollback path while the browser gateway is being removed. Wallet reads and payout requests are implemented directly in Go/PostgreSQL; YooKassa top-up creation, provider webhooks, reward settlement and the remaining unsupported writes are still migration work.
 
 ## Run locally
 
@@ -75,6 +78,8 @@ Endpoints:
 - `GET /healthz` — process liveness;
 - `GET /readyz` — PostgreSQL and JWT-verifier readiness;
 - `GET /v1/meta` — non-sensitive build metadata.
+- `GET /v1/finance/wallet` — returns the authenticated user's available and reserved Points.
+- `GET|POST /v1/finance/payouts` — lists or creates owner-bound payout requests.
 - `GET /v1/diagnostics/auth` — verifies `Authorization: Bearer <access-token>` and returns no claims or identity.
 - `GET /v1/profile/learning-preferences` — returns the authenticated user's normalized learning preferences.
 - `GET /v1/profile/settings` — returns the authenticated user's bounded editable profile settings without an owner ID.

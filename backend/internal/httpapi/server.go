@@ -24,6 +24,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/editordiscussion"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/editorverification"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/finance"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/guardianverification"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
@@ -127,6 +128,12 @@ type AIHistoryReader interface {
 	EnsureConversation(context.Context, string, string, aihistory.EnsureConversationInput) (aihistory.Conversation, error)
 }
 
+type FinanceStore interface {
+	GetWallet(context.Context, string, string) (finance.Wallet, error)
+	ListPayouts(context.Context, string, string) (finance.Payouts, error)
+	CreatePayout(context.Context, string, string, int64) error
+}
+
 type Options struct {
 	Logger               *slog.Logger
 	Environment          string
@@ -153,6 +160,7 @@ type Options struct {
 	GuardianVerification GuardianVerificationReader
 	PrivateChats         PrivateChatReader
 	AIHistory            AIHistoryReader
+	Finance              FinanceStore
 }
 
 type server struct {
@@ -181,6 +189,7 @@ type server struct {
 	guardianVerification GuardianVerificationReader
 	privateChats         PrivateChatReader
 	aiHistory            AIHistoryReader
+	finance              FinanceStore
 }
 
 type contextKey string
@@ -229,6 +238,7 @@ func New(options Options) http.Handler {
 		guardianVerification: options.GuardianVerification,
 		privateChats:         options.PrivateChats,
 		aiHistory:            options.AIHistory,
+		finance:              options.Finance,
 	}
 
 	mux := http.NewServeMux()
@@ -266,8 +276,120 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/private-chats/message", s.privateChatMessage)
 	mux.HandleFunc("/v1/ai/history", s.aiHistoryRoute)
 	mux.HandleFunc("/v1/ai/conversations", s.aiConversationEnsure)
+	mux.HandleFunc("/v1/finance/wallet", s.financeWallet)
+	mux.HandleFunc("/v1/finance/payouts", s.financePayouts)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) financeWallet(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	if r.URL.RawQuery != "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not accepted.")
+		return
+	}
+	token, subject, ok := s.financeIdentity(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	defer cancel()
+	result, err := s.finance.GetWallet(ctx, token, subject)
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "wallet_unavailable", "The Points wallet is temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) financePayouts(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
+		return
+	}
+	if r.URL.RawQuery != "" || (r.Method == http.MethodPost && !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json")) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not accepted and writes require a JSON body.")
+		return
+	}
+	token, subject, ok := s.financeIdentity(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	defer cancel()
+	if r.Method == http.MethodPost {
+		var input struct {
+			AmountRub int64 `json:"amountRub"`
+		}
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&input); err != nil || input.AmountRub > finance.MaximumPayoutCents/100 || !finance.ValidPayoutAmount(input.AmountRub*100) {
+			writeError(w, r, http.StatusBadRequest, "invalid_payout_amount", "The minimum payout is 100 RUB.")
+			return
+		}
+		var extra any
+		if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "A single valid JSON object is required.")
+			return
+		}
+		err := s.finance.CreatePayout(ctx, token, subject, input.AmountRub*100)
+		if errors.Is(err, finance.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+			return
+		}
+		if errors.Is(err, finance.ErrPending) {
+			writeError(w, r, http.StatusConflict, "payout_pending", "An active payout request already exists.")
+			return
+		}
+		if errors.Is(err, finance.ErrInsufficient) {
+			writeError(w, r, http.StatusConflict, "insufficient_earnings", "The earnings balance is insufficient.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "payout_unavailable", "The payout request could not be created.")
+			return
+		}
+	}
+	result, err := s.finance.ListPayouts(ctx, token, subject)
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "payouts_unavailable", "Payout history is temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) financeIdentity(w http.ResponseWriter, r *http.Request) (string, string, bool) {
+	if s.auth == nil || s.finance == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "finance_service_unavailable", "Finance operations are temporarily unavailable.")
+		return "", "", false
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return "", "", false
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	cancel()
+	if err != nil {
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+		} else {
+			writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		}
+		return "", "", false
+	}
+	if claims.Role != "authenticated" {
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return "", "", false
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	return token, claims.Subject, true
 }
 
 func (s *server) authSignup(w http.ResponseWriter, r *http.Request) {
