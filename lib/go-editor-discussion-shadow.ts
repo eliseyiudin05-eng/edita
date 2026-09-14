@@ -19,6 +19,8 @@ export function editorDiscussionShadowEnabled(){
   return process.env.GO_BACKEND_EDITOR_DISCUSSION_SHADOW_READS_ENABLED==="true"&&Boolean(endpoint());
 }
 
+export function goEditorDiscussionBackendConfigured(){return Boolean(endpoint())}
+
 export function normalizeEditorDiscussion(value:unknown):EditorDiscussionResponse|null{
   if(!value||typeof value!=="object")return null;
   const rows=(value as Record<string,unknown>).messages;
@@ -40,13 +42,16 @@ export function normalizeEditorDiscussion(value:unknown):EditorDiscussionRespons
 }
 
 export async function compareEditorDiscussionWithGo(token:string,legacy:EditorDiscussionResponse){
-  const started=Date.now();
-  const result=await readFromGo(token,shadowTimeout());
-  const outcome=result.ok?(JSON.stringify(result.value)===JSON.stringify(legacy)?"match":"mismatch"):result.outcome;
-  console.info("go_editor_discussion_shadow",{route:"editor_discussion",outcome,duration_ms:Date.now()-started});
+  const result=await readEditorDiscussionFromGo(token,shadowTimeout());
+  const outcome=result.ok?(sameEditorDiscussion(result.value,legacy)?"match":"mismatch"):result.outcome;
+  console.info("go_editor_discussion_shadow",{route:"editor_discussion",outcome,duration_ms:result.durationMs});
 }
 
-async function readFromGo(token:string,timeoutMs:number):Promise<GoReadResult>{
+export function sameEditorDiscussion(left:EditorDiscussionResponse,right:EditorDiscussionResponse){
+  return JSON.stringify(left)===JSON.stringify(right);
+}
+
+export async function readEditorDiscussionFromGo(token:string,timeoutMs:number):Promise<GoReadResult>{
   const started=Date.now();
   try{
     const target=endpoint();

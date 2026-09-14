@@ -2,6 +2,7 @@ import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {moderateGroupMessage} from "@/lib/content-moderation";
 import {compareEditorDiscussionWithGo,editorDiscussionShadowEnabled,normalizeEditorDiscussion} from "@/lib/go-editor-discussion-shadow";
+import {editorDiscussionCanaryEnabled,recordEditorDiscussionCanaryComparison,tryEditorDiscussionCanary} from "@/lib/go-editor-discussion-canary";
 
 const TOPIC="editors-in-cinema";
 
@@ -55,7 +56,12 @@ export async function GET(req:NextRequest){
     await enroll(auth.service,auth.user.id);
     const legacy=normalizeEditorDiscussion({messages:await listMessages(auth.service)});
     if(!legacy)throw new Error("invalid discussion response");
-    if(editorDiscussionShadowEnabled())after(()=>compareEditorDiscussionWithGo(auth.token,legacy));
+    const canary=await tryEditorDiscussionCanary(auth.token);
+    if(canary.attempted&&canary.value){
+      after(()=>recordEditorDiscussionCanaryComparison(canary.value!,legacy));
+      return NextResponse.json(canary.value,{headers:{"Cache-Control":"no-store"}});
+    }
+    if(!editorDiscussionCanaryEnabled()&&editorDiscussionShadowEnabled())after(()=>compareEditorDiscussionWithGo(auth.token,legacy));
     return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
   }catch{
     return NextResponse.json({error:"Не удалось открыть обсуждение."},{status:503});

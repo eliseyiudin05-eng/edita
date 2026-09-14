@@ -33,7 +33,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.42",
+		Version:      "1.0.43",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -67,7 +67,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.42"`) {
+	if !strings.Contains(body, `"version":"1.0.43"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
