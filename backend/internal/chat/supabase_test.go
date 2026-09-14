@@ -52,6 +52,50 @@ func TestGetThreadUsesParticipantFiltersAndUserToken(t *testing.T) {
 	}
 }
 
+func TestListConversationsUsesBoundedParticipantQueries(t *testing.T) {
+	const subject = "123e4567-e89b-12d3-a456-426614174001"
+	const editor = "223e4567-e89b-12d3-a456-426614174002"
+	const conversation = "323e4567-e89b-12d3-a456-426614174003"
+	requests := 0
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		if request.Header.Get("Authorization") != "Bearer access-token" || request.Header.Get("apikey") != "sb_publishable_test" {
+			t.Fatalf("authentication headers missing")
+		}
+		switch request.URL.Path {
+		case "/rest/v1/private_conversations":
+			if request.URL.Query().Get("or") != "(editor_id.eq."+subject+",business_owner_id.eq."+subject+")" || request.URL.Query().Get("order") != "last_message_at.desc,id.asc" || request.URL.Query().Get("limit") != "100" {
+				t.Fatalf("unsafe conversation list query: %s", request.URL.String())
+			}
+			return response(`[{"id":"` + conversation + `","editor_id":"` + editor + `","business_owner_id":"` + subject + `","source_kind":"job","source_id":"423e4567-e89b-12d3-a456-426614174004","company_name":"KIVRONIX","title":"Job","status":"active","last_message_at":"2026-09-14T00:00:00Z","created_at":"2026-09-13T23:00:00Z"}]`), nil
+		case "/rest/v1/public_profiles":
+			if request.URL.Query().Get("id") != "in.("+editor+")" || request.URL.Query().Get("limit") != "100" {
+				t.Fatalf("unsafe profile query: %s", request.URL.String())
+			}
+			return response(`[{"id":"` + editor + `","display_name":"Editor","username":"editor","avatar_url":null}]`), nil
+		case "/rest/v1/work_orders":
+			if request.URL.Query().Get("conversation_id") != "in.("+conversation+")" || request.URL.Query().Get("or") != "(customer_id.eq."+subject+",editor_id.eq."+subject+")" || request.URL.Query().Get("limit") != "100" {
+				t.Fatalf("unsafe work order query: %s", request.URL.String())
+			}
+			return response(`[{"id":"523e4567-e89b-12d3-a456-426614174005","conversation_id":"` + conversation + `","customer_id":"` + subject + `","editor_id":"` + editor + `","gross_points":1000,"editor_points":880,"platform_fee_points":120,"status":"submitted","work_order_deliverables":{"preview_name":"preview.mp4","original_name":"source.zip","submitted_at":"2026-09-14T00:00:00Z"}}]`), nil
+		default:
+			t.Fatalf("unexpected path: %s", request.URL.Path)
+			return nil, nil
+		}
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := client.ListConversations(context.Background(), "access-token", subject)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requests != 3 || got.ViewerID != subject || len(got.Conversations) != 1 || got.Conversations[0].OtherName != "Editor" || got.Conversations[0].WorkOrder == nil || got.Conversations[0].WorkOrder.Deliverable == nil {
+		t.Fatalf("unexpected result: %+v", got)
+	}
+}
+
 func TestGetThreadRejectsConversationOutsideSubject(t *testing.T) {
 	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 		return response(`[{"id":"323e4567-e89b-12d3-a456-426614174003","editor_id":"223e4567-e89b-12d3-a456-426614174002","business_owner_id":"423e4567-e89b-12d3-a456-426614174004","status":"active","company_name":"Other","title":"Job","source_kind":"job"}]`), nil

@@ -25,7 +25,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.17",
+		Version:      "1.0.18",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -59,7 +59,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.17"`) {
+	if !strings.Contains(body, `"version":"1.0.18"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -128,10 +128,17 @@ type fakeBusinessReader struct {
 
 type fakePrivateChatReader struct {
 	result         chat.Thread
+	list           chat.ConversationList
 	err            error
 	token          string
 	subject        string
 	conversationID string
+}
+
+func (reader *fakePrivateChatReader) ListConversations(_ context.Context, token, subject string) (chat.ConversationList, error) {
+	reader.token = token
+	reader.subject = subject
+	return reader.list, reader.err
 }
 
 func (reader *fakePrivateChatReader) GetThread(_ context.Context, token, subject, conversationID string) (chat.Thread, error) {
@@ -423,6 +430,40 @@ func TestPrivateChatThreadRequiresAuthAndConversationID(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "123e4567-e89b-12d3-a456-426614174001" || reader.conversationID != conversationID {
 		t.Fatalf("unexpected response or reader arguments: status=%d token=%q subject=%q conversation=%q body=%s", response.Code, reader.token, reader.subject, reader.conversationID, response.Body.String())
+	}
+}
+
+func TestPrivateChatListRequiresAuthAndRejectsQueryParameters(t *testing.T) {
+	reader := &fakePrivateChatReader{list: chat.ConversationList{
+		ViewerID: "123e4567-e89b-12d3-a456-426614174001", Conversations: []chat.ConversationSummary{},
+	}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174001", Role: "authenticated"}},
+		PrivateChats:      reader,
+		DependencyTimeout: time.Second,
+	})
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/v1/private-chats", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d", unauthorized.Code)
+	}
+
+	invalid := httptest.NewRecorder()
+	invalidRequest := httptest.NewRequest(http.MethodGet, "/v1/private-chats?owner_id=other", nil)
+	invalidRequest.Header.Set("Authorization", "Bearer signed.token.value")
+	handler.ServeHTTP(invalid, invalidRequest)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid query status = %d", invalid.Code)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/private-chats", nil)
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "123e4567-e89b-12d3-a456-426614174001" {
+		t.Fatalf("unexpected response or reader arguments: status=%d token=%q subject=%q body=%s", response.Code, reader.token, reader.subject, response.Body.String())
 	}
 }
 
