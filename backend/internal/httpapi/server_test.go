@@ -33,7 +33,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.44",
+		Version:      "1.0.45",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -67,7 +67,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.44"`) {
+	if !strings.Contains(body, `"version":"1.0.45"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -969,10 +969,10 @@ func TestEditorDiscussionRequiresAuthRejectsQueryAndOmitsUserIDs(t *testing.T) {
 func TestEditorDiscussionCreateRequiresBoundedIdempotentMessage(t *testing.T) {
 	reader := &fakeEditorDiscussionReader{}
 	handler := New(Options{
-		Logger:             slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Auth:               claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174001", Role: "authenticated"}},
-		EditorDiscussion:   reader,
-		DependencyTimeout:  time.Second,
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174001", Role: "authenticated"}},
+		EditorDiscussion:  reader,
+		DependencyTimeout: time.Second,
 	})
 	invalid := httptest.NewRecorder()
 	invalidRequest := httptest.NewRequest(http.MethodPost, "/v1/community/editor-discussion", strings.NewReader(`{"id":"bad","content":"Текст"}`))
