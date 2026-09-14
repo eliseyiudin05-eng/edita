@@ -69,6 +69,58 @@ func TestGetHistoryRejectsUnexpectedMessageOwner(t *testing.T) {
 	}
 }
 
+func TestClearHistoryUsesOwnerFiltersAndUserToken(t *testing.T) {
+	const subject = "123e4567-e89b-12d3-a456-426614174001"
+	const conversation = "223e4567-e89b-12d3-a456-426614174002"
+	requests := 0
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		if request.Header.Get("Authorization") != "Bearer access-token" || request.Header.Get("apikey") != "sb_publishable_test" {
+			t.Fatalf("authentication headers missing")
+		}
+		switch request.URL.Path {
+		case "/rest/v1/ai_conversations":
+			if request.Method != http.MethodGet || request.URL.Query().Get("select") != "id,user_id,scope_key" || request.URL.Query().Get("user_id") != "eq."+subject || request.URL.Query().Get("scope_key") != "eq.main" || request.URL.Query().Get("limit") != "1" {
+				t.Fatalf("unsafe conversation lookup: %s %s", request.Method, request.URL.String())
+			}
+			return response(`[{"id":"` + conversation + `","user_id":"` + subject + `","scope_key":"main"}]`), nil
+		case "/rest/v1/ai_messages":
+			if request.Method != http.MethodDelete || request.URL.Query().Get("conversation_id") != "eq."+conversation || request.URL.Query().Get("user_id") != "eq."+subject || request.Header.Get("Prefer") != "return=minimal" {
+				t.Fatalf("unsafe message delete: %s %s", request.Method, request.URL.String())
+			}
+			return &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil
+		default:
+			t.Fatalf("unexpected path: %s", request.URL.Path)
+			return nil, nil
+		}
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := client.ClearHistory(context.Background(), "access-token", subject, "main"); err != nil {
+		t.Fatal(err)
+	}
+	if requests != 2 {
+		t.Fatalf("requests = %d, want 2", requests)
+	}
+}
+
+func TestClearHistoryIsIdempotentWhenConversationIsMissing(t *testing.T) {
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.Method != http.MethodGet || request.URL.Path != "/rest/v1/ai_conversations" {
+			t.Fatalf("unexpected request: %s %s", request.Method, request.URL.String())
+		}
+		return response(`[]`), nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.ClearHistory(context.Background(), "access-token", "123e4567-e89b-12d3-a456-426614174001", "main"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func response(body string) *http.Response {
 	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}
 }
