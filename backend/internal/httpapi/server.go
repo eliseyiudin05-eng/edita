@@ -38,6 +38,7 @@ type TokenVerifier interface {
 type LearningPreferencesReader interface {
 	GetLearningPreferences(context.Context, string, string) (profile.LearningPreferences, error)
 	GetPublicSettings(context.Context, string, string) (profile.PublicSettings, error)
+	UpdatePublicSettings(context.Context, string, string, profile.PublicSettings) (profile.PublicSettings, error)
 	UpdateLearningPreferences(context.Context, string, string, profile.Preferences) (profile.UpdateLearningPreferencesResponse, error)
 }
 
@@ -199,21 +200,43 @@ func New(options Options) http.Handler {
 }
 
 func (s *server) profileSettings(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
 		return
 	}
 	if s.auth == nil || s.profiles == nil {
 		writeError(w, r, http.StatusServiceUnavailable, "profile_service_unavailable", "Profile settings are temporarily unavailable.")
 		return
 	}
-	if r.URL.RawQuery != "" {
-		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not accepted.")
+	if r.URL.RawQuery != "" || (r.Method == http.MethodPost && !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json")) {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required for updates.")
 		return
 	}
 	token, ok := bearerToken(r.Header.Get("Authorization"))
 	if !ok {
 		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
 		return
+	}
+	var update profile.PublicSettings
+	if r.Method == http.MethodPost {
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&update); err != nil {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "Valid profile settings are required.")
+			return
+		}
+		var extra any
+		if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "Valid profile settings are required.")
+			return
+		}
+		var err error
+		update, err = profile.NormalizePublicSettings(update)
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "Valid profile settings are required.")
+			return
+		}
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
 	claims, err := s.auth.Verify(ctx, token)
@@ -234,14 +257,23 @@ func (s *server) profileSettings(w http.ResponseWriter, r *http.Request) {
 	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
 		state.authenticated = true
 	}
-	result, err := s.profiles.GetPublicSettings(ctx, token, claims.Subject)
+	var result profile.PublicSettings
+	if r.Method == http.MethodPost {
+		result, err = s.profiles.UpdatePublicSettings(ctx, token, claims.Subject, update)
+	} else {
+		result, err = s.profiles.GetPublicSettings(ctx, token, claims.Subject)
+	}
 	cancel()
 	if errors.Is(err, profile.ErrNotFound) {
 		writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
 		return
 	}
+	if errors.Is(err, profile.ErrConflict) {
+		writeError(w, r, http.StatusConflict, "username_unavailable", "The profile username is already in use.")
+		return
+	}
 	if err != nil {
-		writeError(w, r, http.StatusServiceUnavailable, "profile_read_unavailable", "Profile settings could not be loaded.")
+		writeError(w, r, http.StatusServiceUnavailable, "profile_settings_unavailable", "Profile settings could not be processed.")
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
