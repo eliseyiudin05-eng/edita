@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/aifeedback"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/aihistory"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
@@ -28,7 +29,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.30",
+		Version:      "1.0.31",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -62,7 +63,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.30"`) {
+	if !strings.Contains(body, `"version":"1.0.31"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -117,6 +118,21 @@ type fakePlanInterestWriter struct {
 	token    string
 	subject  string
 	interest plans.Interest
+}
+
+type fakeAIFeedbackWriter struct {
+	result   aifeedback.Response
+	err      error
+	token    string
+	subject  string
+	feedback aifeedback.Feedback
+}
+
+func (writer *fakeAIFeedbackWriter) SaveFeedback(_ context.Context, token, subject string, feedback aifeedback.Feedback) (aifeedback.Response, error) {
+	writer.token = token
+	writer.subject = subject
+	writer.feedback = feedback
+	return writer.result, writer.err
 }
 
 func (writer *fakePlanInterestWriter) SaveInterest(_ context.Context, token, subject string, interest plans.Interest) (plans.Response, error) {
@@ -361,6 +377,44 @@ func TestPlanInterestRejectsInvalidPairBeforeDependency(t *testing.T) {
 		Plans:  writer,
 	})
 	request := httptest.NewRequest(http.MethodPost, "/v1/plans/interest", strings.NewReader(`{"audience":"editor","plan":"studio_plus"}`))
+	request.Header.Set("Authorization", "Bearer access-token")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || writer.subject != "" {
+		t.Fatalf("status=%d subject=%q body=%s", response.Code, writer.subject, response.Body.String())
+	}
+}
+
+func TestAIFeedbackUsesVerifiedSubject(t *testing.T) {
+	writer := &fakeAIFeedbackWriter{result: aifeedback.Response{OK: true, Queued: false}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174000", Role: "authenticated"}},
+		AIFeedback:        writer,
+		DependencyTimeout: time.Second,
+	})
+	request := httptest.NewRequest(http.MethodPost, "/v1/ai/feedback", strings.NewReader(`{"messageId":"223e4567-e89b-12d3-a456-426614174001","helpful":true,"comment":"thanks"}`))
+	request.Header.Set("Authorization", "Bearer access-token")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || writer.token != "access-token" || writer.subject != "123e4567-e89b-12d3-a456-426614174000" || writer.feedback.MessageID != "223e4567-e89b-12d3-a456-426614174001" || writer.feedback.Helpful == nil || !*writer.feedback.Helpful {
+		t.Fatalf("status=%d token=%q subject=%q feedback=%+v body=%s", response.Code, writer.token, writer.subject, writer.feedback, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), writer.subject) || !strings.Contains(response.Body.String(), `"queued":false`) {
+		t.Fatalf("unexpected response: %s", response.Body.String())
+	}
+}
+
+func TestAIFeedbackRejectsKnowledgeCandidateCommentBeforeDependency(t *testing.T) {
+	writer := &fakeAIFeedbackWriter{}
+	handler := New(Options{
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:       claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174000", Role: "authenticated"}},
+		AIFeedback: writer,
+	})
+	request := httptest.NewRequest(http.MethodPost, "/v1/ai/feedback", strings.NewReader(`{"messageId":"223e4567-e89b-12d3-a456-426614174001","helpful":false,"comment":"12345678901234567890"}`))
 	request.Header.Set("Authorization", "Bearer access-token")
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()

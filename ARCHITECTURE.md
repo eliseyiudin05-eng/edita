@@ -45,9 +45,10 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.30)
+## Go migration boundary (v1.0.31)
 
 - Most production writes and all business decisions remain in Next.js/Supabase.
+- Simple AI feedback may use a disabled-by-default 1–10% Go canary after owner and assistant-message verification; feedback that queues learning candidates always remains on the legacy server path.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
 - Shadow reads remain available. A separate, disabled-by-default canary may serve at most 10% of this one read-only route from Go.
 - Every canary failure, timeout, oversized or malformed response, or response above the configured latency ceiling falls back to the existing Supabase read in the same request.

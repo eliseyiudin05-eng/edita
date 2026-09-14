@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/eliseyiudin05-eng/edita/backend/internal/academy"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/aifeedback"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/aihistory"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
@@ -25,7 +26,7 @@ import (
 )
 
 var (
-	version = "1.0.30"
+	version = "1.0.31"
 	commit  = "local"
 )
 
@@ -72,6 +73,7 @@ func main() {
 	var academyReader httpapi.AcademyProgressReader
 	var practiceStore httpapi.PracticeSessionStore
 	var planInterestWriter httpapi.PlanInterestWriter
+	var aiFeedbackWriter httpapi.AIFeedbackWriter
 	var socialReader httpapi.SocialRankingReader
 	var socialFriendsReader httpapi.SocialFriendsReader
 	var socialGroupsReader httpapi.SocialGroupsReader
@@ -122,6 +124,17 @@ func main() {
 			os.Exit(1)
 		}
 		planInterestWriter = plansClient
+
+		aiFeedbackClient, err := aifeedback.NewClient(
+			cfg.SupabaseURL,
+			cfg.SupabasePublishableKey,
+			&http.Client{Timeout: cfg.AIHistoryHTTPTimeout},
+		)
+		if err != nil {
+			logger.Error("AI feedback client configuration failed", "error", err)
+			os.Exit(1)
+		}
+		aiFeedbackWriter = aiFeedbackClient
 
 		socialClient, err := social.NewClient(
 			cfg.SupabaseURL,
@@ -175,7 +188,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
+			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, AIFeedback: aiFeedbackWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
