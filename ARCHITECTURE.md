@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.47)
+## Go migration boundary (v1.0.48)
 
 - Most production writes and all business decisions remain in Next.js/Supabase.
 - Simple AI feedback may use a disabled-by-default 1–10% Go canary after owner and assistant-message verification; feedback that queues learning candidates always remains on the legacy server path.
@@ -104,7 +104,8 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Private-chat thread reads may serve a separately controlled 1–10% canary. Failures, excessive latency, malformed output or an open circuit fall back to the existing Next.js/Supabase read in the same request.
 - Private-chat shadow and canary modes are mutually exclusive. A dedicated five-minute circuit breaker and an environment kill switch provide automatic and global rollback.
 - Private-message writes may use a disabled-by-default 1–10% Go canary after the existing conversation and contact-information checks. The verified JWT fixes the sender; participant-only RLS and a server-generated UUID make fallback safe.
-- Conversation creation, contact moderation, `last_message_at`, Realtime subscriptions, file access, protected delivery, refunds and Points remain in the existing Next.js/Supabase routes.
+- Private-message inserts may atomically advance `last_message_at` through a non-callable private trigger. It refuses inactive or non-participant writes, never moves ordering backwards and grants no conversation UPDATE access to authenticated clients.
+- Conversation creation, contact moderation, Realtime subscriptions, file access, protected delivery, refunds and Points remain in the existing Next.js/Supabase routes.
 - Private-chat list reads add a separate disabled-by-default shadow contract. Go accepts no query-selected identity, derives the participant from the verified JWT subject, and uses the user's token plus publishable key so RLS remains active.
 - List output is capped at 100 conversations, omits both participant UUIDs, and validates each related work order's participant, Points totals, status and deliverable metadata. The legacy response remains authoritative.
 - Private-chat list comparison logs contain only route, outcome and duration. Chat identities, names, titles, statuses, Points and file metadata are excluded.
