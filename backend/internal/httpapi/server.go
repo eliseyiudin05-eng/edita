@@ -22,6 +22,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/businessdiscussion"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/campaigns"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/challenges"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/editordiscussion"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/editorverification"
@@ -159,6 +160,13 @@ type JobStore interface {
 	Accept(context.Context, string, string, string, string) (jobs.AcceptResult, error)
 }
 
+type ChallengeStore interface {
+	Get(context.Context, string, string) (challenges.View, error)
+	Create(context.Context, string, string, challenges.CreateInput) (challenges.Challenge, error)
+	Submit(context.Context, string, string, challenges.SubmitInput) (challenges.Submission, error)
+	SetSubmissionStatus(context.Context, string, string, string, string) (challenges.WinnerResult, error)
+}
+
 type Options struct {
 	Logger                  *slog.Logger
 	Environment             string
@@ -190,6 +198,7 @@ type Options struct {
 	PointsRedemptionEnabled bool
 	Campaigns               CampaignStore
 	Jobs                    JobStore
+	Challenges              ChallengeStore
 }
 
 type server struct {
@@ -223,6 +232,7 @@ type server struct {
 	pointsRedemptionEnabled bool
 	campaigns               CampaignStore
 	jobs                    JobStore
+	challenges              ChallengeStore
 }
 
 type contextKey string
@@ -276,6 +286,7 @@ func New(options Options) http.Handler {
 		pointsRedemptionEnabled: options.PointsRedemptionEnabled,
 		campaigns:               options.Campaigns,
 		jobs:                    options.Jobs,
+		challenges:              options.Challenges,
 	}
 
 	mux := http.NewServeMux()
@@ -321,8 +332,130 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/referrals/qualify", s.referralQualify)
 	mux.HandleFunc("/v1/marketplace/campaigns", s.marketplaceCampaigns)
 	mux.HandleFunc("/v1/marketplace/jobs", s.marketplaceJobs)
+	mux.HandleFunc("/v1/marketplace/challenges", s.marketplaceChallenges)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) marketplaceChallenges(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
+		return
+	}
+	if s.challenges == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "challenge_service_unavailable", "Challenges are temporarily unavailable.")
+		return
+	}
+	token, subject, ok := s.authenticatedIdentity(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	defer cancel()
+	if r.Method == http.MethodGet {
+		if r.URL.RawQuery != "" {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not supported.")
+			return
+		}
+		result, err := s.challenges.Get(ctx, token, subject)
+		if errors.Is(err, challenges.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "challenges_unavailable", "Challenges could not be loaded.")
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+		return
+	}
+	var body struct {
+		Action       string   `json:"action"`
+		Title        string   `json:"title"`
+		Brief        string   `json:"brief"`
+		PrizeCents   int64    `json:"prizeCents"`
+		PrizePoints  int64    `json:"prizePoints"`
+		CustomPrize  string   `json:"customPrize"`
+		EndsAt       *string  `json:"endsAt"`
+		SourceAssets []string `json:"sourceAssets"`
+		ChallengeID  string   `json:"challengeId"`
+		ObjectID     string   `json:"objectId"`
+		SubmissionID string   `json:"submissionId"`
+		Status       string   `json:"status"`
+	}
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid challenge request is required.")
+		return
+	}
+	switch body.Action {
+	case "create":
+		input, err := challenges.NormalizeCreate(challenges.CreateInput{Title: body.Title, Brief: body.Brief, PrizeCents: body.PrizeCents, PrizePoints: body.PrizePoints, CustomPrize: body.CustomPrize, EndsAt: body.EndsAt, SourceAssets: body.SourceAssets})
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "invalid_challenge", "Add a valid title, brief, future deadline and at least one reward.")
+			return
+		}
+		result, err := s.challenges.Create(ctx, token, subject, input)
+		if errors.Is(err, challenges.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "verified_business_required", "A verified business account is required.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "challenge_create_failed", "The challenge could not be created.")
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "challenge": result})
+	case "submit":
+		input, err := challenges.NormalizeSubmit(challenges.SubmitInput{ChallengeID: body.ChallengeID, ObjectID: body.ObjectID})
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "invalid_submission", "Valid challenge and uploaded-object IDs are required.")
+			return
+		}
+		result, err := s.challenges.Submit(ctx, token, subject, input)
+		if errors.Is(err, challenges.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "editor_not_eligible", "An eligible editor and an owned challenge video are required.")
+			return
+		}
+		if errors.Is(err, challenges.ErrConflict) {
+			writeError(w, r, http.StatusConflict, "submission_locked", "The submission is locked or the challenge is closed.")
+			return
+		}
+		if errors.Is(err, challenges.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "challenge_submit_failed", "The submission could not be saved.")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "submission": result})
+	case "submission_status":
+		submissionID, status, err := challenges.NormalizeStatus(body.SubmissionID, body.Status)
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "invalid_submission_status", "A valid submission and supported status are required.")
+			return
+		}
+		result, err := s.challenges.SetSubmissionStatus(ctx, token, subject, submissionID, status)
+		if errors.Is(err, challenges.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "challenge_forbidden", "Only the verified challenge owner can update this submission.")
+			return
+		}
+		if errors.Is(err, challenges.ErrConflict) {
+			writeError(w, r, http.StatusConflict, "winner_conflict", "A winner is already selected or this status cannot be changed.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "challenge_status_failed", "The submission status could not be updated.")
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+	default:
+		writeError(w, r, http.StatusBadRequest, "unknown_action", "Choose a supported challenge action.")
+	}
 }
 
 func (s *server) marketplaceJobs(w http.ResponseWriter, r *http.Request) {

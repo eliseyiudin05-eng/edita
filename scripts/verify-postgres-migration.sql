@@ -32,6 +32,30 @@ begin
     left join public.profiles p on p.id=a.editor_id
     where c.id is null or p.id is null;
   if orphan_count <> 0 then raise exception 'orphan campaign applications: %', orphan_count; end if;
+
+  select count(*) into orphan_count from public.challenge_submissions s
+    left join public.challenges c on c.id=s.challenge_id
+    left join public.profiles p on p.id=s.editor_id
+    where c.id is null or p.id is null;
+  if orphan_count <> 0 then raise exception 'orphan challenge submissions: %', orphan_count; end if;
+
+  select count(*) into orphan_count from (
+    select challenge_id from public.challenge_submissions
+    where status='winner' group by challenge_id having count(*)>1
+  ) duplicate_winners;
+  if orphan_count <> 0 then raise exception 'challenges with multiple winners: %', orphan_count; end if;
+
+  select count(*) into orphan_count from public.challenge_reward_events reward
+    join public.challenge_submissions submission on submission.id=reward.submission_id
+    where reward.challenge_id<>submission.challenge_id or reward.user_id<>submission.editor_id
+      or submission.status<>'winner';
+  if orphan_count <> 0 then raise exception 'invalid challenge Points rewards: %', orphan_count; end if;
+
+  select count(*) into orphan_count from public.challenge_cash_reward_events reward
+    join public.challenge_submissions submission on submission.id=reward.submission_id
+    where reward.challenge_id<>submission.challenge_id or reward.user_id<>submission.editor_id
+      or submission.status<>'winner';
+  if orphan_count <> 0 then raise exception 'invalid challenge cash rewards: %', orphan_count; end if;
 end $$;
 
 select 'app_users' as entity,count(*) as rows from public.app_users
@@ -44,5 +68,7 @@ union all select 'reward_events',count(*) from public.referral_reward_events
 union all select 'beta_members',count(*) from public.beta_members
 union all select 'business_campaigns',count(*) from public.business_campaigns
 union all select 'campaign_applications',count(*) from public.business_campaign_applications
+union all select 'challenges',count(*) from public.challenges
+union all select 'challenge_submissions',count(*) from public.challenge_submissions
 union all select 'objects',count(*) from public.objects
 order by entity;

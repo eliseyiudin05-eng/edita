@@ -20,6 +20,24 @@ if [[ -z "$source_identity" || -z "$target_identity" || "$source_identity" == "$
   exit 1
 fi
 
+if [[ "$(psql -XAt "$SOURCE_DATABASE_URL" -c "select count(*) from information_schema.tables where table_schema='public' and table_name='challenge_submissions'")" == "1" ]]; then
+  duplicate_winners="$(psql -XAt "$SOURCE_DATABASE_URL" -c "select count(*) from (select challenge_id from public.challenge_submissions where status='winner' group by challenge_id having count(*)>1) duplicates")"
+  if [[ "$duplicate_winners" != "0" ]]; then
+    printf 'Source contains %s challenges with multiple winners; reconcile them before migration.\n' "$duplicate_winners" >&2
+    exit 1
+  fi
+  for reward_table in challenge_reward_events challenge_cash_reward_events; do
+    if [[ "$(psql -XAt "$SOURCE_DATABASE_URL" -v name="$reward_table" -c "select count(*) from information_schema.tables where table_schema='public' and table_name=:'name'")" != "1" ]]; then
+      continue
+    fi
+    invalid_rewards="$(psql -XAt "$SOURCE_DATABASE_URL" -c "select count(*) from public.\"$reward_table\" reward join public.challenge_submissions submission on submission.id=reward.submission_id where reward.challenge_id<>submission.challenge_id or reward.user_id<>submission.editor_id or submission.status<>'winner'")"
+    if [[ "$invalid_rewards" != "0" ]]; then
+      printf 'Source contains %s inconsistent rows in %s; reconcile them before migration.\n' "$invalid_rewards" "$reward_table" >&2
+      exit 1
+    fi
+  done
+fi
+
 migration_dir="$(mktemp -d)"
 chmod 700 "$migration_dir"
 trap 'rm -rf -- "$migration_dir"' EXIT
