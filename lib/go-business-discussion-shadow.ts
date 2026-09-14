@@ -18,6 +18,8 @@ export function businessDiscussionShadowEnabled(){
   return process.env.GO_BACKEND_BUSINESS_DISCUSSION_SHADOW_READS_ENABLED==="true"&&Boolean(endpoint());
 }
 
+export function goBusinessDiscussionBackendConfigured(){return Boolean(endpoint())}
+
 export function normalizeBusinessDiscussion(value:unknown):BusinessDiscussionResponse|null{
   if(!value||typeof value!=="object")return null;
   const rows=(value as Record<string,unknown>).messages;
@@ -38,12 +40,16 @@ export function normalizeBusinessDiscussion(value:unknown):BusinessDiscussionRes
 }
 
 export async function compareBusinessDiscussionWithGo(token:string,legacy:BusinessDiscussionResponse){
-  const result=await readFromGo(token,shadowTimeout());
-  const outcome=result.ok?(JSON.stringify(result.value)===JSON.stringify(legacy)?"match":"mismatch"):result.outcome;
+  const result=await readBusinessDiscussionFromGo(token,shadowTimeout());
+  const outcome=result.ok?(sameBusinessDiscussion(result.value,legacy)?"match":"mismatch"):result.outcome;
   console.info("go_business_discussion_shadow",{route:"business_discussion",outcome,duration_ms:result.durationMs});
 }
 
-async function readFromGo(token:string,timeoutMs:number):Promise<GoReadResult>{
+export function sameBusinessDiscussion(left:BusinessDiscussionResponse,right:BusinessDiscussionResponse){
+  return JSON.stringify(left)===JSON.stringify(right);
+}
+
+export async function readBusinessDiscussionFromGo(token:string,timeoutMs:number):Promise<GoReadResult>{
   const started=Date.now();
   try{
     const target=endpoint();

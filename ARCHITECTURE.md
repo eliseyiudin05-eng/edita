@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.39)
+## Go migration boundary (v1.0.40)
 
 - Most production writes and all business decisions remain in Next.js/Supabase.
 - Simple AI feedback may use a disabled-by-default 1–10% Go canary after owner and assistant-message verification; feedback that queues learning candidates always remains on the legacy server path.
@@ -61,6 +61,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Guardian-verification may route a disabled-by-default 1–10% read canary to Go after shadow validation. Invalid, slow or failed responses use the already computed legacy result; mismatch or repeated failures open a five-minute circuit.
 - The confidential business discussion adds a disabled-by-default shadow read. Go verifies the JWT subject's business role, fixes the topic server-side, and reads at most 80 published messages under business-only RLS.
 - Discussion output removes author UUIDs and database-only fields. Comparison logs omit names and content; message creation and moderation remain on the legacy service-role path.
+- Business-discussion reads may use a separate disabled-by-default 1–10% Go canary after shadow validation. Invalid, slow or failed results fall back to the already computed legacy feed; mismatch or repeated failures open the five-minute circuit.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
 - Shadow reads remain available. A separate, disabled-by-default canary may serve at most 10% of this one read-only route from Go.
 - Every canary failure, timeout, oversized or malformed response, or response above the configured latency ceiling falls back to the existing Supabase read in the same request.
