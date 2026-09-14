@@ -47,6 +47,8 @@ export function privateChatListShadowEnabled(){
   return process.env.GO_BACKEND_PRIVATE_CHAT_LIST_SHADOW_READS_ENABLED==="true"&&Boolean(listEndpoint());
 }
 
+export function goPrivateChatListBackendConfigured(){return Boolean(listEndpoint())}
+
 export function normalizePrivateChatList(value:unknown):PrivateChatConversationList|null{
   if(!value||typeof value!=="object")return null;
   const row=value as Record<string,unknown>;
@@ -73,7 +75,7 @@ export function samePrivateChatList(left:PrivateChatConversationList,right:Priva
   return JSON.stringify(left)===JSON.stringify(right);
 }
 
-async function readPrivateChatListFromGo(token:string,timeoutMs:number):Promise<GoPrivateChatListResult>{
+export async function readPrivateChatListFromGo(token:string,timeoutMs:number):Promise<GoPrivateChatListResult>{
   const started=Date.now();
   try{
     const endpoint=listEndpoint();
