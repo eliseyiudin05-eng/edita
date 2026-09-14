@@ -29,6 +29,8 @@ export function editorVerificationShadowEnabled(){
   return process.env.GO_BACKEND_EDITOR_VERIFICATION_SHADOW_READS_ENABLED==="true"&&Boolean(endpoint());
 }
 
+export function goEditorVerificationBackendConfigured(){return Boolean(endpoint())}
+
 export function normalizeEditorVerification(value:unknown):EditorVerificationResponse|null{
   if(!value||typeof value!=="object")return null;
   const row=value as Record<string,unknown>;
@@ -40,12 +42,16 @@ export function normalizeEditorVerification(value:unknown):EditorVerificationRes
 }
 
 export async function compareEditorVerificationWithGo(token:string,legacy:EditorVerificationResponse){
-  const result=await readFromGo(token,shadowTimeout());
-  const outcome=result.ok?(JSON.stringify(result.value)===JSON.stringify(legacy)?"match":"mismatch"):result.outcome;
+  const result=await readEditorVerificationFromGo(token,shadowTimeout());
+  const outcome=result.ok?(sameEditorVerification(result.value,legacy)?"match":"mismatch"):result.outcome;
   console.info("go_editor_verification_shadow",{route:"editor_verification",outcome,duration_ms:result.durationMs});
 }
 
-async function readFromGo(token:string,timeoutMs:number):Promise<GoReadResult>{
+export function sameEditorVerification(left:EditorVerificationResponse,right:EditorVerificationResponse){
+  return JSON.stringify(left)===JSON.stringify(right);
+}
+
+export async function readEditorVerificationFromGo(token:string,timeoutMs:number):Promise<GoReadResult>{
   const started=Date.now();
   try{
     const target=endpoint();

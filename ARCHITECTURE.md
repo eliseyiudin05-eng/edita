@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.35)
+## Go migration boundary (v1.0.36)
 
 - Most production writes and all business decisions remain in Next.js/Supabase.
 - Simple AI feedback may use a disabled-by-default 1–10% Go canary after owner and assistant-message verification; feedback that queues learning candidates always remains on the legacy server path.
@@ -55,6 +55,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Avatar file upload stays in the existing Storage flow, and the settings write stores only the resulting bounded HTTPS URL.
 - Editor-verification status adds a disabled-by-default shadow read. Go verifies the same Auth user, requires an editor profile, and queries only the verified subject's latest request with the user's JWT and publishable key.
 - The v1.0.35 migration grants authenticated users SELECT only and combines permissive and restrictive owner policies so another permissive policy cannot widen access. Submission and admin review remain on the legacy service-role path.
+- Editor-verification may route a disabled-by-default 1–10% read canary to Go after shadow validation. Any unhealthy result falls back to the already computed legacy response, while mismatch or repeated failures open a five-minute circuit.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
 - Shadow reads remain available. A separate, disabled-by-default canary may serve at most 10% of this one read-only route from Go.
 - Every canary failure, timeout, oversized or malformed response, or response above the configured latency ceiling falls back to the existing Supabase read in the same request.
