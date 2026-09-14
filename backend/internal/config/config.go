@@ -11,43 +11,44 @@ import (
 )
 
 type Config struct {
-	Address                string
-	Environment            string
-	LogLevel               slog.Level
-	MaxBodyBytes           int64
-	ReadHeaderTimeout      time.Duration
-	ReadTimeout            time.Duration
-	WriteTimeout           time.Duration
-	IdleTimeout            time.Duration
-	ShutdownTimeout        time.Duration
-	DependencyTimeout      time.Duration
-	DatabaseURL            string
-	DatabaseMaxConns       int32
-	AuthIssuer             string
-	AuthAudience           string
-	AuthSecret             string
-	AuthAccessTTL          time.Duration
-	AuthRefreshTTL         time.Duration
-	ResendAPIKey           string
-	ResendFrom             string
-	PublicSiteURL          string
-	EmailHTTPTimeout       time.Duration
-	SupabaseURL            string
-	SupabasePublishableKey string
-	JWTIssuer              string
-	JWKSURL                string
-	JWTAudience            string
-	JWKSCacheTTL           time.Duration
-	JWKSHTTPTimeout        time.Duration
-	ProfileHTTPTimeout     time.Duration
-	AcademyHTTPTimeout     time.Duration
-	SocialHTTPTimeout      time.Duration
-	BusinessHTTPTimeout    time.Duration
-	PrivateChatHTTPTimeout time.Duration
-	AIHistoryHTTPTimeout   time.Duration
-	YooKassaShopID         string
-	YooKassaSecretKey      string
-	PaymentHTTPTimeout     time.Duration
+	Address                 string
+	Environment             string
+	LogLevel                slog.Level
+	MaxBodyBytes            int64
+	ReadHeaderTimeout       time.Duration
+	ReadTimeout             time.Duration
+	WriteTimeout            time.Duration
+	IdleTimeout             time.Duration
+	ShutdownTimeout         time.Duration
+	DependencyTimeout       time.Duration
+	DatabaseURL             string
+	DatabaseMaxConns        int32
+	AuthIssuer              string
+	AuthAudience            string
+	AuthSecret              string
+	AuthAccessTTL           time.Duration
+	AuthRefreshTTL          time.Duration
+	ResendAPIKey            string
+	ResendFrom              string
+	PublicSiteURL           string
+	EmailHTTPTimeout        time.Duration
+	SupabaseURL             string
+	SupabasePublishableKey  string
+	JWTIssuer               string
+	JWKSURL                 string
+	JWTAudience             string
+	JWKSCacheTTL            time.Duration
+	JWKSHTTPTimeout         time.Duration
+	ProfileHTTPTimeout      time.Duration
+	AcademyHTTPTimeout      time.Duration
+	SocialHTTPTimeout       time.Duration
+	BusinessHTTPTimeout     time.Duration
+	PrivateChatHTTPTimeout  time.Duration
+	AIHistoryHTTPTimeout    time.Duration
+	YooKassaShopID          string
+	YooKassaSecretKey       string
+	PaymentHTTPTimeout      time.Duration
+	PointsRedemptionEnabled bool
 }
 
 func Load() Config {
@@ -60,44 +61,57 @@ func Load() Config {
 	}
 
 	return Config{
-		Address:                envString("GO_BACKEND_ADDRESS", ":8080"),
-		Environment:            envString("GO_BACKEND_ENV", "development"),
-		LogLevel:               logLevel(envString("GO_BACKEND_LOG_LEVEL", "info")),
-		MaxBodyBytes:           envInt64("GO_BACKEND_MAX_BODY_BYTES", 1<<20, 1024, 10<<20),
-		ReadHeaderTimeout:      envDuration("GO_BACKEND_READ_HEADER_TIMEOUT", 5*time.Second),
-		ReadTimeout:            envDuration("GO_BACKEND_READ_TIMEOUT", 15*time.Second),
-		WriteTimeout:           envDuration("GO_BACKEND_WRITE_TIMEOUT", 30*time.Second),
-		IdleTimeout:            envDuration("GO_BACKEND_IDLE_TIMEOUT", 60*time.Second),
-		ShutdownTimeout:        envDuration("GO_BACKEND_SHUTDOWN_TIMEOUT", 10*time.Second),
-		DependencyTimeout:      envDuration("GO_BACKEND_DEPENDENCY_TIMEOUT", 3*time.Second),
-		DatabaseURL:            envString("GO_BACKEND_DATABASE_URL", ""),
-		DatabaseMaxConns:       int32(envInt64("GO_BACKEND_DATABASE_MAX_CONNS", 4, 1, 20)),
-		AuthIssuer:             envString("GO_BACKEND_AUTH_ISSUER", "https://api.kivronix.ru"),
-		AuthAudience:           envString("GO_BACKEND_AUTH_AUDIENCE", "kivronix-web"),
-		AuthSecret:             envString("GO_BACKEND_AUTH_SECRET", ""),
-		AuthAccessTTL:          envDurationBounded("GO_BACKEND_AUTH_ACCESS_TTL", 15*time.Minute, time.Minute, time.Hour),
-		AuthRefreshTTL:         envDurationBounded("GO_BACKEND_AUTH_REFRESH_TTL", 30*24*time.Hour, time.Hour, 90*24*time.Hour),
-		ResendAPIKey:           envString("RESEND_API_KEY", ""),
-		ResendFrom:             envString("RESEND_FROM_EMAIL", "KIVRONIX <no-reply@auth.kivronix.ru>"),
-		PublicSiteURL:          envString("GO_BACKEND_PUBLIC_SITE_URL", "https://kivronix.ru"),
-		EmailHTTPTimeout:       envDurationBounded("GO_BACKEND_EMAIL_HTTP_TIMEOUT", 10*time.Second, time.Second, 30*time.Second),
-		SupabaseURL:            supabaseURL,
-		SupabasePublishableKey: envString("GO_BACKEND_SUPABASE_PUBLISHABLE_KEY", ""),
-		JWTIssuer:              issuer,
-		JWKSURL:                jwksURL,
-		JWTAudience:            envString("GO_BACKEND_JWT_AUDIENCE", "authenticated"),
-		JWKSCacheTTL:           envDurationBounded("GO_BACKEND_JWKS_CACHE_TTL", 5*time.Minute, time.Minute, 10*time.Minute),
-		JWKSHTTPTimeout:        envDurationBounded("GO_BACKEND_JWKS_HTTP_TIMEOUT", 5*time.Second, time.Second, 15*time.Second),
-		ProfileHTTPTimeout:     envDurationBounded("GO_BACKEND_PROFILE_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
-		AcademyHTTPTimeout:     envDurationBounded("GO_BACKEND_ACADEMY_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
-		SocialHTTPTimeout:      envDurationBounded("GO_BACKEND_SOCIAL_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
-		BusinessHTTPTimeout:    envDurationBounded("GO_BACKEND_BUSINESS_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
-		PrivateChatHTTPTimeout: envDurationBounded("GO_BACKEND_PRIVATE_CHAT_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
-		AIHistoryHTTPTimeout:   envDurationBounded("GO_BACKEND_AI_HISTORY_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
-		YooKassaShopID:         envString("YOOKASSA_SHOP_ID", ""),
-		YooKassaSecretKey:      envString("YOOKASSA_SECRET_KEY", ""),
-		PaymentHTTPTimeout:     envDurationBounded("GO_BACKEND_PAYMENT_HTTP_TIMEOUT", 10*time.Second, time.Second, 20*time.Second),
+		Address:                 envString("GO_BACKEND_ADDRESS", ":8080"),
+		Environment:             envString("GO_BACKEND_ENV", "development"),
+		LogLevel:                logLevel(envString("GO_BACKEND_LOG_LEVEL", "info")),
+		MaxBodyBytes:            envInt64("GO_BACKEND_MAX_BODY_BYTES", 1<<20, 1024, 10<<20),
+		ReadHeaderTimeout:       envDuration("GO_BACKEND_READ_HEADER_TIMEOUT", 5*time.Second),
+		ReadTimeout:             envDuration("GO_BACKEND_READ_TIMEOUT", 15*time.Second),
+		WriteTimeout:            envDuration("GO_BACKEND_WRITE_TIMEOUT", 30*time.Second),
+		IdleTimeout:             envDuration("GO_BACKEND_IDLE_TIMEOUT", 60*time.Second),
+		ShutdownTimeout:         envDuration("GO_BACKEND_SHUTDOWN_TIMEOUT", 10*time.Second),
+		DependencyTimeout:       envDuration("GO_BACKEND_DEPENDENCY_TIMEOUT", 3*time.Second),
+		DatabaseURL:             envString("GO_BACKEND_DATABASE_URL", ""),
+		DatabaseMaxConns:        int32(envInt64("GO_BACKEND_DATABASE_MAX_CONNS", 4, 1, 20)),
+		AuthIssuer:              envString("GO_BACKEND_AUTH_ISSUER", "https://api.kivronix.ru"),
+		AuthAudience:            envString("GO_BACKEND_AUTH_AUDIENCE", "kivronix-web"),
+		AuthSecret:              envString("GO_BACKEND_AUTH_SECRET", ""),
+		AuthAccessTTL:           envDurationBounded("GO_BACKEND_AUTH_ACCESS_TTL", 15*time.Minute, time.Minute, time.Hour),
+		AuthRefreshTTL:          envDurationBounded("GO_BACKEND_AUTH_REFRESH_TTL", 30*24*time.Hour, time.Hour, 90*24*time.Hour),
+		ResendAPIKey:            envString("RESEND_API_KEY", ""),
+		ResendFrom:              envString("RESEND_FROM_EMAIL", "KIVRONIX <no-reply@auth.kivronix.ru>"),
+		PublicSiteURL:           envString("GO_BACKEND_PUBLIC_SITE_URL", "https://kivronix.ru"),
+		EmailHTTPTimeout:        envDurationBounded("GO_BACKEND_EMAIL_HTTP_TIMEOUT", 10*time.Second, time.Second, 30*time.Second),
+		SupabaseURL:             supabaseURL,
+		SupabasePublishableKey:  envString("GO_BACKEND_SUPABASE_PUBLISHABLE_KEY", ""),
+		JWTIssuer:               issuer,
+		JWKSURL:                 jwksURL,
+		JWTAudience:             envString("GO_BACKEND_JWT_AUDIENCE", "authenticated"),
+		JWKSCacheTTL:            envDurationBounded("GO_BACKEND_JWKS_CACHE_TTL", 5*time.Minute, time.Minute, 10*time.Minute),
+		JWKSHTTPTimeout:         envDurationBounded("GO_BACKEND_JWKS_HTTP_TIMEOUT", 5*time.Second, time.Second, 15*time.Second),
+		ProfileHTTPTimeout:      envDurationBounded("GO_BACKEND_PROFILE_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
+		AcademyHTTPTimeout:      envDurationBounded("GO_BACKEND_ACADEMY_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
+		SocialHTTPTimeout:       envDurationBounded("GO_BACKEND_SOCIAL_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
+		BusinessHTTPTimeout:     envDurationBounded("GO_BACKEND_BUSINESS_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
+		PrivateChatHTTPTimeout:  envDurationBounded("GO_BACKEND_PRIVATE_CHAT_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
+		AIHistoryHTTPTimeout:    envDurationBounded("GO_BACKEND_AI_HISTORY_HTTP_TIMEOUT", 3*time.Second, 500*time.Millisecond, 10*time.Second),
+		YooKassaShopID:          envString("YOOKASSA_SHOP_ID", ""),
+		YooKassaSecretKey:       envString("YOOKASSA_SECRET_KEY", ""),
+		PaymentHTTPTimeout:      envDurationBounded("GO_BACKEND_PAYMENT_HTTP_TIMEOUT", 10*time.Second, time.Second, 20*time.Second),
+		PointsRedemptionEnabled: envBool("KIVRONIX_POINTS_REDEMPTION_ENABLED", false),
 	}
+}
+
+func envBool(key string, fallback bool) bool {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
 
 func (c Config) Validate() error {

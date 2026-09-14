@@ -101,3 +101,14 @@ func TestValidateRequiresCompleteYooKassaCredentials(t *testing.T) {
 		t.Fatal("Validate accepted incomplete YooKassa credentials")
 	}
 }
+
+func TestLoadParsesPointsRedemptionFlagSafely(t *testing.T) {
+	t.Setenv("KIVRONIX_POINTS_REDEMPTION_ENABLED", "true")
+	if !Load().PointsRedemptionEnabled {
+		t.Fatal("points redemption flag was not enabled")
+	}
+	t.Setenv("KIVRONIX_POINTS_REDEMPTION_ENABLED", "definitely")
+	if Load().PointsRedemptionEnabled {
+		t.Fatal("invalid points redemption flag was enabled")
+	}
+}

@@ -29,6 +29,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/rewards"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
 )
 
@@ -136,62 +137,72 @@ type FinanceStore interface {
 	HandlePaymentWebhook(context.Context, string) error
 }
 
+type RewardsStore interface {
+	GetDashboard(context.Context, string, string, bool) (rewards.Dashboard, error)
+	QualifyReferral(context.Context, string, string) (rewards.Qualification, error)
+	Redeem(context.Context, string, string, string) (rewards.RedemptionResult, error)
+}
+
 type Options struct {
-	Logger               *slog.Logger
-	Environment          string
-	Version              string
-	Commit               string
-	MaxBodyBytes         int64
-	DependencyTimeout    time.Duration
-	Database             Pinger
-	Auth                 TokenVerifier
-	AuthSessions         AuthSessionService
-	AuthMailer           AuthMailer
-	Profiles             LearningPreferencesReader
-	Academy              AcademyProgressReader
-	Practice             PracticeSessionStore
-	Plans                PlanInterestWriter
-	AIFeedback           AIFeedbackWriter
-	Social               SocialRankingReader
-	SocialFriends        SocialFriendsReader
-	SocialGroups         SocialGroupsReader
-	Business             BusinessVerificationReader
-	BusinessDiscussion   BusinessDiscussionStore
-	EditorDiscussion     EditorDiscussionStore
-	EditorVerification   EditorVerificationReader
-	GuardianVerification GuardianVerificationReader
-	PrivateChats         PrivateChatReader
-	AIHistory            AIHistoryReader
-	Finance              FinanceStore
+	Logger                  *slog.Logger
+	Environment             string
+	Version                 string
+	Commit                  string
+	MaxBodyBytes            int64
+	DependencyTimeout       time.Duration
+	Database                Pinger
+	Auth                    TokenVerifier
+	AuthSessions            AuthSessionService
+	AuthMailer              AuthMailer
+	Profiles                LearningPreferencesReader
+	Academy                 AcademyProgressReader
+	Practice                PracticeSessionStore
+	Plans                   PlanInterestWriter
+	AIFeedback              AIFeedbackWriter
+	Social                  SocialRankingReader
+	SocialFriends           SocialFriendsReader
+	SocialGroups            SocialGroupsReader
+	Business                BusinessVerificationReader
+	BusinessDiscussion      BusinessDiscussionStore
+	EditorDiscussion        EditorDiscussionStore
+	EditorVerification      EditorVerificationReader
+	GuardianVerification    GuardianVerificationReader
+	PrivateChats            PrivateChatReader
+	AIHistory               AIHistoryReader
+	Finance                 FinanceStore
+	Rewards                 RewardsStore
+	PointsRedemptionEnabled bool
 }
 
 type server struct {
-	logger               *slog.Logger
-	environment          string
-	version              string
-	commit               string
-	maxBodyBytes         int64
-	dependencyTimeout    time.Duration
-	database             Pinger
-	auth                 TokenVerifier
-	authSessions         AuthSessionService
-	authMailer           AuthMailer
-	profiles             LearningPreferencesReader
-	academy              AcademyProgressReader
-	practice             PracticeSessionStore
-	plans                PlanInterestWriter
-	aiFeedback           AIFeedbackWriter
-	social               SocialRankingReader
-	socialFriends        SocialFriendsReader
-	socialGroups         SocialGroupsReader
-	business             BusinessVerificationReader
-	businessDiscussion   BusinessDiscussionStore
-	editorDiscussion     EditorDiscussionStore
-	editorVerification   EditorVerificationReader
-	guardianVerification GuardianVerificationReader
-	privateChats         PrivateChatReader
-	aiHistory            AIHistoryReader
-	finance              FinanceStore
+	logger                  *slog.Logger
+	environment             string
+	version                 string
+	commit                  string
+	maxBodyBytes            int64
+	dependencyTimeout       time.Duration
+	database                Pinger
+	auth                    TokenVerifier
+	authSessions            AuthSessionService
+	authMailer              AuthMailer
+	profiles                LearningPreferencesReader
+	academy                 AcademyProgressReader
+	practice                PracticeSessionStore
+	plans                   PlanInterestWriter
+	aiFeedback              AIFeedbackWriter
+	social                  SocialRankingReader
+	socialFriends           SocialFriendsReader
+	socialGroups            SocialGroupsReader
+	business                BusinessVerificationReader
+	businessDiscussion      BusinessDiscussionStore
+	editorDiscussion        EditorDiscussionStore
+	editorVerification      EditorVerificationReader
+	guardianVerification    GuardianVerificationReader
+	privateChats            PrivateChatReader
+	aiHistory               AIHistoryReader
+	finance                 FinanceStore
+	rewards                 RewardsStore
+	pointsRedemptionEnabled bool
 }
 
 type contextKey string
@@ -215,32 +226,34 @@ func New(options Options) http.Handler {
 	}
 
 	s := &server{
-		logger:               logger,
-		environment:          options.Environment,
-		version:              options.Version,
-		commit:               options.Commit,
-		maxBodyBytes:         options.MaxBodyBytes,
-		dependencyTimeout:    options.DependencyTimeout,
-		database:             options.Database,
-		auth:                 options.Auth,
-		authSessions:         options.AuthSessions,
-		authMailer:           options.AuthMailer,
-		profiles:             options.Profiles,
-		academy:              options.Academy,
-		practice:             options.Practice,
-		plans:                options.Plans,
-		aiFeedback:           options.AIFeedback,
-		social:               options.Social,
-		socialFriends:        options.SocialFriends,
-		socialGroups:         options.SocialGroups,
-		business:             options.Business,
-		businessDiscussion:   options.BusinessDiscussion,
-		editorDiscussion:     options.EditorDiscussion,
-		editorVerification:   options.EditorVerification,
-		guardianVerification: options.GuardianVerification,
-		privateChats:         options.PrivateChats,
-		aiHistory:            options.AIHistory,
-		finance:              options.Finance,
+		logger:                  logger,
+		environment:             options.Environment,
+		version:                 options.Version,
+		commit:                  options.Commit,
+		maxBodyBytes:            options.MaxBodyBytes,
+		dependencyTimeout:       options.DependencyTimeout,
+		database:                options.Database,
+		auth:                    options.Auth,
+		authSessions:            options.AuthSessions,
+		authMailer:              options.AuthMailer,
+		profiles:                options.Profiles,
+		academy:                 options.Academy,
+		practice:                options.Practice,
+		plans:                   options.Plans,
+		aiFeedback:              options.AIFeedback,
+		social:                  options.Social,
+		socialFriends:           options.SocialFriends,
+		socialGroups:            options.SocialGroups,
+		business:                options.Business,
+		businessDiscussion:      options.BusinessDiscussion,
+		editorDiscussion:        options.EditorDiscussion,
+		editorVerification:      options.EditorVerification,
+		guardianVerification:    options.GuardianVerification,
+		privateChats:            options.PrivateChats,
+		aiHistory:               options.AIHistory,
+		finance:                 options.Finance,
+		rewards:                 options.Rewards,
+		pointsRedemptionEnabled: options.PointsRedemptionEnabled,
 	}
 
 	mux := http.NewServeMux()
@@ -282,8 +295,134 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/finance/payouts", s.financePayouts)
 	mux.HandleFunc("/v1/finance/topups", s.financeTopups)
 	mux.HandleFunc("/v1/finance/yookassa/webhook", s.financeWebhook)
+	mux.HandleFunc("/v1/social/referrals", s.socialReferrals)
+	mux.HandleFunc("/v1/referrals/qualify", s.referralQualify)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) socialReferrals(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
+		return
+	}
+	if s.rewards == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "rewards_service_unavailable", "Rewards are temporarily unavailable.")
+		return
+	}
+	token, subject, ok := s.authenticatedIdentity(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	defer cancel()
+	if r.Method == http.MethodGet {
+		if r.URL.RawQuery != "" {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not supported.")
+			return
+		}
+		result, err := s.rewards.GetDashboard(ctx, token, subject, s.pointsRedemptionEnabled)
+		if errors.Is(err, rewards.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "rewards_unavailable", "Rewards could not be loaded.")
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+		return
+	}
+	if !s.pointsRedemptionEnabled {
+		writeError(w, r, http.StatusConflict, "redemption_disabled", "Points redemption will become available with Creator+.")
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+		return
+	}
+	var body struct {
+		Reward string `json:"reward"`
+	}
+	if err := decodeJSON(r, &body); err != nil || !rewards.ValidReward(body.Reward) {
+		writeError(w, r, http.StatusBadRequest, "unknown_reward", "The requested reward does not exist.")
+		return
+	}
+	result, err := s.rewards.Redeem(ctx, token, subject, body.Reward)
+	switch {
+	case errors.Is(err, rewards.ErrInsufficient):
+		writeError(w, r, http.StatusConflict, "not_enough_points", "There are not enough KIVRONIX Points.")
+	case errors.Is(err, rewards.ErrForbidden):
+		writeError(w, r, http.StatusForbidden, "reward_forbidden", "This reward is available to editors only.")
+	case errors.Is(err, rewards.ErrNotFound):
+		writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+	case err != nil:
+		writeError(w, r, http.StatusServiceUnavailable, "redemption_unavailable", "The reward could not be redeemed.")
+	default:
+		writeJSON(w, http.StatusOK, result)
+	}
+}
+
+func (s *server) referralQualify(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.rewards == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "rewards_service_unavailable", "Rewards are temporarily unavailable.")
+		return
+	}
+	if r.URL.RawQuery != "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not supported.")
+		return
+	}
+	token, subject, ok := s.authenticatedIdentity(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	defer cancel()
+	result, err := s.rewards.QualifyReferral(ctx, token, subject)
+	if errors.Is(err, rewards.ErrNotFound) {
+		writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "qualification_unavailable", "Referral qualification could not be completed.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) authenticatedIdentity(w http.ResponseWriter, r *http.Request) (string, string, bool) {
+	if s.auth == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication is temporarily unavailable.")
+		return "", "", false
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return "", "", false
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	cancel()
+	if err != nil {
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+		} else {
+			writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		}
+		return "", "", false
+	}
+	if claims.Role != "authenticated" {
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return "", "", false
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	return token, claims.Subject, true
 }
 
 func (s *server) financeTopups(w http.ResponseWriter, r *http.Request) {
@@ -480,12 +619,13 @@ func (s *server) authSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Email       string          `json:"email"`
-		Password    string          `json:"password"`
-		Role        string          `json:"role"`
-		DisplayName string          `json:"displayName"`
-		Username    string          `json:"username"`
-		Onboarding  json.RawMessage `json:"onboarding"`
+		Email        string          `json:"email"`
+		Password     string          `json:"password"`
+		Role         string          `json:"role"`
+		DisplayName  string          `json:"displayName"`
+		Username     string          `json:"username"`
+		Onboarding   json.RawMessage `json:"onboarding"`
+		ReferralCode string          `json:"referralCode"`
 	}
 	if err := decodeJSON(r, &body); err != nil {
 		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid JSON request is required.")
@@ -493,7 +633,7 @@ func (s *server) authSignup(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, err := s.authSessions.Register(r.Context(), auth.Registration{
 		Email: body.Email, Password: body.Password, Role: body.Role, DisplayName: body.DisplayName,
-		Username: body.Username, Onboarding: body.Onboarding,
+		Username: body.Username, Onboarding: body.Onboarding, ReferralCode: body.ReferralCode,
 	})
 	if errors.Is(err, auth.ErrEmailExists) {
 		writeError(w, r, http.StatusConflict, "email_exists", "An account with this email already exists.")

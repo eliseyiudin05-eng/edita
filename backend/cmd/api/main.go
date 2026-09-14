@@ -28,11 +28,12 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/rewards"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
 )
 
 var (
-	version = "2.0.0-alpha.10"
+	version = "2.0.0-alpha.11"
 	commit  = "local"
 )
 
@@ -108,6 +109,7 @@ func main() {
 	var privateChatReader httpapi.PrivateChatReader
 	var aiHistoryReader httpapi.AIHistoryReader
 	var financeStore httpapi.FinanceStore
+	var rewardsStore httpapi.RewardsStore
 	if databasePool != nil {
 		profileReader = profile.NewPostgresRepository(databasePool.DB())
 		academyReader = academy.NewPostgresRepository(databasePool.DB())
@@ -141,6 +143,7 @@ func main() {
 			os.Exit(1)
 		}
 		financeStore = service
+		rewardsStore = rewards.NewPostgresRepository(databasePool.DB())
 	}
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
@@ -320,7 +323,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, AuthSessions: authSessions, AuthMailer: authMailer, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, AIFeedback: aiFeedbackWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, BusinessDiscussion: businessDiscussionReader, EditorDiscussion: editorDiscussionReader, EditorVerification: editorVerificationReader, GuardianVerification: guardianVerificationReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader, Finance: financeStore,
+			Database: databasePinger, Auth: authVerifier, AuthSessions: authSessions, AuthMailer: authMailer, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, AIFeedback: aiFeedbackWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, BusinessDiscussion: businessDiscussionReader, EditorDiscussion: editorDiscussionReader, EditorVerification: editorVerificationReader, GuardianVerification: guardianVerificationReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader, Finance: financeStore, Rewards: rewardsStore, PointsRedemptionEnabled: cfg.PointsRedemptionEnabled,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,

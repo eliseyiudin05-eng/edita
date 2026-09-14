@@ -33,12 +33,13 @@ type Service struct {
 }
 
 type Registration struct {
-	Email       string
-	Password    string
-	Role        string
-	DisplayName string
-	Username    string
-	Onboarding  json.RawMessage
+	Email        string
+	Password     string
+	Role         string
+	DisplayName  string
+	Username     string
+	Onboarding   json.RawMessage
+	ReferralCode string
 }
 
 type Session struct {
@@ -105,8 +106,8 @@ func (s *Service) Register(ctx context.Context, input Registration) (string, err
 	var userID string
 	err = tx.QueryRow(ctx, `
 		insert into public.app_users(email,password_hash,user_metadata)
-		values($1,crypt($2,gen_salt('bf',12)),jsonb_build_object('role',$3,'display_name',$4))
-		returning id`, email, input.Password, role, strings.TrimSpace(input.DisplayName)).Scan(&userID)
+		values($1,crypt($2,gen_salt('bf',12)),jsonb_build_object('role',$3,'display_name',$4,'onboarding',$5::jsonb))
+		returning id`, email, input.Password, role, strings.TrimSpace(input.DisplayName), onboarding).Scan(&userID)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return "", ErrEmailExists
@@ -123,10 +124,40 @@ func (s *Service) Register(ctx context.Context, input Registration) (string, err
 		userID, role, strings.TrimSpace(input.DisplayName), username, onboarding); err != nil {
 		return "", fmt.Errorf("create profile: %w", err)
 	}
+	if role == "editor" && hasMotivation(onboarding) {
+		command, err := tx.Exec(ctx, `
+			insert into public.signup_reward_events(user_id,reason,points)
+			values($1,'editor_motivation',5) on conflict(user_id) do nothing`, userID)
+		if err != nil {
+			return "", fmt.Errorf("create signup reward: %w", err)
+		}
+		if command.RowsAffected() == 1 {
+			if _, err := tx.Exec(ctx, `update public.profiles set referral_points=referral_points+5 where id=$1`, userID); err != nil {
+				return "", fmt.Errorf("credit signup reward: %w", err)
+			}
+		}
+	}
+	referralCode := strings.ToUpper(strings.TrimSpace(input.ReferralCode))
+	if role == "editor" && referralCode != "" && len(referralCode) <= 16 {
+		if _, err := tx.Exec(ctx, `
+			insert into public.referrals(referrer_id,referred_id,referral_code,status)
+			select id,$1,referral_code,'pending' from public.profiles
+			where referral_code=$2 and id<>$1
+			on conflict(referred_id) do nothing`, userID, referralCode); err != nil {
+			return "", fmt.Errorf("create referral: %w", err)
+		}
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return "", fmt.Errorf("commit registration: %w", err)
 	}
 	return userID, nil
+}
+
+func hasMotivation(onboarding json.RawMessage) bool {
+	var payload struct {
+		Motivation string `json:"motivation"`
+	}
+	return json.Unmarshal(onboarding, &payload) == nil && len([]rune(strings.TrimSpace(payload.Motivation))) >= 5
 }
 
 func (s *Service) Login(ctx context.Context, email, password, userAgent, ipAddress string) (Session, error) {
