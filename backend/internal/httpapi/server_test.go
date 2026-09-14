@@ -18,6 +18,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/auth"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
@@ -27,7 +28,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.29",
+		Version:      "1.0.30",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -61,7 +62,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.29"`) {
+	if !strings.Contains(body, `"version":"1.0.30"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -108,6 +109,21 @@ type fakePracticeWriter struct {
 	token   string
 	subject string
 	session practice.Session
+}
+
+type fakePlanInterestWriter struct {
+	result   plans.Response
+	err      error
+	token    string
+	subject  string
+	interest plans.Interest
+}
+
+func (writer *fakePlanInterestWriter) SaveInterest(_ context.Context, token, subject string, interest plans.Interest) (plans.Response, error) {
+	writer.token = token
+	writer.subject = subject
+	writer.interest = interest
+	return writer.result, writer.err
 }
 
 func (writer *fakePracticeWriter) GetSession(_ context.Context, token, subject string) (practice.ReadResponse, error) {
@@ -313,6 +329,44 @@ func TestPracticeSessionSaveRejectsInvalidPayload(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("status=%d, want 400", response.Code)
+	}
+}
+
+func TestPlanInterestUsesVerifiedSubject(t *testing.T) {
+	writer := &fakePlanInterestWriter{result: plans.Response{OK: true, Audience: "editor", Plan: "creator_plus", PaymentsEnabled: false}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174000", Role: "authenticated"}},
+		Plans:             writer,
+		DependencyTimeout: time.Second,
+	})
+	request := httptest.NewRequest(http.MethodPost, "/v1/plans/interest", strings.NewReader(`{"audience":"editor","plan":"creator_plus"}`))
+	request.Header.Set("Authorization", "Bearer access-token")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || writer.token != "access-token" || writer.subject != "123e4567-e89b-12d3-a456-426614174000" || writer.interest.Plan != "creator_plus" {
+		t.Fatalf("status=%d token=%q subject=%q interest=%+v body=%s", response.Code, writer.token, writer.subject, writer.interest, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), writer.subject) {
+		t.Fatalf("response exposes identity: %s", response.Body.String())
+	}
+}
+
+func TestPlanInterestRejectsInvalidPairBeforeDependency(t *testing.T) {
+	writer := &fakePlanInterestWriter{}
+	handler := New(Options{
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:   claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174000", Role: "authenticated"}},
+		Plans:  writer,
+	})
+	request := httptest.NewRequest(http.MethodPost, "/v1/plans/interest", strings.NewReader(`{"audience":"editor","plan":"studio_plus"}`))
+	request.Header.Set("Authorization", "Bearer access-token")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || writer.subject != "" {
+		t.Fatalf("status=%d subject=%q body=%s", response.Code, writer.subject, response.Body.String())
 	}
 }
 

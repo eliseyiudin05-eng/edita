@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.29)
+## Go migration boundary (v1.0.30)
 
 - Most production writes and all business decisions remain in Next.js/Supabase.
 - The Go service exposes one read-only profile contract for learning preferences in addition to diagnostics.
@@ -107,6 +107,8 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Next.js remains authoritative for practice reads; background comparison logs only outcome and duration and cannot delay or alter the user response.
 - Practice-session reads have a separate disabled-by-default 1–10% canary with latency limits, legacy fallback and a five-minute circuit breaker.
 - Canary responses are compared with legacy after delivery; a mismatch immediately opens the circuit without exposing session content in logs.
+- Future-plan interest has a separate disabled-by-default 1–10% write canary. Go accepts only the two supported audience/plan pairs and verifies the account role before an owner-scoped upsert.
+- The plan-interest write uses the user's JWT and publishable key under existing RLS, omits identity from its response and logs, and does not enable payments or subscriptions.
 - The Go profile endpoint derives identity only from a locally verified access token, forwards that token to the Supabase Data API and filters on the same subject; the existing profile RLS policy remains active.
 - The profile response omits user identity and every unrelated profile/onboarding field.
 - Go connects to PostgreSQL through a bounded pool and requires encrypted database transport in production.
