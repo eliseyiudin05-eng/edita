@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.23
+## Stage v1.0.24
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -12,6 +12,7 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - readiness checks the database without exposing connection details;
 - a protected diagnostic endpoint verifies authentication without returning user identity;
 - `GET /v1/profile/learning-preferences` reads only the JWT subject's profile through the Supabase Data API;
+- `POST /v1/profile/learning-preferences` updates only the editor's own onboarding preferences under RLS;
 - the user's bearer token is forwarded to Supabase so the existing `auth.uid() = id` RLS policy is enforced;
 - only `role`, `level`, `software`, and `goal` are returned; identity and unrelated onboarding fields are omitted;
 - `GET /v1/academy/progress` reads only the verified JWT subject's completed lessons under the existing ownership RLS policy;
@@ -90,3 +91,5 @@ For AI-history shadow reads, deploy Go and keep `GO_BACKEND_AI_HISTORY_SHADOW_RE
 For AI-history deletion, keep `GO_BACKEND_AI_HISTORY_DELETE_CANARY_ENABLED=false` until the read canary is healthy. Then begin at `GO_BACKEND_AI_HISTORY_DELETE_CANARY_PERCENT=1`, with a hard maximum of 10. Go verifies the token, derives the owner from its subject, forwards that user token with the publishable key, and applies explicit owner and conversation filters. It deletes only messages and preserves the conversation, matching legacy behavior. The operation is idempotent: timeout, error, malformed response or excessive latency safely retries through legacy in the same request. A 20% failure rate in a 10–20 result window opens a five-minute circuit; the flag is the global kill switch. Logs omit tokens, identities, scopes and message content. Message creation, feedback, attachments and model calls remain in Next.js/Supabase in v1.0.22.
 
 For AI-conversation creation, keep `GO_BACKEND_AI_CONVERSATION_CANARY_ENABLED=false` until AI-history writes are healthy, then begin at `GO_BACKEND_AI_CONVERSATION_CANARY_PERCENT=1`, capped at 10. The endpoint accepts only bounded scope, title and optional lesson slug fields. Identity comes solely from the verified token subject, and the user's token plus publishable key preserve owner-only RLS. Existing conversations are returned unchanged; a concurrent unique-key conflict is resolved by another owner-scoped read. Error, timeout, malformed response or excessive latency falls back to the idempotent legacy get-or-create operation in the same request. The five-minute circuit breaker opens at a 20% failure rate after at least 10 results. Logs omit all conversation data. Message writes, model calls, feedback, attachments and Points remain outside Go in v1.0.23.
+
+For learning-preferences updates, keep `GO_BACKEND_PROFILE_UPDATE_CANARY_ENABLED=false` until profile reads are healthy, then begin at `GO_BACKEND_PROFILE_UPDATE_CANARY_PERCENT=1`, capped at 10. Go accepts only the three bounded preference fields, derives the owner from the verified token, preserves unrelated onboarding fields, and updates only an editor's own row with the user token and publishable key. Owner-only RLS and the existing onboarding column grant remain active. Failure, timeout, malformed output or excessive latency retries the idempotent update through legacy in the same request. A 20% failure rate in a 10–20 result window opens a five-minute circuit. Logs omit tokens, identity and preference values.

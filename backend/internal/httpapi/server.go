@@ -34,6 +34,7 @@ type TokenVerifier interface {
 
 type LearningPreferencesReader interface {
 	GetLearningPreferences(context.Context, string, string) (profile.LearningPreferences, error)
+	UpdateLearningPreferences(context.Context, string, string, profile.Preferences) (profile.UpdateLearningPreferencesResponse, error)
 }
 
 type AcademyProgressReader interface {
@@ -580,7 +581,9 @@ func (s *server) academyProgress(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) learningPreferences(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
 		return
 	}
 	if s.auth == nil || s.profiles == nil {
@@ -591,6 +594,24 @@ func (s *server) learningPreferences(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
 		return
+	}
+	var update profile.Preferences
+	if r.Method == http.MethodPost {
+		if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+			return
+		}
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&update); err != nil {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "Valid learning preferences are required.")
+			return
+		}
+		var extra any
+		if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "Valid learning preferences are required.")
+			return
+		}
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
 	claims, err := s.auth.Verify(ctx, token)
@@ -610,6 +631,24 @@ func (s *server) learningPreferences(w http.ResponseWriter, r *http.Request) {
 	}
 	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
 		state.authenticated = true
+	}
+	if r.Method == http.MethodPost {
+		result, err := s.profiles.UpdateLearningPreferences(ctx, token, claims.Subject, update)
+		cancel()
+		if errors.Is(err, profile.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+			return
+		}
+		if errors.Is(err, profile.ErrForbidden) {
+			writeError(w, r, http.StatusForbidden, "editor_profile_required", "Learning preferences are available only to editors.")
+			return
+		}
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "profile_update_unavailable", "Learning preferences could not be saved.")
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+		return
 	}
 	result, err := s.profiles.GetLearningPreferences(ctx, token, claims.Subject)
 	cancel()

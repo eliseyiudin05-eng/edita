@@ -26,7 +26,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.23",
+		Version:      "1.0.24",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -60,7 +60,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.23"`) {
+	if !strings.Contains(body, `"version":"1.0.24"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -87,6 +87,7 @@ func (v claimsVerifier) Ready(context.Context) error                         { r
 
 type fakeProfileReader struct {
 	result  profile.LearningPreferences
+	updated profile.UpdateLearningPreferencesResponse
 	err     error
 	token   string
 	subject string
@@ -217,6 +218,13 @@ func (reader *fakeProfileReader) GetLearningPreferences(_ context.Context, token
 	return reader.result, reader.err
 }
 
+func (reader *fakeProfileReader) UpdateLearningPreferences(_ context.Context, token, subject string, value profile.Preferences) (profile.UpdateLearningPreferencesResponse, error) {
+	reader.token = token
+	reader.subject = subject
+	reader.result.Preferences = value
+	return reader.updated, reader.err
+}
+
 func TestLearningPreferencesRequiresAuthAndReadsVerifiedSubject(t *testing.T) {
 	reader := &fakeProfileReader{result: profile.LearningPreferences{
 		Role:        "editor",
@@ -260,6 +268,27 @@ func TestLearningPreferencesRejectsNonAuthenticatedRole(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden || reader.subject != "" {
 		t.Fatalf("unexpected response: status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestLearningPreferencesUpdateUsesVerifiedSubject(t *testing.T) {
+	reader := &fakeProfileReader{updated: profile.UpdateLearningPreferencesResponse{OK: true, Onboarding: map[string]any{"level": "pro", "software": "Resolve", "goal": "work", "ageGroup": "18+"}}}
+	handler := New(Options{
+		Logger:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:              claimsVerifier{claims: auth.Claims{Subject: "private-user-id", Role: "authenticated"}},
+		Profiles:          reader,
+		DependencyTimeout: time.Second,
+	})
+	request := httptest.NewRequest(http.MethodPost, "/v1/profile/learning-preferences", strings.NewReader(`{"level":"pro","software":"Resolve","goal":"work"}`))
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.subject != "private-user-id" || reader.result.Preferences.Level != "pro" {
+		t.Fatalf("unexpected update: status=%d subject=%q value=%+v body=%s", response.Code, reader.subject, reader.result.Preferences, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "private-user-id") {
+		t.Fatalf("response exposes identity: %s", response.Body.String())
 	}
 }
 
