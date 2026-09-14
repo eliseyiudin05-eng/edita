@@ -45,7 +45,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Выдача временной ссылки на превью или оригинал проверяет пользователя, его участие в заказе и текущий статус заказа на сервере; Storage RLS повторяет то же ограничение.
 - `complete_work_order` допускает оплату только после зарегистрированной передачи обоих файлов. Завершение и возврат блокируют строку заказа, чтобы повторный запрос не мог перевести Points дважды.
 
-## Go migration boundary (v1.0.49)
+## Go migration boundary (v1.0.50)
 
 - Most production writes and all business decisions remain in Next.js/Supabase.
 - Simple AI feedback may use a disabled-by-default 1–10% Go canary after owner and assistant-message verification; feedback that queues learning candidates always remains on the legacy server path.
@@ -106,6 +106,7 @@ Real work creates new skill data → AI recommends next gap → editor learns �
 - Private-message writes may use a disabled-by-default 1–10% Go canary after the existing conversation and contact-information checks. The verified JWT fixes the sender; participant-only RLS and a server-generated UUID make fallback safe.
 - Private-message inserts may atomically advance `last_message_at` through a non-callable private trigger. It refuses inactive or non-participant writes, never moves ordering backwards and grants no conversation UPDATE access to authenticated clients.
 - A server-only rollout flag keeps the legacy timestamp update active by default. After the trigger is verified, enabling the flag removes that redundant service-role write; disabling it is the immediate rollback.
+- The compatibility UPDATE is monotonic: it only applies when the stored timestamp is not newer than the message, preventing concurrent requests from moving a conversation backwards.
 - Conversation creation, contact moderation, Realtime subscriptions, file access, protected delivery, refunds and Points remain in the existing Next.js/Supabase routes.
 - Private-chat list reads add a separate disabled-by-default shadow contract. Go accepts no query-selected identity, derives the participant from the verified JWT subject, and uses the user's token plus publishable key so RLS remains active.
 - List output is capped at 100 conversations, omits both participant UUIDs, and validates each related work order's participant, Points totals, status and deliverable metadata. The legacy response remains authoritative.

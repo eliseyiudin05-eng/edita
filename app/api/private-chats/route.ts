@@ -184,7 +184,8 @@ export async function POST(req:NextRequest){
     if(!privateChatAtomicOrderingEnabled()){
       const {error:orderingError}=await auth.service.from("private_conversations")
         .update({last_message_at:created.created_at})
-        .eq("id",conversation.id);
+        .eq("id",conversation.id)
+        .lte("last_message_at",created.created_at);
       if(orderingError)console.warn("private_chat_ordering",{outcome:"legacy_update_failed"});
     }
     return NextResponse.json({ok:true,message:created});
