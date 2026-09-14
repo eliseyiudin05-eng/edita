@@ -1,6 +1,7 @@
 import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {tryPracticeSessionSaveCanary} from "@/lib/go-practice-session-canary";
+import {practiceSessionReadCanaryEnabled,recordPracticeSessionReadCanaryComparison,tryPracticeSessionReadCanary} from "@/lib/go-practice-session-read-canary";
 import {comparePracticeSessionWithGo,normalizePracticeSessionResponse,practiceSessionShadowEnabled} from "@/lib/go-practice-session-shadow";
 
 function bearer(req:NextRequest){
@@ -18,6 +19,24 @@ async function access(req:NextRequest){
 export async function GET(req:NextRequest){
   const a=await access(req);
   if(!a)return NextResponse.json({error:"Нужен вход."},{status:401});
+
+  const canary=await tryPracticeSessionReadCanary(a.token);
+  if(canary.attempted&&canary.value){
+    after(async()=>{
+      try{
+        const {data,error}=await a.service.from("practice_sessions")
+          .select("scenario,messages,result,updated_at")
+          .eq("user_id",a.user.id)
+          .maybeSingle();
+        const legacy=!error?normalizePracticeSessionResponse(data):null;
+        recordPracticeSessionReadCanaryComparison(canary.value!,legacy);
+      }catch{
+        recordPracticeSessionReadCanaryComparison(canary.value!,null);
+      }
+    });
+    return NextResponse.json(canary.value,{headers:{"Cache-Control":"no-store"}});
+  }
+
   const {data,error}=await a.service.from("practice_sessions")
     .select("scenario,messages,result,updated_at")
     .eq("user_id",a.user.id)
@@ -25,7 +44,7 @@ export async function GET(req:NextRequest){
   if(error)return NextResponse.json({error:"Ошибка загрузки тренировки."},{status:503});
   const legacy=normalizePracticeSessionResponse(data);
   if(!legacy)return NextResponse.json({error:"Данные тренировки повреждены."},{status:500});
-  if(practiceSessionShadowEnabled())after(()=>comparePracticeSessionWithGo(a.token,legacy));
+  if(!practiceSessionReadCanaryEnabled()&&practiceSessionShadowEnabled())after(()=>comparePracticeSessionWithGo(a.token,legacy));
   return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
 }
 
