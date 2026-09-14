@@ -122,7 +122,7 @@ func (s *fakeAuthSessions) IssueEmailToken(_ context.Context, email, purpose str
 	return auth.EmailChallenge{Email: email, Purpose: purpose, Token: "email-token"}, s.err
 }
 
-func (s *fakeAuthSessions) ConfirmEmail(_ context.Context, _ string) error { return s.err }
+func (s *fakeAuthSessions) ConfirmEmail(_ context.Context, _ string) error     { return s.err }
 func (s *fakeAuthSessions) ResetPassword(_ context.Context, _, _ string) error { return s.err }
 
 type claimsVerifier struct {

@@ -351,7 +351,9 @@ func (s *server) authRefresh(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusServiceUnavailable, "auth_unavailable", "Authentication is temporarily unavailable.")
 		return
 	}
-	var body struct{ RefreshToken string `json:"refreshToken"` }
+	var body struct {
+		RefreshToken string `json:"refreshToken"`
+	}
 	if err := decodeJSON(r, &body); err != nil || body.RefreshToken == "" {
 		writeError(w, r, http.StatusBadRequest, "invalid_request", "A refresh token is required.")
 		return
@@ -372,7 +374,9 @@ func (s *server) authLogout(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusServiceUnavailable, "auth_unavailable", "Authentication is temporarily unavailable.")
 		return
 	}
-	var body struct{ RefreshToken string `json:"refreshToken"` }
+	var body struct {
+		RefreshToken string `json:"refreshToken"`
+	}
 	if err := decodeJSON(r, &body); err != nil || body.RefreshToken == "" {
 		writeError(w, r, http.StatusBadRequest, "invalid_request", "A refresh token is required.")
 		return
@@ -400,7 +404,9 @@ func (s *server) authEmailRequest(w http.ResponseWriter, r *http.Request, purpos
 		writeError(w, r, http.StatusServiceUnavailable, "auth_email_unavailable", "Authentication email is temporarily unavailable.")
 		return
 	}
-	var body struct{ Email string `json:"email"` }
+	var body struct {
+		Email string `json:"email"`
+	}
 	if err := decodeJSON(r, &body); err != nil {
 		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid email is required.")
 		return
@@ -427,7 +433,9 @@ func (s *server) authConfirmEmail(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusServiceUnavailable, "auth_unavailable", "Authentication is temporarily unavailable.")
 		return
 	}
-	var body struct{ Token string `json:"token"` }
+	var body struct {
+		Token string `json:"token"`
+	}
 	if err := decodeJSON(r, &body); err != nil || body.Token == "" {
 		writeError(w, r, http.StatusBadRequest, "invalid_request", "A confirmation token is required.")
 		return
