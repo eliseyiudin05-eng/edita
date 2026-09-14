@@ -304,7 +304,12 @@ export async function POST(req:NextRequest){
       p_original_name:originalName
     });
     if(error)return NextResponse.json({error:"Не удалось передать работу. Проверьте, что оба файла загрузились."},{status:409});
-    await auth.service.from("private_conversations").update({last_message_at:new Date().toISOString()}).eq("id",order.conversation_id);
+    const submittedAt=new Date().toISOString();
+    const {error:orderingError}=await auth.service.from("private_conversations")
+      .update({last_message_at:submittedAt})
+      .eq("id",order.conversation_id)
+      .lte("last_message_at",submittedAt);
+    if(orderingError)console.warn("private_chat_ordering",{outcome:"delivery_update_failed"});
     return NextResponse.json({ok:true});
   }
 
