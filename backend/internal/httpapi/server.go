@@ -45,6 +45,13 @@ type AuthSessionService interface {
 	Login(context.Context, string, string, string, string) (auth.Session, error)
 	Refresh(context.Context, string, string, string) (auth.Session, error)
 	Logout(context.Context, string) error
+	IssueEmailToken(context.Context, string, string) (auth.EmailChallenge, error)
+	ConfirmEmail(context.Context, string) error
+	ResetPassword(context.Context, string, string) error
+}
+
+type AuthMailer interface {
+	SendAuthLink(context.Context, string, string, string) error
 }
 
 type LearningPreferencesReader interface {
@@ -130,6 +137,7 @@ type Options struct {
 	Database             Pinger
 	Auth                 TokenVerifier
 	AuthSessions         AuthSessionService
+	AuthMailer           AuthMailer
 	Profiles             LearningPreferencesReader
 	Academy              AcademyProgressReader
 	Practice             PracticeSessionStore
@@ -157,6 +165,7 @@ type server struct {
 	database             Pinger
 	auth                 TokenVerifier
 	authSessions         AuthSessionService
+	authMailer           AuthMailer
 	profiles             LearningPreferencesReader
 	academy              AcademyProgressReader
 	practice             PracticeSessionStore
@@ -204,6 +213,7 @@ func New(options Options) http.Handler {
 		database:             options.Database,
 		auth:                 options.Auth,
 		authSessions:         options.AuthSessions,
+		authMailer:           options.AuthMailer,
 		profiles:             options.Profiles,
 		academy:              options.Academy,
 		practice:             options.Practice,
@@ -230,6 +240,10 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/auth/login", s.authLogin)
 	mux.HandleFunc("/v1/auth/refresh", s.authRefresh)
 	mux.HandleFunc("/v1/auth/logout", s.authLogout)
+	mux.HandleFunc("/v1/auth/resend-confirmation", s.authResendConfirmation)
+	mux.HandleFunc("/v1/auth/recovery", s.authRecovery)
+	mux.HandleFunc("/v1/auth/confirm-email", s.authConfirmEmail)
+	mux.HandleFunc("/v1/auth/reset-password", s.authResetPassword)
 	mux.HandleFunc("/v1/profile/learning-preferences", s.learningPreferences)
 	mux.HandleFunc("/v1/profile/settings", s.profileSettings)
 	mux.HandleFunc("/v1/academy/progress", s.academyProgress)
@@ -290,6 +304,11 @@ func (s *server) authSignup(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		writeError(w, r, http.StatusServiceUnavailable, "signup_failed", "The account could not be created.")
+		return
+	}
+	challenge, err := s.authSessions.IssueEmailToken(r.Context(), body.Email, "confirm_email")
+	if err != nil || challenge.Token == "" || s.authMailer == nil || s.authMailer.SendAuthLink(r.Context(), challenge.Email, challenge.Purpose, challenge.Token) != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "confirmation_email_failed", "The account was created, but the confirmation email could not be sent. Request a new link.")
 		return
 	}
 	writeJSON(w, http.StatusAccepted, map[string]any{"ok": true, "userId": userID, "confirmationRequired": true})
@@ -363,6 +382,84 @@ func (s *server) authLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *server) authResendConfirmation(w http.ResponseWriter, r *http.Request) {
+	s.authEmailRequest(w, r, "confirm_email")
+}
+
+func (s *server) authRecovery(w http.ResponseWriter, r *http.Request) {
+	s.authEmailRequest(w, r, "recover_password")
+}
+
+func (s *server) authEmailRequest(w http.ResponseWriter, r *http.Request, purpose string) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.authSessions == nil || s.authMailer == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "auth_email_unavailable", "Authentication email is temporarily unavailable.")
+		return
+	}
+	var body struct{ Email string `json:"email"` }
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid email is required.")
+		return
+	}
+	challenge, err := s.authSessions.IssueEmailToken(r.Context(), body.Email, purpose)
+	if err != nil && !errors.Is(err, auth.ErrInvalidCredentials) {
+		writeError(w, r, http.StatusServiceUnavailable, "auth_email_unavailable", "Authentication email is temporarily unavailable.")
+		return
+	}
+	if challenge.Token != "" {
+		if err := s.authMailer.SendAuthLink(r.Context(), challenge.Email, challenge.Purpose, challenge.Token); err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_email_unavailable", "Authentication email is temporarily unavailable.")
+			return
+		}
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"ok": true})
+}
+
+func (s *server) authConfirmEmail(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.authSessions == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "auth_unavailable", "Authentication is temporarily unavailable.")
+		return
+	}
+	var body struct{ Token string `json:"token"` }
+	if err := decodeJSON(r, &body); err != nil || body.Token == "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A confirmation token is required.")
+		return
+	}
+	if err := s.authSessions.ConfirmEmail(r.Context(), body.Token); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_confirmation_token", "The confirmation link is invalid or expired.")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *server) authResetPassword(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.authSessions == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "auth_unavailable", "Authentication is temporarily unavailable.")
+		return
+	}
+	var body struct {
+		Token    string `json:"token"`
+		Password string `json:"password"`
+	}
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A token and new password are required.")
+		return
+	}
+	if err := s.authSessions.ResetPassword(r.Context(), body.Token, body.Password); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_recovery", "The recovery link is invalid, expired, or the password is too short.")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (s *server) profileSettings(w http.ResponseWriter, r *http.Request) {

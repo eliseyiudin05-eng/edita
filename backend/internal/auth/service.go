@@ -49,9 +49,17 @@ type Session struct {
 	Role         string    `json:"role"`
 }
 
+type EmailChallenge struct {
+	Email     string
+	Token     string
+	Purpose   string
+	ExpiresAt time.Time
+}
+
 type localClaims struct {
 	Subject   string `json:"sub"`
 	Role      string `json:"role"`
+	AppRole   string `json:"app_role"`
 	SessionID string `json:"sid"`
 	Issuer    string `json:"iss"`
 	Audience  string `json:"aud"`
@@ -176,6 +184,78 @@ func (s *Service) Logout(ctx context.Context, rawRefreshToken string) error {
 	return err
 }
 
+func (s *Service) IssueEmailToken(ctx context.Context, email, purpose string) (EmailChallenge, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if !validEmail(email) || (purpose != "confirm_email" && purpose != "recover_password") {
+		return EmailChallenge{}, ErrInvalidCredentials
+	}
+	raw, digest, err := opaqueToken()
+	if err != nil {
+		return EmailChallenge{}, err
+	}
+	expiresAt := s.now().Add(time.Hour)
+	command, err := s.db.Exec(ctx, `
+		insert into public.auth_email_tokens(user_id,purpose,token_hash,email,expires_at)
+		select id,$2,$3,email,$4 from public.app_users where email=$1 and disabled_at is null
+		on conflict(token_hash) do nothing`, email, purpose, digest, expiresAt)
+	if err != nil {
+		return EmailChallenge{}, fmt.Errorf("create email challenge: %w", err)
+	}
+	if command.RowsAffected() == 0 {
+		return EmailChallenge{}, nil
+	}
+	return EmailChallenge{Email: email, Token: raw, Purpose: purpose, ExpiresAt: expiresAt}, nil
+}
+
+func (s *Service) ConfirmEmail(ctx context.Context, rawToken string) error {
+	digest := sha256.Sum256([]byte(rawToken))
+	command, err := s.db.Exec(ctx, `
+		with consumed as (
+		  update public.auth_email_tokens set consumed_at=$2
+		  where token_hash=$1 and purpose='confirm_email' and consumed_at is null and expires_at>$2
+		  returning user_id
+		)
+		update public.app_users u set email_confirmed_at=coalesce(email_confirmed_at,$2),updated_at=$2
+		from consumed where u.id=consumed.user_id`, digest[:], s.now())
+	if err != nil {
+		return fmt.Errorf("confirm email: %w", err)
+	}
+	if command.RowsAffected() != 1 {
+		return ErrInvalidToken
+	}
+	return nil
+}
+
+func (s *Service) ResetPassword(ctx context.Context, rawToken, newPassword string) error {
+	if len(newPassword) < 10 || len(newPassword) > 200 {
+		return ErrInvalidCredentials
+	}
+	digest := sha256.Sum256([]byte(rawToken))
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin password reset: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	var userID string
+	err = tx.QueryRow(ctx, `
+		update public.auth_email_tokens set consumed_at=$2
+		where token_hash=$1 and purpose='recover_password' and consumed_at is null and expires_at>$2
+		returning user_id::text`, digest[:], s.now()).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrInvalidToken
+	}
+	if err != nil {
+		return fmt.Errorf("consume password reset: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `update public.app_users set password_hash=crypt($2,gen_salt('bf',12)),updated_at=$3 where id=$1`, userID, newPassword, s.now()); err != nil {
+		return fmt.Errorf("update password: %w", err)
+	}
+	if _, err := tx.Exec(ctx, "update public.auth_sessions set revoked_at=coalesce(revoked_at,$2) where user_id=$1", userID, s.now()); err != nil {
+		return fmt.Errorf("revoke sessions after password reset: %w", err)
+	}
+	return tx.Commit(ctx)
+}
+
 func (s *Service) Verify(ctx context.Context, rawToken string) (Claims, error) {
 	parts := strings.Split(rawToken, ".")
 	if len(parts) != 3 || len(rawToken) > 8192 {
@@ -193,7 +273,7 @@ func (s *Service) Verify(ctx context.Context, rawToken string) (Claims, error) {
 		return Claims{}, ErrInvalidToken
 	}
 	now := s.now()
-	if claims.Subject == "" || claims.SessionID == "" || claims.Issuer != s.issuer || claims.Audience != s.audience ||
+	if claims.Subject == "" || claims.SessionID == "" || claims.Role != "authenticated" || claims.Issuer != s.issuer || claims.Audience != s.audience ||
 		!now.Before(time.Unix(claims.ExpiresAt, 0)) || now.Add(30*time.Second).Before(time.Unix(claims.NotBefore, 0)) {
 		return Claims{}, ErrInvalidToken
 	}
@@ -237,7 +317,7 @@ func (s *Service) sign(userID, role, sessionID string) (string, time.Time, error
 	now := s.now()
 	expiresAt := now.Add(s.accessTTL)
 	header, _ := json.Marshal(map[string]string{"alg": "HS256", "typ": "JWT"})
-	payload, err := json.Marshal(localClaims{Subject: userID, Role: role, SessionID: sessionID, Issuer: s.issuer, Audience: s.audience, IssuedAt: now.Unix(), NotBefore: now.Add(-5 * time.Second).Unix(), ExpiresAt: expiresAt.Unix()})
+	payload, err := json.Marshal(localClaims{Subject: userID, Role: "authenticated", AppRole: role, SessionID: sessionID, Issuer: s.issuer, Audience: s.audience, IssuedAt: now.Unix(), NotBefore: now.Add(-5 * time.Second).Unix(), ExpiresAt: expiresAt.Unix()})
 	if err != nil {
 		return "", time.Time{}, err
 	}

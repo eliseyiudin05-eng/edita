@@ -92,6 +92,13 @@ type fakeAuthSessions struct {
 	loggedOut  string
 }
 
+type fakeAuthMailer struct{ sent auth.EmailChallenge }
+
+func (m *fakeAuthMailer) SendAuthLink(_ context.Context, email, purpose, token string) error {
+	m.sent = auth.EmailChallenge{Email: email, Purpose: purpose, Token: token}
+	return nil
+}
+
 func (s *fakeAuthSessions) Register(_ context.Context, input auth.Registration) (string, error) {
 	s.registered = input
 	return "00000000-0000-0000-0000-000000000001", s.err
@@ -110,6 +117,13 @@ func (s *fakeAuthSessions) Logout(_ context.Context, token string) error {
 	s.loggedOut = token
 	return s.err
 }
+
+func (s *fakeAuthSessions) IssueEmailToken(_ context.Context, email, purpose string) (auth.EmailChallenge, error) {
+	return auth.EmailChallenge{Email: email, Purpose: purpose, Token: "email-token"}, s.err
+}
+
+func (s *fakeAuthSessions) ConfirmEmail(_ context.Context, _ string) error { return s.err }
+func (s *fakeAuthSessions) ResetPassword(_ context.Context, _, _ string) error { return s.err }
 
 type claimsVerifier struct {
 	claims auth.Claims
@@ -1440,12 +1454,13 @@ func TestMethodIsRestricted(t *testing.T) {
 
 func TestAuthSignupValidatesJSONAndDelegates(t *testing.T) {
 	service := &fakeAuthSessions{}
-	handler := New(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), AuthSessions: service})
+	mailer := &fakeAuthMailer{}
+	handler := New(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), AuthSessions: service, AuthMailer: mailer})
 	request := httptest.NewRequest(http.MethodPost, "/v1/auth/signup", strings.NewReader(`{"email":"person@example.com","password":"long-password","role":"editor","displayName":"Person"}`))
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusAccepted || service.registered.Email != "person@example.com" || service.registered.Role != "editor" {
+	if response.Code != http.StatusAccepted || service.registered.Email != "person@example.com" || service.registered.Role != "editor" || mailer.sent.Email != "person@example.com" {
 		t.Fatalf("unexpected response: status=%d body=%s registration=%+v", response.Code, response.Body.String(), service.registered)
 	}
 }

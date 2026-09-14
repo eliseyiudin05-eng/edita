@@ -28,6 +28,10 @@ type Config struct {
 	AuthSecret             string
 	AuthAccessTTL          time.Duration
 	AuthRefreshTTL         time.Duration
+	ResendAPIKey           string
+	ResendFrom             string
+	PublicSiteURL          string
+	EmailHTTPTimeout       time.Duration
 	SupabaseURL            string
 	SupabasePublishableKey string
 	JWTIssuer              string
@@ -70,6 +74,10 @@ func Load() Config {
 		AuthSecret:             envString("GO_BACKEND_AUTH_SECRET", ""),
 		AuthAccessTTL:          envDurationBounded("GO_BACKEND_AUTH_ACCESS_TTL", 15*time.Minute, time.Minute, time.Hour),
 		AuthRefreshTTL:         envDurationBounded("GO_BACKEND_AUTH_REFRESH_TTL", 30*24*time.Hour, time.Hour, 90*24*time.Hour),
+		ResendAPIKey:           envString("RESEND_API_KEY", ""),
+		ResendFrom:             envString("RESEND_FROM_EMAIL", "KIVRONIX <no-reply@auth.kivronix.ru>"),
+		PublicSiteURL:          envString("GO_BACKEND_PUBLIC_SITE_URL", "https://kivronix.ru"),
+		EmailHTTPTimeout:       envDurationBounded("GO_BACKEND_EMAIL_HTTP_TIMEOUT", 10*time.Second, time.Second, 30*time.Second),
 		SupabaseURL:            supabaseURL,
 		SupabasePublishableKey: envString("GO_BACKEND_SUPABASE_PUBLISHABLE_KEY", ""),
 		JWTIssuer:              issuer,

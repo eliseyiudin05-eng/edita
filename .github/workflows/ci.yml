@@ -47,7 +47,12 @@ jobs:
           go-version-file: backend/go.mod
           cache: false
       - name: Check formatting
-        run: test -z "$(gofmt -l .)"
+        run: |
+          files="$(gofmt -l .)"
+          if [ -n "$files" ]; then
+            gofmt -d $files
+            exit 1
+          fi
       - run: go vet ./...
       - run: go test -race ./...
       - name: Apply PostgreSQL migrations twice

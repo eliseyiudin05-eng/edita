@@ -23,6 +23,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/editorverification"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/guardianverification"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/httpapi"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/mailer"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/practice"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
@@ -30,7 +31,7 @@ import (
 )
 
 var (
-	version = "2.0.0-alpha.2"
+	version = "2.0.0-alpha.3"
 	commit  = "local"
 )
 
@@ -58,6 +59,7 @@ func main() {
 	var tokenVerifier *auth.Verifier
 	var authVerifier httpapi.TokenVerifier
 	var authSessions httpapi.AuthSessionService
+	var authMailer httpapi.AuthMailer
 	if databasePool != nil && cfg.AuthSecret != "" {
 		localAuth, err := auth.NewService(databasePool.DB(), cfg.AuthIssuer, cfg.AuthAudience, []byte(cfg.AuthSecret), cfg.AuthAccessTTL, cfg.AuthRefreshTTL)
 		if err != nil {
@@ -66,6 +68,13 @@ func main() {
 		}
 		authVerifier = localAuth
 		authSessions = localAuth
+		if cfg.ResendAPIKey != "" {
+			authMailer, err = mailer.NewResend(cfg.ResendAPIKey, cfg.ResendFrom, cfg.PublicSiteURL, &http.Client{Timeout: cfg.EmailHTTPTimeout})
+			if err != nil {
+				logger.Error("authentication mailer configuration failed", "error", err)
+				os.Exit(1)
+			}
+		}
 	} else if cfg.JWKSURL != "" {
 		var err error
 		tokenVerifier, err = auth.NewVerifier(
@@ -249,7 +258,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, AuthSessions: authSessions, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, AIFeedback: aiFeedbackWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, BusinessDiscussion: businessDiscussionReader, EditorDiscussion: editorDiscussionReader, EditorVerification: editorVerificationReader, GuardianVerification: guardianVerificationReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
+			Database: databasePinger, Auth: authVerifier, AuthSessions: authSessions, AuthMailer: authMailer, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, AIFeedback: aiFeedbackWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, BusinessDiscussion: businessDiscussionReader, EditorDiscussion: editorDiscussionReader, EditorVerification: editorVerificationReader, GuardianVerification: guardianVerificationReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
