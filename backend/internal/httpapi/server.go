@@ -21,6 +21,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/businessdiscussion"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/editordiscussion"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/editorverification"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/guardianverification"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
@@ -85,6 +86,10 @@ type BusinessDiscussionStore interface {
 	CreateMessage(context.Context, string, string, businessdiscussion.CreateMessageInput) (businessdiscussion.CreateMessageResponse, error)
 }
 
+type EditorDiscussionReader interface {
+	GetDiscussion(context.Context, string, string) (editordiscussion.Discussion, error)
+}
+
 type EditorVerificationReader interface {
 	GetVerification(context.Context, string, string) (editorverification.Verification, error)
 }
@@ -123,6 +128,7 @@ type Options struct {
 	SocialGroups         SocialGroupsReader
 	Business             BusinessVerificationReader
 	BusinessDiscussion   BusinessDiscussionStore
+	EditorDiscussion     EditorDiscussionReader
 	EditorVerification   EditorVerificationReader
 	GuardianVerification GuardianVerificationReader
 	PrivateChats         PrivateChatReader
@@ -148,6 +154,7 @@ type server struct {
 	socialGroups         SocialGroupsReader
 	business             BusinessVerificationReader
 	businessDiscussion   BusinessDiscussionStore
+	editorDiscussion     EditorDiscussionReader
 	editorVerification   EditorVerificationReader
 	guardianVerification GuardianVerificationReader
 	privateChats         PrivateChatReader
@@ -193,6 +200,7 @@ func New(options Options) http.Handler {
 		socialGroups:         options.SocialGroups,
 		business:             options.Business,
 		businessDiscussion:   options.BusinessDiscussion,
+		editorDiscussion:     options.EditorDiscussion,
 		editorVerification:   options.EditorVerification,
 		guardianVerification: options.GuardianVerification,
 		privateChats:         options.PrivateChats,
@@ -217,6 +225,7 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/social/groups", s.socialGroupsList)
 	mux.HandleFunc("/v1/business/verification", s.businessVerification)
 	mux.HandleFunc("/v1/community/business-discussion", s.businessDiscussionList)
+	mux.HandleFunc("/v1/community/editor-discussion", s.editorDiscussionList)
 	mux.HandleFunc("/v1/editor/verification", s.editorVerificationStatus)
 	mux.HandleFunc("/v1/guardian/verification", s.guardianVerificationStatus)
 	mux.HandleFunc("/v1/private-chats/thread", s.privateChatThread)
@@ -968,6 +977,55 @@ func (s *server) businessDiscussionList(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		writeError(w, r, http.StatusServiceUnavailable, "business_discussion_service_unavailable", "Business discussion is temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) editorDiscussionList(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	if r.URL.RawQuery != "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not allowed.")
+		return
+	}
+	if s.auth == nil || s.editorDiscussion == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "editor_discussion_service_unavailable", "Editor discussion is temporarily unavailable.")
+		return
+	}
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		writeError(w, r, http.StatusUnauthorized, "authentication_required", "A valid bearer token is required.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	claims, err := s.auth.Verify(ctx, token)
+	if err != nil {
+		cancel()
+		if errors.Is(err, auth.ErrVerificationService) {
+			writeError(w, r, http.StatusServiceUnavailable, "auth_service_unavailable", "Authentication verification is temporarily unavailable.")
+			return
+		}
+		writeError(w, r, http.StatusUnauthorized, "invalid_access_token", "The access token is invalid or expired.")
+		return
+	}
+	if claims.Role != "authenticated" {
+		cancel()
+		writeError(w, r, http.StatusForbidden, "authenticated_role_required", "The authenticated user role is required.")
+		return
+	}
+	if state, ok := r.Context().Value(auditStateKey).(*auditState); ok {
+		state.authenticated = true
+	}
+	result, err := s.editorDiscussion.GetDiscussion(ctx, token, claims.Subject)
+	cancel()
+	if errors.Is(err, editordiscussion.ErrForbidden) {
+		writeError(w, r, http.StatusForbidden, "discussion_membership_required", "Discussion membership is required.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "editor_discussion_service_unavailable", "Editor discussion is temporarily unavailable.")
 		return
 	}
 	writeJSON(w, http.StatusOK, result)

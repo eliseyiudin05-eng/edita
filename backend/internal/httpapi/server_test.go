@@ -20,6 +20,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/business"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/businessdiscussion"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/chat"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/editordiscussion"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/editorverification"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/guardianverification"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/plans"
@@ -32,7 +33,7 @@ func testHandler() http.Handler {
 	return New(Options{
 		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Environment:  "test",
-		Version:      "1.0.41",
+		Version:      "1.0.42",
 		Commit:       "test-commit",
 		MaxBodyBytes: 1024,
 	})
@@ -66,7 +67,7 @@ func TestMetaDoesNotExposeSecrets(t *testing.T) {
 			t.Fatalf("response contains forbidden field %q: %s", forbidden, body)
 		}
 	}
-	if !strings.Contains(body, `"version":"1.0.41"`) {
+	if !strings.Contains(body, `"version":"1.0.42"`) {
 		t.Fatalf("version missing: %s", body)
 	}
 }
@@ -197,6 +198,19 @@ type fakeBusinessDiscussionReader struct {
 	err     error
 	token   string
 	subject string
+}
+
+type fakeEditorDiscussionReader struct {
+	result  editordiscussion.Discussion
+	err     error
+	token   string
+	subject string
+}
+
+func (reader *fakeEditorDiscussionReader) GetDiscussion(_ context.Context, token, subject string) (editordiscussion.Discussion, error) {
+	reader.token = token
+	reader.subject = subject
+	return reader.result, reader.err
 }
 
 func (reader *fakeBusinessDiscussionReader) CreateMessage(_ context.Context, token, subject string, input businessdiscussion.CreateMessageInput) (businessdiscussion.CreateMessageResponse, error) {
@@ -905,6 +919,42 @@ func TestBusinessDiscussionCreateRequiresBoundedIdempotentMessage(t *testing.T) 
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || reader.created.ID != "223e4567-e89b-12d3-a456-426614174002" || reader.created.Content != "Текст" || reader.subject != "123e4567-e89b-12d3-a456-426614174001" {
 		t.Fatalf("unexpected create response: status=%d input=%+v subject=%q body=%s", response.Code, reader.created, reader.subject, response.Body.String())
+	}
+}
+
+func TestEditorDiscussionRequiresAuthRejectsQueryAndOmitsUserIDs(t *testing.T) {
+	reader := &fakeEditorDiscussionReader{result: editordiscussion.Discussion{Messages: []editordiscussion.Message{{
+		ID: "223e4567-e89b-12d3-a456-426614174002", Content: "Текст", CreatedAt: "2026-09-14T00:00:00Z", Author: "Монтажёр",
+	}}}}
+	handler := New(Options{
+		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Auth:             claimsVerifier{claims: auth.Claims{Subject: "123e4567-e89b-12d3-a456-426614174001", Role: "authenticated"}},
+		EditorDiscussion: reader, DependencyTimeout: time.Second,
+	})
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/v1/community/editor-discussion", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d", unauthorized.Code)
+	}
+	invalid := httptest.NewRecorder()
+	invalidRequest := httptest.NewRequest(http.MethodGet, "/v1/community/editor-discussion?topic=other", nil)
+	invalidRequest.Header.Set("Authorization", "Bearer signed.token.value")
+	handler.ServeHTTP(invalid, invalidRequest)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid query status = %d", invalid.Code)
+	}
+	request := httptest.NewRequest(http.MethodGet, "/v1/community/editor-discussion", nil)
+	request.Header.Set("Authorization", "Bearer signed.token.value")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || reader.token != "signed.token.value" || reader.subject != "123e4567-e89b-12d3-a456-426614174001" {
+		t.Fatalf("unexpected response: status=%d token=%q subject=%q body=%s", response.Code, reader.token, reader.subject, response.Body.String())
+	}
+	for _, forbidden := range []string{"123e4567-e89b-12d3-a456-426614174001", "author_id", "user_id", "topic_key", "status", "viewerId"} {
+		if strings.Contains(response.Body.String(), forbidden) {
+			t.Fatalf("response exposes sensitive value %q: %s", forbidden, response.Body.String())
+		}
 	}
 }
 

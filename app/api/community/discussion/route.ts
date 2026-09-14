@@ -1,6 +1,7 @@
-import {NextRequest,NextResponse} from "next/server";
+import {after,NextRequest,NextResponse} from "next/server";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 import {moderateGroupMessage} from "@/lib/content-moderation";
+import {compareEditorDiscussionWithGo,editorDiscussionShadowEnabled,normalizeEditorDiscussion} from "@/lib/go-editor-discussion-shadow";
 
 const TOPIC="editors-in-cinema";
 
@@ -10,9 +11,10 @@ function accessToken(req:NextRequest){
 }
 
 async function authorized(req:NextRequest){
-  const user=await getUserFromAccessToken(accessToken(req));
+  const token=accessToken(req);
+  const user=await getUserFromAccessToken(token);
   const service=getSupabaseServiceClient();
-  return user&&service?{user,service}:null;
+  return user&&service&&token?{user,service,token}:null;
 }
 
 async function enroll(service:any,userId:string){
@@ -51,7 +53,10 @@ export async function GET(req:NextRequest){
   if(!auth)return NextResponse.json({error:"Обсуждение доступно только после входа."},{status:401});
   try{
     await enroll(auth.service,auth.user.id);
-    return NextResponse.json({messages:await listMessages(auth.service),viewerId:auth.user.id});
+    const legacy=normalizeEditorDiscussion({messages:await listMessages(auth.service)});
+    if(!legacy)throw new Error("invalid discussion response");
+    if(editorDiscussionShadowEnabled())after(()=>compareEditorDiscussionWithGo(auth.token,legacy));
+    return NextResponse.json(legacy,{headers:{"Cache-Control":"no-store"}});
   }catch{
     return NextResponse.json({error:"Не удалось открыть обсуждение."},{status:503});
   }

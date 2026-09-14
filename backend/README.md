@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v1.0.41
+## Stage v1.0.42
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -43,6 +43,8 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - business-discussion output omits author IDs, profile details and database-only topic/status fields; content moderation stays on legacy;
 - a disabled 1–10% business-discussion canary serves only valid fast Go responses and automatically falls back to the legacy feed;
 - a separate disabled 1–10% write canary publishes already-moderated business-discussion messages with a server-generated idempotency UUID and safe legacy retry;
+- `GET /v1/community/editor-discussion` reads at most 80 published messages from the fixed member-only `editors-in-cinema` topic;
+- a disabled editor-discussion shadow compares the bounded Go contract after the legacy response, while enrollment, writes and moderation remain in Next.js;
 - `GET /v1/private-chats/thread` reads one participant-bound conversation and at most 200 messages under user RLS;
 - every returned message is checked against the selected conversation and its two participants, with a 256 KiB response cap;
 - `GET /v1/private-chats` reads at most 100 participant-bound conversations, editor cards and related work orders under user RLS;
@@ -82,6 +84,7 @@ Endpoints:
 - `GET /v1/guardian/verification` — returns only whether confirmation is required, whether it is complete, and the latest own status/review note.
 - `GET /v1/community/business-discussion` — returns the bounded chronological feed visible only to an authenticated business account.
 - `POST /v1/community/business-discussion` — idempotently publishes one already-moderated message for the authenticated business account using a caller-generated UUID.
+- `GET /v1/community/editor-discussion` — returns the bounded chronological feed only after verifying the JWT subject's topic membership.
 - `GET /v1/private-chats/thread?conversationId=<uuid>` — returns one thread visible to the authenticated participant.
 - `GET /v1/private-chats` — returns a bounded conversation list visible to the authenticated participant.
 - `GET /v1/ai/history?scope=<scope>` — returns one existing conversation history visible to its authenticated owner.
@@ -121,6 +124,8 @@ For guardian-verification rollout, first apply the v1.0.37 owner-only column SEL
 For confidential business-discussion reads, apply the v1.0.39 business-only SELECT migration, deploy Go, and keep both read traffic flags disabled until the service is healthy. First enable `GO_BACKEND_BUSINESS_DISCUSSION_SHADOW_READS_ENABLED` to compare `/v1/community/business-discussion` after the legacy response is sent. Once comparisons are stable, disable shadow, enable `GO_BACKEND_BUSINESS_DISCUSSION_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_BUSINESS_DISCUSSION_CANARY_PERCENT=1`; the percentage is hard-limited to 10. Timeout is bounded to 250–3000 ms, each upstream response is capped at 256 KiB, and the feed is limited to 80 published messages from the fixed `company-growth` topic. Error, malformed or oversized output, excessive latency, or an open circuit returns the already computed legacy feed in the same request. A mismatch opens the five-minute circuit immediately; a 20% unhealthy rate opens it after at least 10 results. Go verifies the user's business role and forwards the user JWT with the publishable key so RLS remains active. Logs contain only route, outcome, duration and percentage; tokens, UUIDs, author names and message content are excluded.
 
 For business-discussion writes, apply `20260914143000_business_discussion_idempotent_writes.sql`, deploy Go, and keep `GO_BACKEND_BUSINESS_DISCUSSION_WRITE_CANARY_ENABLED=false` until the service and existing read rollout are healthy. Content moderation always runs in the Next.js gateway first. Then enable the write canary at 1%; it is hard-limited to 10%. Next.js generates one UUID for the operation, and both Go and the legacy fallback use that same primary key. A timeout or ambiguous Go failure can therefore be retried without publishing a duplicate. Go fixes `author_id` to the verified JWT subject and fixes topic/status to `company-growth`/`published`; column grants plus permissive and restrictive INSERT policies enforce the same boundary in PostgreSQL. Logs omit the UUID, token, author and message text. The environment flag is the global kill switch.
+
+For confidential editor-discussion shadow reads, apply `20260914141211_secure_editor_discussion_reads.sql`, deploy Go, and keep `GO_BACKEND_EDITOR_DISCUSSION_SHADOW_READS_ENABLED=false` until the service is healthy. The existing Next.js route enrolls the authenticated user and returns the authoritative legacy feed first; enabling shadow then compares `/v1/community/editor-discussion` through `after()`. Go fixes the topic to `editors-in-cinema`, verifies the JWT subject's own membership and reads at most 80 published messages with a 256 KiB upstream cap. The public response no longer exposes `viewerId`, author UUIDs, topic/status fields or membership data. Logs contain only route, outcome and duration. Enrollment, message creation and moderation remain in Next.js/Supabase.
 
 For private-chat thread shadow reads, deploy Go and keep `GO_BACKEND_PRIVATE_CHAT_SHADOW_READS_ENABLED=false` until the service is healthy. Enabling it compares one participant-visible thread with `/v1/private-chats/thread` after the legacy response is sent. `GO_BACKEND_PRIVATE_CHAT_SHADOW_TIMEOUT_MS` is bounded to 250–3000 ms. Go forwards the user's token with the publishable key, explicitly filters the selected conversation by the verified subject, and validates every message against both participants. The contract is capped at one conversation, 200 messages and 256 KiB. Logs omit tokens, query values, UUIDs, names, message bodies and file metadata. After stable comparisons, disable shadow mode, enable `GO_BACKEND_PRIVATE_CHAT_CANARY_READS_ENABLED`, and begin at `GO_BACKEND_PRIVATE_CHAT_CANARY_PERCENT=1`. The percentage is hard-limited to 10. Timeout, malformed/oversized response, excessive latency, or an open circuit falls back within the same request. A 20% unhealthy rate in a 10–20 result window pauses the canary locally for five minutes; a mismatch opens it immediately. The environment flag is the global kill switch. Message writes, moderation, Realtime, files, work delivery and Points remain in Next.js/Supabase in v1.0.17.
 
