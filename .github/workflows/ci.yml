@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "backendGo"]
   pull_request:
 
 jobs:
@@ -21,6 +21,22 @@ jobs:
 
   go-backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: kivronix
+          POSTGRES_PASSWORD: kivronix_test
+          POSTGRES_DB: kivronix
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kivronix -d kivronix"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      GO_BACKEND_DATABASE_URL: postgresql://kivronix:kivronix_test@localhost:5432/kivronix?sslmode=disable
     defaults:
       run:
         working-directory: backend
@@ -34,5 +50,7 @@ jobs:
         run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test -race ./...
+      - name: Apply PostgreSQL migrations twice
+        run: go run ./cmd/migrate && go run ./cmd/migrate
       - name: Scan Go dependencies
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
