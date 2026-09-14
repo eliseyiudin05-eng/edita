@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -37,6 +38,13 @@ type Pinger interface {
 type TokenVerifier interface {
 	Verify(context.Context, string) (auth.Claims, error)
 	Ready(context.Context) error
+}
+
+type AuthSessionService interface {
+	Register(context.Context, auth.Registration) (string, error)
+	Login(context.Context, string, string, string, string) (auth.Session, error)
+	Refresh(context.Context, string, string, string) (auth.Session, error)
+	Logout(context.Context, string) error
 }
 
 type LearningPreferencesReader interface {
@@ -121,6 +129,7 @@ type Options struct {
 	DependencyTimeout    time.Duration
 	Database             Pinger
 	Auth                 TokenVerifier
+	AuthSessions         AuthSessionService
 	Profiles             LearningPreferencesReader
 	Academy              AcademyProgressReader
 	Practice             PracticeSessionStore
@@ -147,6 +156,7 @@ type server struct {
 	dependencyTimeout    time.Duration
 	database             Pinger
 	auth                 TokenVerifier
+	authSessions         AuthSessionService
 	profiles             LearningPreferencesReader
 	academy              AcademyProgressReader
 	practice             PracticeSessionStore
@@ -193,6 +203,7 @@ func New(options Options) http.Handler {
 		dependencyTimeout:    options.DependencyTimeout,
 		database:             options.Database,
 		auth:                 options.Auth,
+		authSessions:         options.AuthSessions,
 		profiles:             options.Profiles,
 		academy:              options.Academy,
 		practice:             options.Practice,
@@ -215,6 +226,10 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/readyz", s.ready)
 	mux.HandleFunc("/v1/meta", s.meta)
 	mux.HandleFunc("/v1/diagnostics/auth", s.authDiagnostic)
+	mux.HandleFunc("/v1/auth/signup", s.authSignup)
+	mux.HandleFunc("/v1/auth/login", s.authLogin)
+	mux.HandleFunc("/v1/auth/refresh", s.authRefresh)
+	mux.HandleFunc("/v1/auth/logout", s.authLogout)
 	mux.HandleFunc("/v1/profile/learning-preferences", s.learningPreferences)
 	mux.HandleFunc("/v1/profile/settings", s.profileSettings)
 	mux.HandleFunc("/v1/academy/progress", s.academyProgress)
@@ -239,6 +254,115 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/ai/conversations", s.aiConversationEnsure)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
+}
+
+func (s *server) authSignup(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.authSessions == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "auth_unavailable", "Authentication is temporarily unavailable.")
+		return
+	}
+	var body struct {
+		Email       string          `json:"email"`
+		Password    string          `json:"password"`
+		Role        string          `json:"role"`
+		DisplayName string          `json:"displayName"`
+		Username    string          `json:"username"`
+		Onboarding  json.RawMessage `json:"onboarding"`
+	}
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid JSON request is required.")
+		return
+	}
+	userID, err := s.authSessions.Register(r.Context(), auth.Registration{
+		Email: body.Email, Password: body.Password, Role: body.Role, DisplayName: body.DisplayName,
+		Username: body.Username, Onboarding: body.Onboarding,
+	})
+	if errors.Is(err, auth.ErrEmailExists) {
+		writeError(w, r, http.StatusConflict, "email_exists", "An account with this email already exists.")
+		return
+	}
+	if errors.Is(err, auth.ErrInvalidCredentials) {
+		writeError(w, r, http.StatusUnprocessableEntity, "invalid_signup", "Check the email, password and account type.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "signup_failed", "The account could not be created.")
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"ok": true, "userId": userID, "confirmationRequired": true})
+}
+
+func (s *server) authLogin(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.authSessions == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "auth_unavailable", "Authentication is temporarily unavailable.")
+		return
+	}
+	var body struct{ Email, Password string }
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid JSON request is required.")
+		return
+	}
+	session, err := s.authSessions.Login(r.Context(), body.Email, body.Password, r.UserAgent(), clientIP(r))
+	if errors.Is(err, auth.ErrEmailUnconfirmed) {
+		writeError(w, r, http.StatusForbidden, "email_unconfirmed", "Confirm your email before signing in.")
+		return
+	}
+	if errors.Is(err, auth.ErrInvalidCredentials) {
+		writeError(w, r, http.StatusUnauthorized, "invalid_credentials", "Email or password is incorrect.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "login_failed", "Sign in is temporarily unavailable.")
+		return
+	}
+	writeJSON(w, http.StatusOK, session)
+}
+
+func (s *server) authRefresh(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.authSessions == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "auth_unavailable", "Authentication is temporarily unavailable.")
+		return
+	}
+	var body struct{ RefreshToken string `json:"refreshToken"` }
+	if err := decodeJSON(r, &body); err != nil || body.RefreshToken == "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A refresh token is required.")
+		return
+	}
+	session, err := s.authSessions.Refresh(r.Context(), body.RefreshToken, r.UserAgent(), clientIP(r))
+	if err != nil {
+		writeError(w, r, http.StatusUnauthorized, "invalid_refresh_token", "The refresh token is invalid or expired.")
+		return
+	}
+	writeJSON(w, http.StatusOK, session)
+}
+
+func (s *server) authLogout(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if s.authSessions == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "auth_unavailable", "Authentication is temporarily unavailable.")
+		return
+	}
+	var body struct{ RefreshToken string `json:"refreshToken"` }
+	if err := decodeJSON(r, &body); err != nil || body.RefreshToken == "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A refresh token is required.")
+		return
+	}
+	if err := s.authSessions.Logout(r.Context(), body.RefreshToken); err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "logout_failed", "Sign out is temporarily unavailable.")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *server) profileSettings(w http.ResponseWriter, r *http.Request) {
@@ -1684,6 +1808,30 @@ func writeError(w http.ResponseWriter, r *http.Request, status int, code, messag
 		"message":    message,
 		"request_id": requestIDFromContext(r.Context()),
 	}})
+}
+
+func decodeJSON(r *http.Request, destination any) error {
+	if !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		return errors.New("JSON content type is required")
+	}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(destination); err != nil {
+		return err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		return errors.New("request must contain exactly one JSON value")
+	}
+	return nil
+}
+
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		return host
+	}
+	return ""
 }
 
 func bearerToken(header string) (string, bool) {

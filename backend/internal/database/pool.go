@@ -80,3 +80,10 @@ func (p *Pool) Close() {
 		p.pool.Close()
 	}
 }
+
+func (p *Pool) DB() *pgxpool.Pool {
+	if p == nil {
+		return nil
+	}
+	return p.pool
+}

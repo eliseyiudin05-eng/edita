@@ -23,6 +23,11 @@ type Config struct {
 	DependencyTimeout      time.Duration
 	DatabaseURL            string
 	DatabaseMaxConns       int32
+	AuthIssuer             string
+	AuthAudience           string
+	AuthSecret             string
+	AuthAccessTTL          time.Duration
+	AuthRefreshTTL         time.Duration
 	SupabaseURL            string
 	SupabasePublishableKey string
 	JWTIssuer              string
@@ -60,6 +65,11 @@ func Load() Config {
 		DependencyTimeout:      envDuration("GO_BACKEND_DEPENDENCY_TIMEOUT", 3*time.Second),
 		DatabaseURL:            envString("GO_BACKEND_DATABASE_URL", ""),
 		DatabaseMaxConns:       int32(envInt64("GO_BACKEND_DATABASE_MAX_CONNS", 4, 1, 20)),
+		AuthIssuer:             envString("GO_BACKEND_AUTH_ISSUER", "https://api.kivronix.ru"),
+		AuthAudience:           envString("GO_BACKEND_AUTH_AUDIENCE", "kivronix-web"),
+		AuthSecret:             envString("GO_BACKEND_AUTH_SECRET", ""),
+		AuthAccessTTL:          envDurationBounded("GO_BACKEND_AUTH_ACCESS_TTL", 15*time.Minute, time.Minute, time.Hour),
+		AuthRefreshTTL:         envDurationBounded("GO_BACKEND_AUTH_REFRESH_TTL", 30*24*time.Hour, time.Hour, 90*24*time.Hour),
 		SupabaseURL:            supabaseURL,
 		SupabasePublishableKey: envString("GO_BACKEND_SUPABASE_PUBLISHABLE_KEY", ""),
 		JWTIssuer:              issuer,
@@ -88,6 +98,15 @@ func (c Config) Validate() error {
 				return errors.New("GO_BACKEND_DATABASE_URL must require TLS in production")
 			}
 		}
+	}
+	if c.AuthSecret != "" && len(c.AuthSecret) < 32 {
+		return errors.New("GO_BACKEND_AUTH_SECRET must contain at least 32 bytes")
+	}
+	if c.AuthSecret != "" && c.DatabaseURL == "" {
+		return errors.New("GO_BACKEND_AUTH_SECRET requires GO_BACKEND_DATABASE_URL")
+	}
+	if strings.ContainsAny(c.AuthSecret, "\r\n") {
+		return errors.New("GO_BACKEND_AUTH_SECRET is invalid")
 	}
 
 	if c.SupabaseURL != "" {

@@ -84,6 +84,33 @@ func (v fakeVerifier) Verify(context.Context, string) (auth.Claims, error) {
 
 func (v fakeVerifier) Ready(context.Context) error { return v.err }
 
+type fakeAuthSessions struct {
+	registered auth.Registration
+	session    auth.Session
+	err        error
+	refresh    string
+	loggedOut  string
+}
+
+func (s *fakeAuthSessions) Register(_ context.Context, input auth.Registration) (string, error) {
+	s.registered = input
+	return "00000000-0000-0000-0000-000000000001", s.err
+}
+
+func (s *fakeAuthSessions) Login(_ context.Context, _, _, _, _ string) (auth.Session, error) {
+	return s.session, s.err
+}
+
+func (s *fakeAuthSessions) Refresh(_ context.Context, token, _, _ string) (auth.Session, error) {
+	s.refresh = token
+	return s.session, s.err
+}
+
+func (s *fakeAuthSessions) Logout(_ context.Context, token string) error {
+	s.loggedOut = token
+	return s.err
+}
+
 type claimsVerifier struct {
 	claims auth.Claims
 	err    error
@@ -1408,5 +1435,34 @@ func TestMethodIsRestricted(t *testing.T) {
 
 	if response.Code != http.StatusMethodNotAllowed || response.Header().Get("Allow") != http.MethodGet {
 		t.Fatalf("unexpected response: status=%d allow=%q", response.Code, response.Header().Get("Allow"))
+	}
+}
+
+func TestAuthSignupValidatesJSONAndDelegates(t *testing.T) {
+	service := &fakeAuthSessions{}
+	handler := New(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), AuthSessions: service})
+	request := httptest.NewRequest(http.MethodPost, "/v1/auth/signup", strings.NewReader(`{"email":"person@example.com","password":"long-password","role":"editor","displayName":"Person"}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted || service.registered.Email != "person@example.com" || service.registered.Role != "editor" {
+		t.Fatalf("unexpected response: status=%d body=%s registration=%+v", response.Code, response.Body.String(), service.registered)
+	}
+}
+
+func TestAuthRefreshRotatesAndLogoutRevokes(t *testing.T) {
+	service := &fakeAuthSessions{session: auth.Session{AccessToken: "access", RefreshToken: "rotated"}}
+	handler := New(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), AuthSessions: service})
+	for _, path := range []string{"/v1/auth/refresh", "/v1/auth/logout"} {
+		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"refreshToken":"opaque-refresh"}`))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusOK && response.Code != http.StatusNoContent {
+			t.Fatalf("%s status=%d body=%s", path, response.Code, response.Body.String())
+		}
+	}
+	if service.refresh != "opaque-refresh" || service.loggedOut != "opaque-refresh" {
+		t.Fatalf("tokens were not delegated: refresh=%q logout=%q", service.refresh, service.loggedOut)
 	}
 }

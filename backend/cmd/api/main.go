@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	version = "2.0.0-alpha.1"
+	version = "2.0.0-alpha.2"
 	commit  = "local"
 )
 
@@ -57,7 +57,16 @@ func main() {
 
 	var tokenVerifier *auth.Verifier
 	var authVerifier httpapi.TokenVerifier
-	if cfg.JWKSURL != "" {
+	var authSessions httpapi.AuthSessionService
+	if databasePool != nil && cfg.AuthSecret != "" {
+		localAuth, err := auth.NewService(databasePool.DB(), cfg.AuthIssuer, cfg.AuthAudience, []byte(cfg.AuthSecret), cfg.AuthAccessTTL, cfg.AuthRefreshTTL)
+		if err != nil {
+			logger.Error("local authentication configuration failed", "error", err)
+			os.Exit(1)
+		}
+		authVerifier = localAuth
+		authSessions = localAuth
+	} else if cfg.JWKSURL != "" {
 		var err error
 		tokenVerifier, err = auth.NewVerifier(
 			cfg.JWTIssuer,
@@ -240,7 +249,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, AIFeedback: aiFeedbackWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, BusinessDiscussion: businessDiscussionReader, EditorDiscussion: editorDiscussionReader, EditorVerification: editorVerificationReader, GuardianVerification: guardianVerificationReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
+			Database: databasePinger, Auth: authVerifier, AuthSessions: authSessions, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, AIFeedback: aiFeedbackWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, BusinessDiscussion: businessDiscussionReader, EditorDiscussion: editorDiscussionReader, EditorVerification: editorVerificationReader, GuardianVerification: guardianVerificationReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
