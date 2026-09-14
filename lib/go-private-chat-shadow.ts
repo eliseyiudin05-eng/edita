@@ -34,6 +34,8 @@ export function privateChatShadowEnabled(){
   return process.env.GO_BACKEND_PRIVATE_CHAT_SHADOW_READS_ENABLED==="true"&&Boolean(threadEndpoint("00000000-0000-4000-8000-000000000000"));
 }
 
+export function goPrivateChatBackendConfigured(){return Boolean(threadEndpoint("00000000-0000-4000-8000-000000000000"))}
+
 export function normalizePrivateChatThread(value:unknown):PrivateChatThread|null{
   if(!value||typeof value!=="object")return null;
   const row=value as Record<string,unknown>;
@@ -52,11 +54,15 @@ export function normalizePrivateChatThread(value:unknown):PrivateChatThread|null
 
 export async function comparePrivateChatThreadWithGo(token:string,conversationId:string,legacy:PrivateChatThread){
   const result=await readPrivateChatThreadFromGo(token,conversationId,shadowTimeout());
-  const outcome=result.ok?(JSON.stringify(result.value)===JSON.stringify(legacy)?"match":"mismatch"):result.outcome;
+  const outcome=result.ok?(samePrivateChatThread(result.value,legacy)?"match":"mismatch"):result.outcome;
   console.info("go_private_chat_shadow",{route:"private_chat_thread",outcome,duration_ms:result.durationMs});
 }
 
-async function readPrivateChatThreadFromGo(token:string,conversationId:string,timeoutMs:number):Promise<GoPrivateChatReadResult>{
+export function samePrivateChatThread(left:PrivateChatThread,right:PrivateChatThread){
+  return JSON.stringify(left)===JSON.stringify(right);
+}
+
+export async function readPrivateChatThreadFromGo(token:string,conversationId:string,timeoutMs:number):Promise<GoPrivateChatReadResult>{
   const started=Date.now();
   try{
     const endpoint=threadEndpoint(conversationId);

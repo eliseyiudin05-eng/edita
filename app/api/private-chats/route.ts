@@ -3,6 +3,7 @@ import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supa
 import {findPrivateChatBlockReason,privateChatBlockMessage} from "@/lib/private-chat-moderation";
 import {ensurePrivateConversation} from "@/lib/private-chat-server";
 import {comparePrivateChatThreadWithGo,normalizePrivateChatThread,privateChatShadowEnabled} from "@/lib/go-private-chat-shadow";
+import {privateChatCanaryEnabled,recordPrivateChatCanaryComparison,tryPrivateChatCanary} from "@/lib/go-private-chat-canary";
 
 function accessToken(req:NextRequest){
   const value=req.headers.get("authorization");
@@ -13,7 +14,7 @@ async function authenticate(req:NextRequest){
   const token=accessToken(req);
   const user=await getUserFromAccessToken(token);
   const service=getSupabaseServiceClient();
-  if(!user||!service)return null;
+  if(!user||!service||!token)return null;
   const {data:profile}=await service.from("profiles")
     .select("id,role,display_name,username")
     .eq("id",user.id)
@@ -25,30 +26,49 @@ function canOpen(conversation:any,userId:string){
   return conversation.editor_id===userId||conversation.business_owner_id===userId;
 }
 
+async function readLegacyThread(auth:NonNullable<Awaited<ReturnType<typeof authenticate>>>,conversationId:string){
+  const {data:conversation}=await auth.service.from("private_conversations")
+    .select("id,editor_id,business_owner_id,status,company_name,title,source_kind")
+    .eq("id",conversationId)
+    .maybeSingle();
+  if(!conversation)return {ok:false as const,status:404,error:"Чат отсутствует."};
+  if(!canOpen(conversation,auth.user.id))return {ok:false as const,status:403,error:"Доступ к чату закрыт."};
+
+  const {data:messages,error}=await auth.service.from("private_messages")
+    .select("id,conversation_id,sender_id,body,created_at")
+    .eq("conversation_id",conversation.id)
+    .order("created_at",{ascending:true})
+    .order("id",{ascending:true})
+    .limit(200);
+  if(error)return {ok:false as const,status:500,error:"Ошибка загрузки сообщений."};
+  const value=normalizePrivateChatThread({viewerId:auth.user.id,conversation,messages:messages||[]});
+  if(!value)return {ok:false as const,status:503,error:"Ошибка контракта закрытого чата."};
+  return {ok:true as const,value};
+}
+
 export async function GET(req:NextRequest){
   const auth=await authenticate(req);
   if(!auth)return NextResponse.json({error:"Войдите в аккаунт."},{status:401});
 
   const conversationId=req.nextUrl.searchParams.get("conversationId");
   if(conversationId){
-    const {data:conversation}=await auth.service.from("private_conversations")
-      .select("id,editor_id,business_owner_id,status,company_name,title,source_kind")
-      .eq("id",conversationId)
-      .maybeSingle();
-    if(!conversation)return NextResponse.json({error:"Чат отсутствует."},{status:404});
-    if(!canOpen(conversation,auth.user.id))return NextResponse.json({error:"Доступ к чату закрыт."},{status:403});
+    const canary=await tryPrivateChatCanary(auth.token,conversationId);
+    if(canary.attempted&&canary.value){
+      after(async()=>{
+        try{
+          const legacy=await readLegacyThread(auth,conversationId);
+          recordPrivateChatCanaryComparison(canary.value!,legacy.ok?legacy.value:null);
+        }catch{
+          recordPrivateChatCanaryComparison(canary.value!,null);
+        }
+      });
+      return NextResponse.json(canary.value,{headers:{"Cache-Control":"no-store"}});
+    }
 
-    const {data:messages,error}=await auth.service.from("private_messages")
-      .select("id,conversation_id,sender_id,body,created_at")
-      .eq("conversation_id",conversation.id)
-      .order("created_at",{ascending:true})
-      .order("id",{ascending:true})
-      .limit(200);
-    if(error)return NextResponse.json({error:"Ошибка загрузки сообщений."},{status:500});
-    const result=normalizePrivateChatThread({viewerId:auth.user.id,conversation,messages:messages||[]});
-    if(!result)return NextResponse.json({error:"Ошибка контракта закрытого чата."},{status:503});
-    if(privateChatShadowEnabled())after(()=>comparePrivateChatThreadWithGo(auth.token!,conversationId,result));
-    return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
+    const legacy=await readLegacyThread(auth,conversationId);
+    if(!legacy.ok)return NextResponse.json({error:legacy.error},{status:legacy.status});
+    if(!privateChatCanaryEnabled()&&privateChatShadowEnabled())after(()=>comparePrivateChatThreadWithGo(auth.token,conversationId,legacy.value));
+    return NextResponse.json(legacy.value,{headers:{"Cache-Control":"no-store"}});
   }
 
   const {data:conversations,error}=await auth.service.from("private_conversations")
