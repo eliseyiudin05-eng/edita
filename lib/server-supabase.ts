@@ -56,6 +56,25 @@ export async function getProfileLearningPreferences(token:string,userId:string){
   return client.from("profiles").select("role,onboarding").eq("id",userId).maybeSingle();
 }
 
+export async function updateProfileSettings(token:string,userId:string,value:{
+  displayName:string;username:string;schoolName:string;avatarUrl:string;showSchoolPublicly:boolean;
+}){
+  const {url,key}=publicConfig();
+  const client=createClient(url,key,{
+    auth:{persistSession:false,autoRefreshToken:false},
+    global:{headers:{Authorization:"Bearer "+token}}
+  });
+  return client.from("profiles").update({
+    display_name:value.displayName,
+    username:value.username,
+    school_name:value.schoolName||null,
+    avatar_url:value.avatarUrl||null,
+    show_school_publicly:value.showSchoolPublicly,
+  }).eq("id",userId)
+    .select("display_name,username,school_name,avatar_url,show_school_publicly")
+    .single();
+}
+
 export async function getLessonProgress(token:string,userId:string){
   const service=getSupabaseServiceClient();
   if(service)return service.from("lesson_progress")

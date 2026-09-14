@@ -47,6 +47,8 @@ export default function ProfileEditor({onSaved}:{onSaved?:(profile:ProfileForm)=
     const supabase=getSupabaseBrowserClient();
     const {data:{user}}=await supabase.auth.getUser();
     if(!user){setSaving(false);setMessage("Сессия закончилась. Войди снова.");return;}
+    const {data:{session}}=await supabase.auth.getSession();
+    if(!session?.access_token){setSaving(false);setMessage("Сессия закончилась. Войди снова.");return;}
 
     let avatarUrl=form.avatarUrl;
     const file=fileRef.current?.files?.[0];
@@ -60,20 +62,26 @@ export default function ProfileEditor({onSaved}:{onSaved?:(profile:ProfileForm)=
       avatarUrl=supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl+"?v="+Date.now();
     }
 
-    const {error}=await supabase.from("profiles").update({
-      display_name:displayName,
+    const next={
+      displayName,
       username,
-      school_name:schoolName||null,
-      avatar_url:avatarUrl||null,
-      show_school_publicly:Boolean(schoolName&&form.showSchoolPublicly)
-    }).eq("id",user.id);
+      schoolName,
+      avatarUrl,
+      showSchoolPublicly:Boolean(schoolName&&form.showSchoolPublicly)
+    };
+    const response=await fetch("/api/profile/settings",{
+      method:"POST",
+      headers:{Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json"},
+      body:JSON.stringify(next),
+    });
+    const result=await response.json().catch(()=>null);
     setSaving(false);
-    if(error){
-      setMessage(error.code==="23505"?"Этот адрес страницы уже занят. Попробуй другой.":"Ошибка сохранения профиля: "+error.message);
+    if(!response.ok||!result){
+      setMessage(String(result?.error||"Не удалось сохранить профиль."));
       return;
     }
-    const next={displayName,username,schoolName,avatarUrl,showSchoolPublicly:Boolean(schoolName&&form.showSchoolPublicly)};
-    setForm(next);setMessage(next.showSchoolPublicly?"Профиль сохранён. Школа участвует в командном рейтинге.":"Профиль сохранён. Название школы видно только тебе.");onSaved?.(next);
+    const saved={displayName:String(result.displayName||""),username:String(result.username||""),schoolName:String(result.schoolName||""),avatarUrl:String(result.avatarUrl||""),showSchoolPublicly:Boolean(result.showSchoolPublicly)};
+    setForm(saved);setMessage(saved.showSchoolPublicly?"Профиль сохранён. Школа участвует в командном рейтинге.":"Профиль сохранён. Название школы видно только тебе.");onSaved?.(saved);
     if(fileRef.current)fileRef.current.value="";
   }
 

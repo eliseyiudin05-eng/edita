@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -16,8 +17,11 @@ import (
 var (
 	ErrNotFound    = errors.New("profile not found")
 	ErrForbidden   = errors.New("profile update forbidden")
+	ErrConflict    = errors.New("profile setting conflicts with an existing profile")
 	ErrUnavailable = errors.New("profile service unavailable")
 )
+
+var usernamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{2,29}$`)
 
 type LearningPreferences struct {
 	Role        string      `json:"role"`
@@ -195,6 +199,88 @@ func (c *Client) GetPublicSettings(ctx context.Context, accessToken, subject str
 	return result, nil
 }
 
+func (c *Client) UpdatePublicSettings(ctx context.Context, accessToken, subject string, settings PublicSettings) (PublicSettings, error) {
+	settings, err := NormalizePublicSettings(settings)
+	if c == nil || strings.TrimSpace(accessToken) == "" || strings.TrimSpace(subject) == "" || err != nil {
+		return PublicSettings{}, ErrUnavailable
+	}
+	body, err := json.Marshal(map[string]any{
+		"display_name":         settings.DisplayName,
+		"username":             settings.Username,
+		"school_name":          nullableValue(settings.SchoolName),
+		"avatar_url":           nullableValue(settings.AvatarURL),
+		"show_school_publicly": settings.ShowSchoolPublicly,
+	})
+	if err != nil {
+		return PublicSettings{}, ErrUnavailable
+	}
+	query := url.Values{}
+	query.Set("select", "id,display_name,username,school_name,avatar_url,show_school_publicly")
+	query.Set("id", "eq."+subject)
+	request, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.endpoint+"?"+query.Encode(), strings.NewReader(string(body)))
+	if err != nil {
+		return PublicSettings{}, ErrUnavailable
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Prefer", "return=representation")
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	request.Header.Set("apikey", c.publishableKey)
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return PublicSettings{}, ErrUnavailable
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusConflict {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		return PublicSettings{}, ErrConflict
+	}
+	if response.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		return PublicSettings{}, ErrUnavailable
+	}
+	resultBody, err := io.ReadAll(io.LimitReader(response.Body, 64*1024+1))
+	if err != nil || len(resultBody) > 64*1024 {
+		return PublicSettings{}, ErrUnavailable
+	}
+	var rows []publicSettingsRow
+	if json.Unmarshal(resultBody, &rows) != nil || len(rows) != 1 || rows[0].ID != subject {
+		return PublicSettings{}, ErrUnavailable
+	}
+	result := PublicSettings{
+		DisplayName:        stringValue(rows[0].DisplayName),
+		Username:           stringValue(rows[0].Username),
+		SchoolName:         stringValue(rows[0].SchoolName),
+		AvatarURL:          stringValue(rows[0].AvatarURL),
+		ShowSchoolPublicly: rows[0].ShowSchoolPublicly,
+	}
+	if result != settings {
+		return PublicSettings{}, ErrUnavailable
+	}
+	return result, nil
+}
+
+func NormalizePublicSettings(value PublicSettings) (PublicSettings, error) {
+	value.DisplayName = strings.Join(strings.Fields(value.DisplayName), " ")
+	value.Username = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(value.Username), "@"))
+	value.SchoolName = strings.Join(strings.Fields(value.SchoolName), " ")
+	value.AvatarURL = strings.TrimSpace(value.AvatarURL)
+	value.ShowSchoolPublicly = value.ShowSchoolPublicly && value.SchoolName != ""
+	if utf8.RuneCountInString(value.DisplayName) < 2 || utf8.RuneCountInString(value.DisplayName) > 120 || !usernamePattern.MatchString(value.Username) {
+		return PublicSettings{}, errors.New("invalid public profile identity")
+	}
+	if value.SchoolName != "" && (utf8.RuneCountInString(value.SchoolName) < 2 || utf8.RuneCountInString(value.SchoolName) > 160) {
+		return PublicSettings{}, errors.New("invalid school name")
+	}
+	if value.AvatarURL != "" {
+		parsed, err := url.Parse(value.AvatarURL)
+		if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" || len(value.AvatarURL) > 4096 || strings.ContainsAny(value.AvatarURL, "\r\n") {
+			return PublicSettings{}, errors.New("invalid avatar URL")
+		}
+	}
+	return value, nil
+}
+
 func (c *Client) UpdateLearningPreferences(ctx context.Context, accessToken, subject string, preferences Preferences) (UpdateLearningPreferencesResponse, error) {
 	if c == nil || strings.TrimSpace(accessToken) == "" || strings.TrimSpace(subject) == "" || validatePreferences(preferences) != nil {
 		return UpdateLearningPreferencesResponse{}, ErrUnavailable
@@ -301,6 +387,13 @@ func stringValue(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+func nullableValue(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }
 
 func validatePreferences(value Preferences) error {

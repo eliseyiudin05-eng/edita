@@ -134,7 +134,8 @@ drop policy if exists "profiles readable" on public.profiles;
 drop policy if exists "own profile readable" on public.profiles;
 create policy "own profile readable" on public.profiles for select using(auth.uid()=id);
 drop policy if exists "own profile" on public.profiles;
-create policy "own profile" on public.profiles for update using(auth.uid()=id);
+create policy "own profile" on public.profiles for update to authenticated
+using((select auth.uid())=id) with check((select auth.uid())=id);
 drop policy if exists "business owner manages business" on public.businesses;
 create policy "business owner manages business" on public.businesses for all using(auth.uid()=owner_id) with check(auth.uid()=owner_id);
 drop policy if exists "published lessons readable" on public.lessons;

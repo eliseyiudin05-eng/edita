@@ -116,6 +116,62 @@ func TestGetPublicSettingsRejectsUnexpectedIdentity(t *testing.T) {
 	}
 }
 
+func TestUpdatePublicSettingsUsesOwnerFilterAndReturnsVerifiedSettings(t *testing.T) {
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.Method != http.MethodPatch || request.URL.Query().Get("id") != "eq.user-id" || request.URL.Query().Get("select") == "" {
+			t.Fatalf("unexpected update request: %s %s", request.Method, request.URL.String())
+		}
+		if request.Header.Get("Authorization") != "Bearer access-token" || request.Header.Get("apikey") != "sb_publishable_test" || request.Header.Get("Prefer") != "return=representation" {
+			t.Fatal("update authentication or representation headers missing")
+		}
+		body, _ := io.ReadAll(request.Body)
+		for _, expected := range []string{`"display_name":"Elisey Iudin"`, `"username":"elisey"`, `"school_name":"RUDN"`, `"show_school_publicly":true`} {
+			if !strings.Contains(string(body), expected) {
+				t.Fatalf("update body %s does not contain %s", body, expected)
+			}
+		}
+		responseBody := `[{"id":"user-id","display_name":"Elisey Iudin","username":"elisey","school_name":"RUDN","avatar_url":"https://project.supabase.co/storage/avatar.webp?v=1","show_school_publicly":true}]`
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(responseBody)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := PublicSettings{DisplayName: "  Elisey  Iudin ", Username: "@ELISEY", SchoolName: " RUDN ", AvatarURL: "https://project.supabase.co/storage/avatar.webp?v=1", ShowSchoolPublicly: true}
+	got, err := client.UpdatePublicSettings(context.Background(), "access-token", "user-id", input)
+	if err != nil || got.DisplayName != "Elisey Iudin" || got.Username != "elisey" || !got.ShowSchoolPublicly {
+		t.Fatalf("settings=%+v error=%v", got, err)
+	}
+}
+
+func TestUpdatePublicSettingsRejectsMismatchedOrUnsafeResponse(t *testing.T) {
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		body := `[{"id":"other-user","display_name":"Elisey","username":"elisey","school_name":null,"avatar_url":null,"show_school_publicly":false}]`
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := PublicSettings{DisplayName: "Elisey", Username: "elisey"}
+	if _, err := client.UpdatePublicSettings(context.Background(), "access-token", "user-id", input); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("error=%v, want ErrUnavailable", err)
+	}
+	if _, err := NormalizePublicSettings(PublicSettings{DisplayName: "Elisey", Username: "elisey", AvatarURL: "http://unsafe.test/avatar"}); err == nil {
+		t.Fatal("unsafe avatar URL was accepted")
+	}
+}
+
+func TestUpdatePublicSettingsMapsUsernameConflict(t *testing.T) {
+	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusConflict, Body: io.NopCloser(strings.NewReader(`{"code":"23505"}`)), Header: make(http.Header)}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.UpdatePublicSettings(context.Background(), "access-token", "user-id", PublicSettings{DisplayName: "Elisey", Username: "elisey"}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("error=%v, want ErrConflict", err)
+	}
+}
+
 func TestUpdateLearningPreferencesPreservesOnboardingAndUsesOwnerFilter(t *testing.T) {
 	requests := 0
 	client, err := NewClient("https://project.supabase.co", "sb_publishable_test", &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
