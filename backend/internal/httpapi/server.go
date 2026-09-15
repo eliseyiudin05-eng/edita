@@ -35,6 +35,7 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/rewards"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/video"
 )
 
 type Pinger interface {
@@ -174,6 +175,13 @@ type PortfolioStore interface {
 	GetPublic(context.Context, string) (portfolio.PublicEditor, error)
 }
 
+type VideoStore interface {
+	Feed(context.Context, string) (video.Feed, error)
+	Act(context.Context, string, video.ActionInput) (video.ActionResult, error)
+	Competitions(context.Context, string) ([]video.Competition, error)
+	CompetitionAction(context.Context, string, video.CompetitionInput) error
+}
+
 type Options struct {
 	Logger                  *slog.Logger
 	Environment             string
@@ -207,6 +215,7 @@ type Options struct {
 	Jobs                    JobStore
 	Challenges              ChallengeStore
 	Portfolio               PortfolioStore
+	Video                   VideoStore
 }
 
 type server struct {
@@ -242,6 +251,7 @@ type server struct {
 	jobs                    JobStore
 	challenges              ChallengeStore
 	portfolio               PortfolioStore
+	video                   VideoStore
 }
 
 type contextKey string
@@ -297,6 +307,7 @@ func New(options Options) http.Handler {
 		jobs:                    options.Jobs,
 		challenges:              options.Challenges,
 		portfolio:               options.Portfolio,
+		video:                   options.Video,
 	}
 
 	mux := http.NewServeMux()
@@ -345,6 +356,9 @@ func New(options Options) http.Handler {
 	mux.HandleFunc("/v1/marketplace/challenges", s.marketplaceChallenges)
 	mux.HandleFunc("/v1/marketplace/portfolio", s.marketplacePortfolio)
 	mux.HandleFunc("/v1/public/editors/", s.publicEditorPortfolio)
+	mux.HandleFunc("/v1/video/feed", s.videoFeed)
+	mux.HandleFunc("/v1/video/actions", s.videoActions)
+	mux.HandleFunc("/v1/video/competitions", s.videoCompetitions)
 
 	return s.requestID(s.requestAudit(s.recoverPanic(s.securityHeaders(s.limitBody(mux)))))
 }
@@ -376,7 +390,7 @@ func (s *server) marketplacePortfolio(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, portfolio.ErrForbidden) {
-			writeError(w, r, http.StatusForbidden, "editor_required", "An editor account is required.")
+			writeError(w, r, http.StatusForbidden, "portfolio_role_required", "An editor, creator or business account is required.")
 			return
 		}
 		if err != nil {
@@ -406,7 +420,7 @@ func (s *server) marketplacePortfolio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if errors.Is(err, portfolio.ErrForbidden) {
-		writeError(w, r, http.StatusForbidden, "editor_required", "Only an editor can add portfolio work.")
+		writeError(w, r, http.StatusForbidden, "portfolio_role_required", "Only an editor, creator or business can publish a video.")
 		return
 	}
 	if errors.Is(err, portfolio.ErrLimit) {
@@ -451,6 +465,135 @@ func (s *server) publicEditorPortfolio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) videoFeed(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	if r.URL.RawQuery != "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not supported.")
+		return
+	}
+	if s.video == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "video_service_unavailable", "KIVRONIX Video is temporarily unavailable.")
+		return
+	}
+	_, subject, ok := s.authenticatedIdentity(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	defer cancel()
+	result, err := s.video.Feed(ctx, subject)
+	if errors.Is(err, video.ErrNotFound) {
+		writeError(w, r, http.StatusNotFound, "profile_not_found", "The profile was not found.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "video_feed_unavailable", "The video feed could not be loaded.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) videoActions(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+		return
+	}
+	if s.video == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "video_service_unavailable", "KIVRONIX Video is temporarily unavailable.")
+		return
+	}
+	_, subject, ok := s.authenticatedIdentity(w, r)
+	if !ok {
+		return
+	}
+	var raw video.ActionInput
+	if decodeJSON(r, &raw) != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid video action is required.")
+		return
+	}
+	input, err := video.NormalizeAction(raw)
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_video_action", "The video action is invalid or contains prohibited contact details.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	defer cancel()
+	result, err := s.video.Act(ctx, subject, input)
+	if errors.Is(err, video.ErrNotFound) {
+		writeError(w, r, http.StatusNotFound, "video_not_found", "The video was not found.")
+		return
+	}
+	if errors.Is(err, video.ErrForbidden) {
+		writeError(w, r, http.StatusForbidden, "video_action_forbidden", "This action is not available for your role or verification status.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "video_action_failed", "The action could not be completed.")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) videoCompetitions(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
+		writeError(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed.")
+		return
+	}
+	if s.video == nil {
+		writeError(w, r, http.StatusServiceUnavailable, "video_service_unavailable", "Creator competitions are temporarily unavailable.")
+		return
+	}
+	_, subject, ok := s.authenticatedIdentity(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), s.dependencyTimeout)
+	defer cancel()
+	if r.Method == http.MethodGet {
+		if r.URL.RawQuery != "" {
+			writeError(w, r, http.StatusBadRequest, "invalid_request", "Query parameters are not supported.")
+			return
+		}
+		items, err := s.video.Competitions(ctx, subject)
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "competitions_unavailable", "Creator competitions could not be loaded.")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"competitions": items})
+		return
+	}
+	if r.URL.RawQuery != "" || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A JSON body without query parameters is required.")
+		return
+	}
+	var raw video.CompetitionInput
+	if decodeJSON(r, &raw) != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid competition action is required.")
+		return
+	}
+	input, err := video.NormalizeCompetition(raw)
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_competition", "Check the competition fields, video and deadline.")
+		return
+	}
+	err = s.video.CompetitionAction(ctx, subject, input)
+	if errors.Is(err, video.ErrForbidden) {
+		writeError(w, r, http.StatusForbidden, "competition_forbidden", "A verified creator account or an eligible own video is required.")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusServiceUnavailable, "competition_action_failed", "The competition action could not be completed.")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (s *server) marketplaceChallenges(w http.ResponseWriter, r *http.Request) {
@@ -1971,7 +2114,15 @@ func (s *server) privateChatMessage(w http.ResponseWriter, r *http.Request) {
 	var input chat.CreateMessageInput
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&input); err != nil || !chat.ValidCreateMessage(input) {
+	if err := decoder.Decode(&input); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid idempotency ID, conversation ID and bounded message are required.")
+		return
+	}
+	if chat.ContainsForbiddenContact(input.Body) {
+		writeError(w, r, http.StatusBadRequest, "contacts_not_allowed", "Keep contacts and external links outside the private chat.")
+		return
+	}
+	if !chat.ValidCreateMessage(input) {
 		writeError(w, r, http.StatusBadRequest, "invalid_request", "A valid idempotency ID, conversation ID and bounded message are required.")
 		return
 	}

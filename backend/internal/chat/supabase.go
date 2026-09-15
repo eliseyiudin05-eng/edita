@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/eliseyiudin05-eng/edita/backend/internal/contentguard"
 )
 
 var (
@@ -409,8 +411,11 @@ func (c *Client) CreateMessage(ctx context.Context, accessToken, subject string,
 func ValidCreateMessage(input CreateMessageInput) bool {
 	return validUUID(strings.ToLower(strings.TrimSpace(input.ID))) &&
 		validUUID(strings.ToLower(strings.TrimSpace(input.ConversationID))) &&
-		input.Body == strings.TrimSpace(input.Body) && validText(input.Body, 1, 1500)
+		input.Body == strings.TrimSpace(input.Body) && validText(input.Body, 1, 1500) &&
+		!ContainsForbiddenContact(input.Body)
 }
+
+func ContainsForbiddenContact(value string) bool { return contentguard.ContainsContact(value) }
 
 func (c *Client) getJSON(ctx context.Context, endpoint, accessToken string, target any) error {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)

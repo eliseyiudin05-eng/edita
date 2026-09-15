@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const maxItemsPerEditor = 100
+const maxItemsPerProfile = 100
 
 type PostgresRepository struct{ db *pgxpool.Pool }
 
@@ -28,7 +28,7 @@ func (r *PostgresRepository) GetOwn(ctx context.Context, _ string, subject strin
 	} else if err != nil {
 		return nil, ErrUnavailable
 	}
-	if role != "editor" {
+	if role != "editor" && role != "business" && role != "creator" {
 		return nil, ErrForbidden
 	}
 	return r.items(ctx, subject)
@@ -50,18 +50,32 @@ func (r *PostgresRepository) Create(ctx context.Context, _ string, subject strin
 	} else if err != nil {
 		return Item{}, ErrUnavailable
 	}
-	if role != "editor" {
+	if role != "editor" && role != "business" && role != "creator" {
 		return Item{}, ErrForbidden
 	}
 	var count int64
 	if err = tx.QueryRow(ctx, `select count(*) from public.portfolio_items where editor_id=$1`, subject).Scan(&count); err != nil {
 		return Item{}, ErrUnavailable
 	}
-	if count >= maxItemsPerEditor {
+	if count >= maxItemsPerProfile {
 		return Item{}, ErrLimit
 	}
 	var item Item
-	if err = tx.QueryRow(ctx, `insert into public.portfolio_items(editor_id,title,video_url,tags) values($1,$2,$3,$4) returning id::text,title,tags,ai_score`, subject, input.Title, input.VideoURL, input.Tags).Scan(&item.ID, &item.Title, &item.Tags, &item.AIScore); err != nil {
+	tags := append([]string{}, input.Tags...)
+	hasBrandTag := false
+	for _, tag := range tags {
+		if strings.EqualFold(strings.TrimPrefix(tag, "#"), "KIVRONIX") {
+			hasBrandTag = true
+			break
+		}
+	}
+	if !hasBrandTag {
+		if len(tags) >= 12 {
+			tags = tags[:11]
+		}
+		tags = append(tags, "#KIVRONIX")
+	}
+	if err = tx.QueryRow(ctx, `insert into public.portfolio_items(editor_id,title,video_url,tags) values($1,$2,$3,$4) returning id::text,title,tags,ai_score`, subject, input.Title, input.VideoURL, tags).Scan(&item.ID, &item.Title, &item.Tags, &item.AIScore); err != nil {
 		return Item{}, ErrUnavailable
 	}
 	item.DisplayURL = input.VideoURL
@@ -97,7 +111,7 @@ func (r *PostgresRepository) GetPublic(ctx context.Context, username string) (Pu
 }
 
 func (r *PostgresRepository) items(ctx context.Context, editorID string) ([]Item, error) {
-	rows, err := r.db.Query(ctx, `select id::text,left(title,160),left(video_url,1001),tags[1:12],ai_score,object_id is not null from public.portfolio_items where editor_id=$1 order by created_at desc,id limit $2`, editorID, maxItemsPerEditor)
+	rows, err := r.db.Query(ctx, `select id::text,left(title,160),left(video_url,1001),tags[1:12],ai_score,object_id is not null from public.portfolio_items where editor_id=$1 order by created_at desc,id limit $2`, editorID, maxItemsPerProfile)
 	if err != nil {
 		return nil, ErrUnavailable
 	}

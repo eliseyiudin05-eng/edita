@@ -34,10 +34,11 @@ import (
 	"github.com/eliseyiudin05-eng/edita/backend/internal/profile"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/rewards"
 	"github.com/eliseyiudin05-eng/edita/backend/internal/social"
+	"github.com/eliseyiudin05-eng/edita/backend/internal/video"
 )
 
 var (
-	version = "2.0.0-alpha.16"
+	version = "2.0.0-alpha.17"
 	commit  = "local"
 )
 
@@ -118,6 +119,7 @@ func main() {
 	var jobStore httpapi.JobStore
 	var challengeStore httpapi.ChallengeStore
 	var portfolioStore httpapi.PortfolioStore
+	var videoStore httpapi.VideoStore
 	if databasePool != nil {
 		profileReader = profile.NewPostgresRepository(databasePool.DB())
 		academyReader = academy.NewPostgresRepository(databasePool.DB())
@@ -156,6 +158,7 @@ func main() {
 		jobStore = jobs.NewPostgresRepository(databasePool.DB())
 		challengeStore = challenges.NewPostgresRepository(databasePool.DB())
 		portfolioStore = portfolio.NewPostgresRepository(databasePool.DB())
+		videoStore = video.NewPostgresRepository(databasePool.DB())
 	}
 	if cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "" {
 		client, err := profile.NewClient(
@@ -335,7 +338,7 @@ func main() {
 		Handler: httpapi.New(httpapi.Options{
 			Logger: logger, Environment: cfg.Environment, Version: version, Commit: commit,
 			MaxBodyBytes: cfg.MaxBodyBytes, DependencyTimeout: cfg.DependencyTimeout,
-			Database: databasePinger, Auth: authVerifier, AuthSessions: authSessions, AuthMailer: authMailer, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, AIFeedback: aiFeedbackWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, BusinessDiscussion: businessDiscussionReader, EditorDiscussion: editorDiscussionReader, EditorVerification: editorVerificationReader, GuardianVerification: guardianVerificationReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader, Finance: financeStore, Rewards: rewardsStore, PointsRedemptionEnabled: cfg.PointsRedemptionEnabled, Campaigns: campaignStore, Jobs: jobStore, Challenges: challengeStore, Portfolio: portfolioStore,
+			Database: databasePinger, Auth: authVerifier, AuthSessions: authSessions, AuthMailer: authMailer, Profiles: profileReader, Academy: academyReader, Practice: practiceStore, Plans: planInterestWriter, AIFeedback: aiFeedbackWriter, Social: socialReader, SocialFriends: socialFriendsReader, SocialGroups: socialGroupsReader, Business: businessReader, BusinessDiscussion: businessDiscussionReader, EditorDiscussion: editorDiscussionReader, EditorVerification: editorVerificationReader, GuardianVerification: guardianVerificationReader, PrivateChats: privateChatReader, AIHistory: aiHistoryReader, Finance: financeStore, Rewards: rewardsStore, PointsRedemptionEnabled: cfg.PointsRedemptionEnabled, Campaigns: campaignStore, Jobs: jobStore, Challenges: challengeStore, Portfolio: portfolioStore, Video: videoStore,
 		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,

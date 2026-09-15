@@ -2,7 +2,7 @@
 
 This service is the migration target for server-side KIVRONIX functionality. During the migration, the existing Next.js API remains the production source of truth until each Go endpoint passes contract, shadow-traffic and rollback checks.
 
-## Stage v2.0.0-alpha.16
+## Stage v2.0.0-alpha.17
 
 - PostgreSQL connection pool for a Supabase direct or session-pooler URL;
 - production database connections automatically require TLS;
@@ -76,11 +76,15 @@ This service is the migration target for server-side KIVRONIX functionality. Dur
 - mobile typography now uses readable system fonts, safe spacing and relaxed line heights; company-facing copy clearly distinguishes learners from experienced professionals without adding browser-side business logic;
 - `GET|POST /v1/marketplace/challenges` lists and creates verified-company challenges and accepts only eligible-editor submissions backed by an owned protected video object;
 - selecting a challenge winner is serialized per challenge and atomically records one-time cash/Points ledgers, a portfolio item and the participant-bound private conversation;
-- `GET|POST /v1/marketplace/portfolio` reads and creates only the authenticated editor's bounded portfolio, accepting safe HTTPS links and normalized tags;
+- `GET|POST /v1/marketplace/portfolio` reads and creates a bounded portfolio for editors, creators and businesses, accepting safe HTTPS links and adding `#KIVRONIX` server-side;
 - `GET /v1/public/editors/{username}` returns the public editor card and at most 100 works without profile UUIDs, internal storage paths or hidden school data;
+- `GET /v1/video/feed` serves a bounded cross-role KIVRONIX Video feed with minimized author cards, engagement counts and role-aware collaboration actions;
+- `POST /v1/video/actions` atomically toggles likes/follows, records idempotent comments/shares and opens only editor-to-verified-client conversations;
+- creator competitions are created by verified creator accounts and accept only a participant's own portfolio video;
+- private-chat messages and public video comments reject phone numbers, email addresses, external links, handles and common contact-sharing phrases in Go;
 - one structured error format and request audit events that exclude tokens, identities and query strings.
 
-The `backendGo` branch now prefers direct PostgreSQL repositories whenever `GO_BACKEND_DATABASE_URL` is configured. Legacy Supabase adapters remain only as a temporary rollback path while the browser gateway is being removed. Wallets, YooKassa top-ups, verified payment notifications, payout requests, signup/referral rewards, redemption, business campaigns, jobs, company challenges and editor portfolios are implemented directly in Go/PostgreSQL; administration, creator workflows and the remaining unsupported writes are still migration work.
+The `backendGo` branch now prefers direct PostgreSQL repositories whenever `GO_BACKEND_DATABASE_URL` is configured. Legacy Supabase adapters remain only as a temporary rollback path while the browser gateway is being removed. Wallets, YooKassa top-ups, verified payment notifications, payout requests, signup/referral rewards, redemption, business campaigns, jobs, company challenges, cross-role portfolios, KIVRONIX Video engagement, creator competitions and confidential video contacts are implemented directly in Go/PostgreSQL; administration and the remaining unsupported writes are still migration work.
 
 ## Run locally
 
@@ -105,7 +109,10 @@ Endpoints:
 - `GET|POST /v1/marketplace/campaigns` — lists, creates, applies to and moderates verified-company campaigns.
 - `GET|POST /v1/marketplace/jobs` — lists and creates jobs, records eligible applications and atomically funds accepted work.
 - `GET|POST /v1/marketplace/challenges` — lists and creates challenges, records protected video submissions and atomically finalizes a winner.
-- `GET|POST /v1/marketplace/portfolio` — lists the authenticated editor's works or adds a validated external work.
+- `GET|POST /v1/marketplace/portfolio` — lists or publishes the authenticated participant's validated work.
+- `GET /v1/video/feed` — returns the authenticated cross-role social video feed.
+- `POST /v1/video/actions` — likes, follows, comments, shares or creates a role-safe private contact.
+- `GET|POST /v1/video/competitions` — lists creator competitions or creates/enters one.
 - `GET /v1/public/editors/{username}` — returns a minimized public editor profile and its portfolio without authentication.
 - `GET /v1/diagnostics/auth` — verifies `Authorization: Bearer <access-token>` and returns no claims or identity.
 - `GET /v1/profile/learning-preferences` — returns the authenticated user's normalized learning preferences.

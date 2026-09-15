@@ -8,7 +8,7 @@ import {curriculum,curriculumModules,curriculumStats,learningStartIndex,learning
 import AiCoach from "@/components/ai-coach";
 import BrandBrain from "@/components/brand-brain";
 import ClientSimulator from "@/components/client-simulator";
-import PortfolioPanel from "@/components/portfolio-panel";
+import KivronixVideo from "@/components/kivronix-video";
 import JobBoard from "@/components/job-board";
 import SocialHub from "@/components/social-hub";
 import BusinessGrowth from "@/components/business-growth";
@@ -48,7 +48,7 @@ type Viewer={
 
 const allTabs:[Tab,string][]=[
   ["home","Главная"],["academy","Обучение"],["insights","Лайфхаки"],["practice","Практика"],["coach","Помощник"],["review","Разбор видео"],
-  ["kivronix-challenges","Конкурсы KIVRONIX"],["arena","Конкурсы компаний"],["portfolio","Мои работы"],["jobs","Работа"],["messages","Закрытые чаты"],["community","Сообщество"],["wallet","Мои итоги"],["plans","Тариф и доступ"],["profile","Профиль"],["business","Компания"]
+  ["kivronix-challenges","Конкурсы KIVRONIX"],["arena","Конкурсы компаний"],["portfolio","KIVRONIX Video"],["jobs","Работа"],["messages","Закрытые чаты"],["community","Сообщество"],["wallet","Мои итоги"],["plans","Тариф и доступ"],["profile","Профиль"],["business","Компания"]
 ];
 
 export default function PlatformApp(){
@@ -64,8 +64,8 @@ export default function PlatformApp(){
  const suggestedStart=learningStarts[experienceLevel];
  const suggestedStartIndex=learningStartIndex(experienceLevel);
  const tabs=useMemo(()=>{
-   if(isCreator) return allTabs.filter(([id])=>["home","jobs","messages","profile"].includes(id)).map(([id,label])=>[id,id==="home"?"Аналитика":id==="jobs"?"Мои задания":id==="messages"?"Чаты с монтажёрами":id==="profile"?"Проверка аккаунта":label] as [Tab,string]);
-   if(viewer.role==="business") return allTabs.filter(([id])=>["home","insights","coach","review","arena","messages","plans","profile","business"].includes(id)).map(([id,label])=>[id,id==="home"?"Обзор":id==="coach"?"Бизнес-помощник":id==="review"?"Анализ роликов":id==="arena"?"Лига компаний":id==="profile"?"Профиль компании":label] as [Tab,string]);
+   if(isCreator) return allTabs.filter(([id])=>["home","portfolio","jobs","messages","profile"].includes(id)).map(([id,label])=>[id,id==="home"?"Аналитика":id==="jobs"?"Мои задания":id==="messages"?"Чаты с монтажёрами":id==="profile"?"Проверка аккаунта":label] as [Tab,string]);
+   if(viewer.role==="business") return allTabs.filter(([id])=>["home","insights","coach","review","arena","portfolio","messages","plans","profile","business"].includes(id)).map(([id,label])=>[id,id==="home"?"Обзор":id==="coach"?"Бизнес-помощник":id==="review"?"Анализ роликов":id==="arena"?"Лига компаний":id==="profile"?"Профиль компании":label] as [Tab,string]);
    if(viewer.role==="editor") return allTabs.filter(([id])=>id!=="business");
    return allTabs;
  },[viewer.role,isCreator]);
@@ -260,8 +260,8 @@ export default function PlatformApp(){
      {tab==="kivronix-challenges"&&<Page title="Конкурсы KIVRONIX" sub="Официальные конкурсы платформы: понятное задание, открытые правила, число мест и честный рейтинг."><KivronixChallenges/></Page>}
      {tab==="arena"&&<Page title="Конкурсы компаний" sub="Настоящие задания, одинаковые материалы и реальные призы."><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} editorEligible={xp>=300} mode="arena"/></Page>}
 
-     {tab==="portfolio"&&<Page title={viewer.role==="editor"?viewer.name:"Примеры работ"} sub="Подтверждённые навыки · настоящие работы · понятная страница">
-       <PortfolioPanel/>
+     {tab==="portfolio"&&<Page title="KIVRONIX Video" sub="Вертикальная лента работ монтажёров, блогеров и компаний — открыта каждому участнику платформы.">
+       <KivronixVideo isCreator={isCreator}/>
        {viewer.onboarding?.ageGroup&&viewer.onboarding.ageGroup!=="18+"&&<div style={{marginTop:14}}><GuardianVerification/></div>}
        <div style={{marginTop:14}}>{viewer.username?<Link className="btn btn-dark" href={"/u/"+viewer.username}>Открыть страницу с работами</Link>:<Link className="btn btn-dark" href="/u/demo">Посмотреть пример</Link>}</div>
      </Page>}
@@ -315,7 +315,7 @@ export default function PlatformApp(){
 
      {tab==="jobs"&&isCreator&&<Page title="Мои задания" sub="Опубликуй работу, посмотри отклики и выбери одного монтажёра. После выбора откроется чат."><JobBoard mode="business" viewerName={viewer.name}/></Page>}
      {tab==="jobs"&&!isCreator&&<Page title="Работа" sub="Задания и вакансии проверенных компаний собраны в одном месте."><div className="business-stack"><CampaignHub mode="editor"/><JobBoard mode="editor" ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified}/></div></Page>}
-     {tab==="messages"&&<Page title="Закрытые чаты" sub="Безопасное общение компании и монтажёра прямо внутри KIVRONIX."><PrivateChats/></Page>}
+     {tab==="messages"&&<Page title="Закрытые чаты" sub="Личный диалог блогера или компании с монтажёром. Его видят только два участника, а контакты и внешние ссылки блокируются."><PrivateChats/></Page>}
      {tab==="community"&&<Page title="Сообщество" sub="Рейтинг, друзья, учебные группы, соревнования и приглашения с защитой личных данных."><SocialHub ageGroup={viewer.onboarding?.ageGroup}/></Page>}
      {tab==="business"&&<Page title="Кабинет компании" sub="Сначала подтвердите компанию. После проверки можно публиковать настоящие задания и вакансии."><div className="business-grid"><Stat n={String(businessStats.challenges)} t="активных конкурсов"/><Stat n={String(businessStats.submissions)} t="получено работ"/><Stat n={String(businessStats.jobs)} t="открытых вакансий"/><Stat n={accessLabel} t="режим доступа"/></div><div className="business-stack"><BusinessVerification/><BusinessGrowth/><CampaignHub mode="business"/><BrandBrain viewerName={viewer.name}/><ChallengeCenter role={viewer.role} viewerName={viewer.name} ageGroup={viewer.onboarding?.ageGroup} guardianVerified={viewer.guardianVerified} mode="business"/><JobBoard mode="business" viewerName={viewer.name}/><Card title="Будущий план Studio+"><p className="muted">Командный кабинет и расширенные инструменты готовятся отдельно от тарифа монтажёра. Оплата выключена.</p><Link className="btn btn-ghost" href="/pricing">Посмотреть план</Link></Card></div></Page>}
    </section>
