@@ -1,7 +1,16 @@
 import {randomInt} from "node:crypto";
 
 type Message={from:"client"|"user";text:string};
-type Result={client_reply:string;score:number;feedback:string;better_answer:string};
+type Result={
+  client_reply:string;
+  score:number;
+  feedback:string;
+  better_answer?:string;
+  coach_hint?:string;
+  deal_status?:"ongoing"|"won"|"lost";
+  deal_reason?:string;
+  scenario_meta?:Record<string,unknown>|null;
+};
 export type PracticeSession={scenario:string;messages:Message[];result:Result|null};
 
 const route="practice_session_save";

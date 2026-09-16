@@ -28,7 +28,6 @@ import BusinessDashboard from "@/components/business-dashboard";
 import BusinessInsights from "@/components/business-insights";
 import CreatorVerification from "@/components/creator-verification";
 import MotivationCoach from "@/components/motivation-coach";
-import AcademyAssessment from "@/components/academy-assessment";
 import EditorDirectory from "@/components/editor-directory";
 import CreatorStudio from "@/components/creator-studio";
 import PartnerDirectory from "@/components/partner-directory";
@@ -178,19 +177,6 @@ export default function PlatformApp(){
    window.location.assign("/login");
  }
 
- async function passAssessment(moduleIndex:number,result:{score:number;quizScore:number}){
-   const accessToken=await getFreshAccessToken();
-   if(!accessToken)throw new Error("Войди в аккаунт, чтобы сохранить аттестацию.");
-   const response=await fetch("/api/academy/assessments",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+accessToken},body:JSON.stringify({moduleIndex,moduleName:curriculumModules[moduleIndex]?.module,final:moduleIndex===curriculumModules.length-1,...result})});
-   const body=await response.json();
-   if(!response.ok)throw new Error(body.error||"Не удалось сохранить аттестацию.");
-   setPassedAssessments(current=>{
-     const next=current.includes(moduleIndex)?current:[...current,moduleIndex];
-     try{localStorage.setItem("kivronix_academy_assessments",JSON.stringify(next))}catch{}
-     return next;
-   });
- }
-
  const roleLabel=isCreator?"Заказчик":viewer.role==="business"?"Бизнес":viewer.role==="editor"?"Монтажёр":"Гость";
  const activePaidPlan=Boolean(viewer.plan&&viewer.plan!=="free"&&viewer.planExpiresAt&&new Date(viewer.planExpiresAt).getTime()>Date.now());
  const accessLabel:string=activePaidPlan?(viewer.plan==="creator_plus"?"Creator+":viewer.plan==="studio_plus"?"Studio+":viewer.plan||"платный план"):"бесплатно";
@@ -240,7 +226,7 @@ export default function PlatformApp(){
      </Page>}
 
      {tab==="academy"&&<Page title="Обучение" sub="Открывай уроки доступной ступени в удобном порядке. Переход между ступенями происходит после аттестации.">
-       <div className="academy-start-card"><div><div className="eyebrow">{currentLesson?"ДОСТУПНЫЙ УРОК":routeNeedsAssessment?"ПОРА ПРОЙТИ АТТЕСТАЦИЮ":"МАРШРУТ ПРОЙДЕН"} · {suggestedStart.label.toUpperCase()}</div><h2>{currentLesson?.title||(routeNeedsAssessment?`Аттестация ступени ${nextAssessmentModuleIndex+1}`:"Все доступные уроки завершены")}</h2><p>{experienceLevel==="pro"?"Для уровня PRO уроки открыты сразу без обязательных аттестаций.":routeNeedsAssessment?"Уроки этой ступени завершены. Пройди аттестацию, чтобы открыть следующий блок.":"Все уроки открытой ступени можно проходить в удобном порядке, а завершённые — пересматривать."}</p></div>{currentLesson?<Link className="btn btn-lime" href={"/academy/"+currentLesson.slug}>Открыть урок →</Link>:routeNeedsAssessment?<a className="btn btn-lime" href={`#academy-assessment-${nextAssessmentModuleIndex}`}>Перейти к аттестации →</a>:null}</div>
+       <div className="academy-start-card"><div><div className="eyebrow">{currentLesson?"ДОСТУПНЫЙ УРОК":routeNeedsAssessment?"ПОРА ПРОЙТИ АТТЕСТАЦИЮ":"МАРШРУТ ПРОЙДЕН"} · {suggestedStart.label.toUpperCase()}</div><h2>{currentLesson?.title||(routeNeedsAssessment?`Аттестация ступени ${nextAssessmentModuleIndex+1}`:"Все доступные уроки завершены")}</h2><p>{experienceLevel==="pro"?"Для уровня PRO уроки открыты сразу без обязательных аттестаций.":routeNeedsAssessment?"Уроки этой ступени завершены. На отдельной странице ИИ проверит 1–3 видео по сложности уровня и откроет следующий блок.":"Все уроки открытой ступени можно проходить в удобном порядке, а завершённые — пересматривать."}</p></div>{currentLesson?<Link className="btn btn-lime" href={"/academy/"+currentLesson.slug}>Открыть урок →</Link>:routeNeedsAssessment?<Link className="btn btn-lime" href={`/academy/assessment/${nextAssessmentModuleIndex}`}>Перейти к аттестации →</Link>:null}</div>
        <div className="academy-overview">
          <Stat n={String(curriculumStats.lessons)} t="уроков"/><Stat n={String(curriculumStats.theory)} t="уроков теории"/><Stat n={String(curriculumStats.assignments)} t="заданий"/><Stat n={String(done.length)} t="пройдено"/>
        </div>
@@ -258,7 +244,7 @@ export default function PlatformApp(){
              <div className="lesson-actions">{unlocked?<Link className="btn btn-dark" href={"/academy/"+lesson.slug}>{done.includes(lesson.slug)?"Открыть урок снова":"Открыть урок"}</Link>:<button className="btn btn-ghost" disabled>{access.reason==="assessment"?"Сначала пройди аттестацию":"Урок пока недоступен"}</button>}<span className="lesson-xp">+{lesson.xp} опыта</span></div>
            </article>
          })}</div>
-         {experienceLevel==="pro"?<div className="academy-assessment-preview"><b>Маршрут PRO открыт</b><span>Ты можешь открывать уроки всех ступеней без обязательной аттестации.</span></div>:group.lessons.every(item=>done.includes(item.slug))&&moduleIndex>=suggestedModuleIndex?<div id={`academy-assessment-${moduleIndex}`}><AcademyAssessment moduleIndex={moduleIndex} moduleName={group.module} final={moduleIndex===curriculumModules.length-1} passed={passedAssessments.includes(moduleIndex)} onPassed={result=>passAssessment(moduleIndex,result)}/></div>:<div className="academy-assessment-preview"><b>{moduleIndex===curriculumModules.length-1?"Финальный экзамен":"Аттестация ступени"}</b><span>{moduleIndex===curriculumModules.length-1?"После уроков: 5 работ, общий тест и ИИ‑оценка от 85 баллов.":"Заверши уроки ступени, добавь 3 работы и пройди мини‑тест. ИИ подскажет, что исправить перед переходом."}</span></div>}
+         {experienceLevel==="pro"?<div className="academy-assessment-preview"><b>Маршрут PRO открыт</b><span>Ты можешь открывать уроки всех ступеней без обязательной аттестации.</span></div>:passedAssessments.includes(moduleIndex)?<div className="academy-assessment-preview passed"><b>✓ Ступень подтверждена</b><span>Результат сохранён. Уроки следующего блока уже открыты.</span><Link className="btn btn-ghost" href={`/academy/assessment/${moduleIndex}`}>Посмотреть результат</Link></div>:group.lessons.every(item=>done.includes(item.slug))&&moduleIndex>=suggestedModuleIndex?<div className="academy-assessment-preview ready"><b>{moduleIndex===curriculumModules.length-1?"Финальная аттестация готова":"Пора подтвердить ступень"}</b><span>Отдельная страница, ИИ‑проверка 1–3 видео и вопросы по пройденным темам.</span><Link className="btn btn-dark" href={`/academy/assessment/${moduleIndex}`}>Открыть аттестацию →</Link></div>:<div className="academy-assessment-preview"><b>{moduleIndex===curriculumModules.length-1?"Финальная аттестация":"Аттестация ступени"}</b><span>Заверши уроки ступени. Число видео и проходной балл подстраиваются под сложность уровня.</span></div>}
        </section>)}</div>
      </Page>}
 
