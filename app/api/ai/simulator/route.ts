@@ -22,10 +22,10 @@ export async function POST(req:NextRequest){
     const token=bearer?.startsWith("Bearer ")?bearer.slice(7):null;
     const user=await getUserFromAccessToken(token);
     if(!process.env.OPENAI_API_KEY||!user){
-      return NextResponse.json({demo:true,result:demo(message),reason:!user?"auth_required_for_live_ai":"openai_not_configured"});
+      return NextResponse.json({demo:true,result:demo(message,Array.isArray(history)?history.length:0),reason:!user?"auth_required_for_live_ai":"openai_not_configured"});
     }
 
-    const conversation=Array.isArray(history)?history.slice(-8).map((m:any)=>({
+    const conversation=Array.isArray(history)?history.slice(-14).map((m:any)=>({
       role:m.from==="client"?"assistant":"user",
       content:String(m.text||"")
     })):[];
@@ -34,7 +34,7 @@ export async function POST(req:NextRequest){
       headers:{"Content-Type":"application/json",Authorization:"Bearer "+process.env.OPENAI_API_KEY},
       body:JSON.stringify({
         model:process.env.OPENAI_MODEL||"gpt-5.6-luna",
-        instructions:"Ты играешь роль обычного клиента видеомонтажёра и помогаешь ученику тренироваться. Пиши простыми русскими словами, а деловые термины сразу объясняй. После ответа ученика оцени ясность, срок, цену, объём и число правок. Обратная связь короткая: сначала успех, потом 1–2 вещи для исправления. Лучший вариант должен звучать как простое настоящее сообщение клиенту. Клиент реалистичный, спокойный и уважительный. Используй утвердительные фразы.",
+        instructions:`Ты играешь живого клиента видеомонтажёра, а ученик тренирует реальные переговоры. Продолжай именно текущий разговор: помни уже названные цену, срок, объём и правки. Реагируй на смысл последнего сообщения, а не повторяй сценарий. У клиента есть характер, сомнения и деловая цель. Иногда он уточняет, соглашается, торгуется, вспоминает новую деталь или просит зафиксировать договорённость. Выбирай естественную реакцию по контексту и не используй одну конструкцию два хода подряд. Пиши разговорно и коротко, как человек в рабочем чате: 1–3 предложения, без канцелярита и лекций. Отдельно оцени ясность, границы работы, цену, срок и число правок. В feedback сначала назови конкретный успех, затем одну главную точку роста. better_answer — естественное сообщение, которое реально можно отправить клиенту.`,
         input:[
           ...conversation,
           {role:"user",content:"Сценарий: "+String(scenario||"Клиент просит сделать дешевле и быстрее.")+"\nОтвет монтажёра: "+message}
@@ -43,7 +43,7 @@ export async function POST(req:NextRequest){
         text:{format:{type:"json_schema",name:"client_simulator",strict:true,schema}}
       })
     });
-    if(!r.ok){const detail=await r.text();console.error("Simulator OpenAI error",r.status,detail);return NextResponse.json({demo:true,degraded:true,result:demo(message),upstreamStatus:r.status});}
+    if(!r.ok){const detail=await r.text();console.error("Simulator OpenAI error",r.status,detail);return NextResponse.json({demo:true,degraded:true,result:demo(message,conversation.length),upstreamStatus:r.status});}
     const data=await r.json();
     const raw=data.output_text||data.output?.flatMap((x:any)=>x.content||[]).find((x:any)=>x.type==="output_text")?.text;
     return NextResponse.json({demo:false,result:JSON.parse(raw)});
@@ -53,10 +53,11 @@ export async function POST(req:NextRequest){
   }
 }
 
-function demo(message:string){
+function demo(message:string,turn=0){
   const good=message.length>45;
+  const replies=["Хорошо, так понятнее. Зафиксируем срок и что именно я получу в финале?","Понял про объём. А одна небольшая правка после просмотра входит?","Договорились. Пришли одним сообщением итог: цена, срок и формат файла."];
   return {
-    client_reply:good?"Понял. А если оставить текущий бюджет, что именно войдёт в работу и сколько будет правок?":"Но у другого монтажёра дешевле. Почему мне платить больше?",
+    client_reply:good?replies[Math.floor(turn/2)%replies.length]:"Я пока не понял, что войдёт в эту сумму. Можешь назвать объём, срок и число правок?",
     score:good?78:52,
     feedback:good?"Ты сохранил цену и начал фиксировать объём. Добавь точное число правок и срок.":"Ответ слишком короткий: уточни объём и объясни ценность своей работы.",
     better_answer:"Могу уложиться в ваш бюджет, если зафиксируем объём: один ролик до 30 секунд, один раунд правок и готовность к пятнице. Если нужны дополнительные версии или больше правок — посчитаю отдельным пакетом."

@@ -180,7 +180,7 @@ export default function AiCoach({scopeKey,title="Помощник KIVRONIX",welc
     <div className="ai-file-mode pro"><b>Полный разбор · бесплатно</b><span>До 7 кадров, время каждого кадра и понятный порядок правок</span></div>
     <form className="ai-form" onSubmit={submit}>
       <label className="ai-attach" title="Добавить ролик, кадр, сценарий или субтитры"><span>＋ Файл</span><input ref={fileRef} type="file" accept="video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp,.txt,.srt,.vtt" onChange={event=>{setFile(event.target.files?.[0]||null);setNotice("")}}/></label>
-      <textarea ref={textareaRef} value={input} onChange={event=>resizeInput(event.target.value)} maxLength={4000} rows={compact?2:3} placeholder="Например: я ищу кнопку «Разделить». Что нажать?"/>
+      <textarea ref={textareaRef} value={input} onChange={event=>resizeInput(event.target.value)} maxLength={4000} rows={4} placeholder="Напиши вопрос подробно — поле можно растянуть ещё больше…"/>
       <button className="btn btn-lime" disabled={loading||(!input.trim()&&!file)}>{loading?"Разбираю…":"Спросить помощника"}</button>
     </form>
     {file?<div className="ai-selected-file">{file.type.startsWith("image/")?<ImageAttachmentPreview file={file}/>:null}<span><b>{file.name}</b> · {formatBytes(file.size)}<small>{file.type.startsWith("image/")?"Помощник увидит изображение и привяжет объяснение к нему.":file.type.startsWith("video/")?"Помощник покажет правки по кадрам и таймкодам.":"Помощник прочитает файл и объяснит его по шагам."}</small></span><button type="button" onClick={()=>{setFile(null);if(fileRef.current)fileRef.current.value=""}}>Убрать</button></div>:null}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import {getFreshAccessToken,getSupabaseBrowserClient} from "@/lib/supabase-browser";
 import ChallengeCenter from "@/components/challenge-center";
 import VideoReview from "@/components/video-review";
-import {curriculum,curriculumModules,curriculumStats,learningStartIndex,learningStarts,normalizeExperienceLevel} from "@/lib/curriculum";
+import {curriculum,curriculumModules,curriculumStats,learningStartIndex,learningStarts,lessonAccess,nextAvailableLesson,normalizeExperienceLevel} from "@/lib/curriculum";
 import AiCoach from "@/components/ai-coach";
 import BrandBrain from "@/components/brand-brain";
 import ClientSimulator from "@/components/client-simulator";
@@ -71,6 +71,7 @@ export default function PlatformApp(){
  const suggestedStart=learningStarts[experienceLevel];
  const suggestedStartIndex=learningStartIndex(experienceLevel);
  const suggestedModuleIndex=Math.max(0,curriculumModules.findIndex(group=>group.lessons.some(lesson=>lesson.slug===suggestedStart.slug)));
+ const currentLesson=nextAvailableLesson(done,passedAssessments,experienceLevel);
  const tabs=useMemo(()=>{
    if(isCreator) return allTabs.filter(([id])=>["home","portfolio","talent","jobs","messages","profile"].includes(id)).map(([id,label])=>[id,id==="home"?"Студия блогера":id==="talent"?"Найти монтажёра":id==="jobs"?"Мои задания":id==="messages"?"Чаты с монтажёрами":id==="profile"?"Проверка аккаунта":label] as [Tab,string]);
    if(viewer.role==="business") return allTabs.filter(([id])=>["home","insights","coach","review","arena","portfolio","talent","messages","plans","profile","business"].includes(id)).map(([id,label])=>[id,id==="home"?"Обзор":id==="talent"?"Каталог монтажёров":id==="coach"?"Бизнес-помощник":id==="review"?"Анализ роликов":id==="arena"?"Лига компаний":id==="profile"?"Профиль компании":label] as [Tab,string]);
@@ -237,7 +238,7 @@ export default function PlatformApp(){
      </Page>}
 
      {tab==="academy"&&<Page title="Обучение" sub="Выбери свою стартовую точку и проходи уроки по порядку. Каждый урок объясняет одну тему простыми словами.">
-       <div className="academy-start-card"><div><div className="eyebrow">ТВОЯ СТАРТОВАЯ ТОЧКА · {suggestedStart.label.toUpperCase()}</div><h2>{curriculum[suggestedStartIndex]?.title}</h2><p>{suggestedStart.reason} Ранние уроки остаются доступными, если захочешь повторить основу.</p></div><Link className="btn btn-lime" href={"/academy/"+suggestedStart.slug}>Начать с этого урока →</Link></div>
+       <div className="academy-start-card"><div><div className="eyebrow">{currentLesson?"СЛЕДУЮЩИЙ ДОСТУПНЫЙ УРОК":"МАРШРУТ ПРОЙДЕН"} · {suggestedStart.label.toUpperCase()}</div><h2>{currentLesson?.title||"Все доступные уроки завершены"}</h2><p>{suggestedStart.reason} Все завершённые уроки можно открыть повторно в любой момент.</p></div>{currentLesson?<Link className="btn btn-lime" href={"/academy/"+currentLesson.slug}>Открыть урок →</Link>:null}</div>
        <div className="academy-overview">
          <Stat n={String(curriculumStats.lessons)} t="уроков"/><Stat n={String(curriculumStats.theory)} t="уроков теории"/><Stat n={String(curriculumStats.assignments)} t="заданий"/><Stat n={String(done.length)} t="пройдено"/>
        </div>
@@ -246,13 +247,13 @@ export default function PlatformApp(){
          <header><div><div className="eyebrow">СТУПЕНЬ {moduleIndex+1}</div><h2>{group.module}</h2></div><span>{group.lessons.filter(item=>done.includes(item.slug)).length} / {group.lessons.length}</span></header>
          <div className="academy-lesson-grid">{group.lessons.map(lesson=>{
            const lessonIndex=curriculum.findIndex(item=>item.slug===lesson.slug);
-           const moduleGateOpen=moduleIndex<=suggestedModuleIndex||passedAssessments.includes(moduleIndex-1);
-           const unlocked=moduleGateOpen&&(lessonIndex<=suggestedStartIndex||curriculum.slice(suggestedStartIndex,lessonIndex).every(item=>done.includes(item.slug)));
+           const access=lessonAccess(lesson.slug,done,passedAssessments,experienceLevel);
+           const unlocked=access.unlocked;
            return <article className={"academy-lesson-card "+(done.includes(lesson.slug)?"done ":"")+(unlocked?"":"locked")} key={lesson.slug}>
              <div className="academy-lesson-top"><span className="num">{done.includes(lesson.slug)?"✓":unlocked?lessonIndex+1:"—"}</span><div><small>{lesson.level} · {lesson.minutes} мин</small><b>{unlocked?lesson.software:"Откроется после предыдущего урока"}</b></div></div>
              <h3>{lesson.title}</h3><p>{lesson.summary}</p>
              <div className="academy-tags"><span>{lesson.track}</span><span>{lesson.theoryOnly?"Простое объяснение":"Наглядная схема"}</span>{lesson.clicks?.length?<span>Карта кнопок</span>:null}<span>Помощник в уроке</span></div>
-             <div className="lesson-actions">{unlocked?<Link className="btn btn-dark" href={"/academy/"+lesson.slug}>Открыть урок</Link>:<button className="btn btn-ghost" disabled>Сначала заверши предыдущий урок</button>}<span className="lesson-xp">+{lesson.xp} опыта</span></div>
+             <div className="lesson-actions">{unlocked?<Link className="btn btn-dark" href={"/academy/"+lesson.slug}>{done.includes(lesson.slug)?"Посмотреть снова":"Открыть урок"}</Link>:<button className="btn btn-ghost" disabled>{access.reason==="assessment"?"Сначала пройди аттестацию":"Сначала заверши доступный урок"}</button>}<span className="lesson-xp">+{lesson.xp} опыта</span></div>
            </article>
          })}</div>
          {group.lessons.every(item=>done.includes(item.slug))&&moduleIndex>=suggestedModuleIndex?<AcademyAssessment moduleIndex={moduleIndex} moduleName={group.module} final={moduleIndex===curriculumModules.length-1} passed={passedAssessments.includes(moduleIndex)} onPassed={result=>passAssessment(moduleIndex,result)}/>:<div className="academy-assessment-preview"><b>{moduleIndex===curriculumModules.length-1?"Финальный экзамен":"Аттестация ступени"}</b><span>{moduleIndex===curriculumModules.length-1?"После уроков: 5 работ, общий тест и ИИ‑оценка от 85 баллов.":"Заверши уроки ступени, добавь 3 работы и пройди мини‑тест. ИИ подскажет, что исправить перед переходом."}</span></div>}

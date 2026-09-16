@@ -1,5 +1,5 @@
 import {after,NextRequest,NextResponse} from "next/server";
-import {curriculum,curriculumModules,lessonBySlug} from "@/lib/curriculum";
+import {curriculum,curriculumModules,learningStartIndex,lessonBySlug} from "@/lib/curriculum";
 import {academyProgressShadowEnabled,compareAcademyProgressWithGo,normalizeAcademyProgress} from "@/lib/go-academy-shadow";
 import {academyProgressCanaryEnabled,recordAcademyProgressCanaryComparison,tryAcademyProgressCanary} from "@/lib/go-academy-canary";
 import {getLessonProgress,getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
@@ -53,17 +53,20 @@ export async function POST(req:NextRequest){
 
   const lessonIndex=curriculum.findIndex(item=>item.slug===lesson.slug);
   if(completed&&lessonIndex>0){
+    const [{data:profile},{data:completedRows}]=await Promise.all([
+      service.from("profiles").select("onboarding").eq("id",user.id).maybeSingle(),
+      service.from("lesson_progress").select("status,lessons!inner(slug)").eq("user_id",user.id).eq("status","completed")
+    ]);
+    const completedSlugs=new Set((completedRows||[]).map((row:any)=>row.lessons?.slug).filter(Boolean));
+    if(completedSlugs.has(lesson.slug))return NextResponse.json({ok:true,completed:true,slug:lesson.slug,alreadyCompleted:true});
+    const startIndex=learningStartIndex(profile?.onboarding?.level);
+    const startModuleIndex=curriculumModules.findIndex(group=>group.lessons.some(item=>item.slug===curriculum[startIndex]?.slug));
     const moduleIndex=curriculumModules.findIndex(group=>group.module===lesson.module);
-    if(moduleIndex>0){
+    if(moduleIndex>startModuleIndex){
       const {data:assessment}=await service.from("academy_assessments").select("passed").eq("user_id",user.id).eq("module_index",moduleIndex-1).maybeSingle();
       if(!assessment?.passed)return NextResponse.json({error:"Сначала пройди промежуточную аттестацию предыдущей ступени."},{status:409});
     }
-    const required=curriculum.slice(0,lessonIndex).map(item=>item.slug);
-    const {data:completedRows}=await service.from("lesson_progress")
-      .select("status,lessons!inner(slug)")
-      .eq("user_id",user.id)
-      .eq("status","completed");
-    const completedSlugs=new Set((completedRows||[]).map((row:any)=>row.lessons?.slug).filter(Boolean));
+    const required=curriculum.slice(startIndex,lessonIndex).map(item=>item.slug);
     const missing=required.find(slug=>!completedSlugs.has(slug));
     if(missing)return NextResponse.json({error:"Сначала заверши предыдущий урок."},{status:409});
   }
