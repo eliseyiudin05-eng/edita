@@ -18,7 +18,7 @@ export default function PricingPage(){
       <div className="beta-price-number"><small>ДОСТУП</small><strong>0 ₽</strong><span>банковская карта не нужна</span></div>
     </section>
 
-    <section className="section shell"><div className="section-kicker">ОПЛАТА РАБОТ</div><h2>Комиссия только за пополнение</h2><p className="section-lead">При пополнении рабочего баланса за каждый 1 ₽ базовой суммы зачисляется 1 KIVRONIX Point, а сверху добавляется комиссия 5%. Заказчик назначает цену работы в Points, и после принятия результата монтажёр получает 100% этой цены — комиссия между сторонами 0%.</p></section>
+    <section className="section shell"><div className="section-kicker">ОПЛАТА РАБОТ</div><h2>Понятный расчёт без комиссии за пополнение</h2><p className="section-lead">При пополнении рабочего баланса 1 ₽ = 1 KIVRONIX Point. Заказчик заранее видит итог, назначает цену работы в Points, а после принятия результата монтажёр получает 100% указанной суммы.</p></section>
 
     <section className="section shell">
       <div className="section-kicker">ДВА ОТДЕЛЬНЫХ ТАРИФА</div>

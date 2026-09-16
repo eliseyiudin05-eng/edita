@@ -21,7 +21,7 @@ async function authenticate(req:NextRequest){
   const service=getSupabaseServiceClient();
   if(!user||!service||!token)return null;
   const {data:profile}=await service.from("profiles")
-    .select("id,role,display_name,username")
+    .select("id,role,display_name,username,onboarding")
     .eq("id",user.id)
     .maybeSingle();
   return profile?{user,service,profile,token}:null;
@@ -260,7 +260,24 @@ export async function POST(req:NextRequest){
     }
     const {error:updateError}=await auth.service.from("job_applications").update({status:"accepted"}).eq("job_id",job.id).eq("editor_id",editorId);
     if(updateError)return NextResponse.json({error:"Оплата зарезервирована, но статус отклика не обновился. Обратитесь в поддержку."},{status:500});
+    await auth.service.from("jobs").update({status:"closed"}).eq("id",job.id);
     return NextResponse.json({ok:true,conversationId:conversation.id,workOrderId:orderId});
+  }
+
+  if(action==="open_editor"){
+    if(auth.profile.role!=="business")return NextResponse.json({error:"Каталог доступен компаниям и блогерам."},{status:403});
+    const editorId=String(body?.editorId||"");
+    const {data:editor}=await auth.service.from("profiles").select("id,role,display_name").eq("id",editorId).maybeSingle();
+    if(!editor||editor.role!=="editor")return NextResponse.json({error:"Монтажёр не найден."},{status:404});
+    let {data:business}=await auth.service.from("businesses").select("id,owner_id,name").eq("owner_id",auth.user.id).maybeSingle();
+    if(!business){
+      const accountKind=auth.profile?.onboarding?.accountKind;
+      const {data:created}=await auth.service.from("businesses").insert({owner_id:auth.user.id,name:accountKind==="creator"?(auth.profile.display_name||"Блогер"):(auth.profile.display_name||"Компания")}).select("id,owner_id,name").single();
+      business=created;
+    }
+    if(!business)return NextResponse.json({error:"Не удалось открыть рабочий профиль."},{status:409});
+    const conversation=await ensurePrivateConversation({service:auth.service,editorId:editor.id,businessId:business.id,businessOwnerId:auth.user.id,sourceKind:"direct",sourceId:business.id,companyName:business.name||"Заказчик",title:"Знакомство с монтажёром: "+(editor.display_name||"профиль")});
+    return NextResponse.json({ok:true,conversationId:conversation.id});
   }
 
   if(action==="complete_work"){

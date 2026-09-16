@@ -86,7 +86,10 @@ export async function POST(req:NextRequest){
     }
   }
 
-  const link=(data as any)?.properties?.action_link||(data as any)?.properties?.actionLink;
+  const tokenHash=(data as any)?.properties?.hashed_token||(data as any)?.properties?.hashedToken;
+  const link=tokenHash
+    ?site+"/auth/confirm?token_hash="+encodeURIComponent(tokenHash)+"&type=signup"
+    :(data as any)?.properties?.action_link||(data as any)?.properties?.actionLink;
   if(!link)return NextResponse.json({error:"Ошибка создания ссылки подтверждения."},{status:500});
 
   try{

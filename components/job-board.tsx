@@ -4,7 +4,7 @@ import {FormEvent,useEffect,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 
 type JobApplication={job_id:string;editor_id:string;status:string;created_at?:string;editor?:{display_name?:string|null;username?:string|null}|null};
-type Job={id:string;title:string;description:string;budget_min_cents:number|null;budget_max_cents:number|null;payment_points?:number;businesses?:{name?:string;verified?:boolean;verification_level?:string}|null;applications?:JobApplication[];my_status?:string|null};
+type Job={id:string;title:string;description:string;status?:string;budget_min_cents:number|null;budget_max_cents:number|null;payment_points?:number;businesses?:{name?:string;verified?:boolean;verification_level?:string}|null;applications?:JobApplication[];my_status?:string|null};
 const demoJobs:Job[]=[
   {id:"d1",title:"Монтажёр коротких роликов",description:"5–7 вертикальных роликов в неделю.",budget_min_cents:4500000,budget_max_cents:6000000,businesses:{name:"Пример компании"}},
   {id:"d2",title:"Монтажёр для YouTube",description:"Видео с экспертом и дополнительными кадрами.",budget_min_cents:250000,budget_max_cents:350000,businesses:{name:"Студия авторов"}},
@@ -19,6 +19,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
   const [message,setMessage]=useState("");
   const [busyKey,setBusyKey]=useState("");
   const [form,setForm]=useState({title:"",description:"",points:""});
+  const [editingId,setEditingId]=useState<string|null>(null);
 
   useEffect(()=>{void load()},[mode]);
 
@@ -40,7 +41,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
       if(!business){setJobs([]);setMessage("Ошибка создания кабинета компании.");return;}
       setBusinessId(business.id);
       setBusinessVerified(Boolean((business as any).verified));
-      const {data,error}=await supabase.from("jobs").select("id,title,description,budget_min_cents,budget_max_cents,payment_points").eq("business_id",business.id).order("created_at",{ascending:false});
+      const {data,error}=await supabase.from("jobs").select("id,title,description,status,budget_min_cents,budget_max_cents,payment_points").eq("business_id",business.id).order("created_at",{ascending:false});
       if(error){setMessage(error.message);return;}
       const rows=(data||[]) as Job[];
       const jobIds=rows.map(job=>job.id);
@@ -117,23 +118,28 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
     await load();
   }
 
+  function startEdit(job:Job){setEditingId(job.id);setForm({title:job.title,description:job.description,points:String(job.payment_points||"")});setMessage("Меняйте только формулировку, описание и оплату. Уже полученные отклики сохранятся.")}
+  async function saveEdit(e:FormEvent){e.preventDefault();if(!editingId)return;const supabase=getSupabaseBrowserClient();const {error}=await supabase.from("jobs").update({title:form.title,description:form.description,payment_points:Math.max(100,Math.floor(Number(form.points)||0))}).eq("id",editingId).eq("status","open");if(error){setMessage(error.message);return}setEditingId(null);setForm({title:"",description:"",points:""});setMessage("Изменения сохранены. Отклики остались на месте.");await load()}
+  async function removeJob(jobId:string){if(!window.confirm("Удалить задание и закрыть приём откликов?"))return;const supabase=getSupabaseBrowserClient();const {error}=await supabase.from("jobs").delete().eq("id",jobId);setMessage(error?error.message:"Задание удалено.");if(!error)await load()}
+
   return <div className="job-board">
     {mode==="editor"&&!editorEligible&&<div className="auth-msg"><b>Работа откроется на уровне 2 · 300 XP.</b><br/>Пройди первые уроки и выполни учебные шаги. Смотреть задания можно уже сейчас, откликнуться — после достижения уровня.</div>}
-    {mode==="business"&&<section className="card"><div className="eyebrow">НОВОЕ ЗАДАНИЕ</div><h3>Опубликовать работу</h3>{!businessVerified&&<div className="auth-msg">Сначала нужна проверка аккаунта. Это защищает монтажёров от вымышленных заказчиков.</div>}<form className="business-form" onSubmit={create}>
+    {mode==="business"&&<section className="card"><div className="eyebrow">{editingId?"ПОВЕРХНОСТНОЕ РЕДАКТИРОВАНИЕ":"НОВОЕ ЗАДАНИЕ"}</div><h3>{editingId?"Уточнить опубликованное задание":"Опубликовать работу"}</h3>{!businessVerified&&<div className="auth-msg">Сначала нужна проверка аккаунта. Это защищает монтажёров от вымышленных заказчиков.</div>}<form className="business-form" onSubmit={editingId?saveEdit:create}>
       <input required placeholder="Что нужно смонтировать" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
       <textarea required placeholder="Задачи, объём, формат работы" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
       <input required type="number" min="100" placeholder="Оплата, KIVRONIX Points" value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/>
-      <p className="muted">Сумма резервируется при выборе исполнителя. После принятия работы монтажёр получает 100% указанной суммы. Комиссия между заказчиком и монтажёром — 0%; комиссия 5% берётся только при пополнении баланса.</p>
-      <button className="btn btn-dark" disabled={!businessVerified}>{businessVerified?"Опубликовать":"Сначала пройти проверку"}</button>
+      <p className="muted">Сумма резервируется только после выбора исполнителя. Задание остаётся открытым, пока вы не выберете монтажёра или не удалите публикацию. Монтажёр получает 100% указанной суммы.</p>
+      <div className="lesson-actions"><button className="btn btn-dark" disabled={!businessVerified}>{businessVerified?(editingId?"Сохранить изменения":"Опубликовать"):"Сначала пройти проверку"}</button>{editingId?<button type="button" className="btn btn-ghost" onClick={()=>{setEditingId(null);setForm({title:"",description:"",points:""})}}>Отмена</button>:null}</div>
     </form></section>}
 
     <section className="grid job-grid">{jobs.map(job=><article className="card job" key={job.id}>
       <small>{mode==="editor"?(job.businesses?.name||"Компания"):"ВАША ВАКАНСИЯ"}</small>
+      {mode==="business"?<span className={"tag "+(job.status==="open"?"verification-mini":"")}>{job.status==="open"?"Принимает отклики":"Исполнитель выбран"}</span>:null}
       {mode==="editor"&&job.businesses?.verified&&<span className="tag verification-mini">{badgeName(job.businesses.verification_level)}</span>}
       <h3>{job.title}</h3><p className="muted">{job.description}</p>
       <b>{budget(job)}</b>
       {mode==="editor"&&(job.my_status?<div className="auth-msg">Статус отклика: <b>{applicationStatus(job.my_status)}</b>{job.my_status==="accepted"?<><br/><a className="btn btn-dark" href="#messages" onClick={()=>rememberChat("job",job.id)}>Открыть закрытый чат</a></>:null}</div>:<button className="btn btn-dark" onClick={()=>apply(job.id)}>Податься</button>)}
-      {mode==="business"?<div className="job-applications"><b>Отклики · {job.applications?.length||0}</b>{job.applications?.length?job.applications.map(application=><div className="talent-row" key={application.editor_id}><div><b>{application.editor?.display_name||"Монтажёр"}</b><span>@{application.editor?.username||"editor"} · {applicationStatus(application.status)}</span></div><div className="chip-row">{application.status==="accepted"?<a className="mini-btn" href="#messages" onClick={()=>rememberChat("job",job.id)}>Открыть чат</a>:<button className="mini-btn" disabled={busyKey===job.id+":"+application.editor_id} onClick={()=>acceptApplication(job.id,application.editor_id)}>{busyKey===job.id+":"+application.editor_id?"Открываем…":"Выбрать"}</button>}</div></div>):<p className="muted">Отклики появятся здесь.</p>}</div>:null}
+      {mode==="business"?<><div className="job-owner-actions">{job.status==="open"?<button className="mini-btn" type="button" onClick={()=>startEdit(job)}>Изменить описание</button>:null}<button className="mini-btn danger" type="button" onClick={()=>void removeJob(job.id)}>Удалить задание</button></div><div className="job-applications"><b>Отклики · {job.applications?.length||0}</b>{job.applications?.length?job.applications.map(application=><div className="talent-row" key={application.editor_id}><div><b>{application.editor?.display_name||"Монтажёр"}</b><span>@{application.editor?.username||"editor"} · {applicationStatus(application.status)}</span></div><div className="chip-row">{application.status==="accepted"?<a className="mini-btn" href="#messages" onClick={()=>rememberChat("job",job.id)}>Открыть чат</a>:job.status==="open"?<button className="mini-btn" disabled={busyKey===job.id+":"+application.editor_id} onClick={()=>acceptApplication(job.id,application.editor_id)}>{busyKey===job.id+":"+application.editor_id?"Открываем…":"Выбрать по тесту"}</button>:null}</div></div>):<p className="muted">Отклики появятся здесь. Задание останется активным до вашего выбора или удаления.</p>}</div></>:null}
     </article>)}</section>
     {message&&<div className="auth-msg">{message}</div>}
   </div>

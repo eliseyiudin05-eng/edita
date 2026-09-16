@@ -71,7 +71,7 @@ export default function BusinessSignup(){
 
   return <main className="auth-wrap"><section className="auth-card auth-card-wide">
     <div className="eyebrow">РЕГИСТРАЦИЯ БИЗНЕСА</div>
-    <h1>Создай аккаунт компании</h1>
+    <h1>Открой кабинет для своей компании</h1>
     <p>После проверки вы сможете искать как перспективных новичков, так и профессиональных монтажёров с опытом и портфолио, публиковать вакансии и реальные задания.</p>
 
     <div className="business-signup-steps"><span><b>1</b> Аккаунт</span><span><b>2</b> Почта</span><span><b>3</b> Документы</span><span><b>4</b> Проверка</span></div>

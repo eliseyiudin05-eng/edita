@@ -1,6 +1,6 @@
 import "server-only";
 
-export type PrivateConversationSource="campaign"|"challenge"|"job"|"kivronix_contest";
+export type PrivateConversationSource="campaign"|"challenge"|"job"|"kivronix_contest"|"direct";
 
 export async function ensurePrivateConversation(args:{
   service:any;

@@ -183,7 +183,7 @@ export default function AiCoach({scopeKey,title="Помощник KIVRONIX",welc
       <textarea ref={textareaRef} value={input} onChange={event=>resizeInput(event.target.value)} maxLength={4000} rows={compact?2:3} placeholder="Например: я ищу кнопку «Разделить». Что нажать?"/>
       <button className="btn btn-lime" disabled={loading||(!input.trim()&&!file)}>{loading?"Разбираю…":"Спросить помощника"}</button>
     </form>
-    {file?<div className="ai-selected-file"><span><b>{file.name}</b> · {formatBytes(file.size)}</span><button type="button" onClick={()=>{setFile(null);if(fileRef.current)fileRef.current.value=""}}>Убрать</button></div>:null}
+    {file?<div className="ai-selected-file">{file.type.startsWith("image/")?<ImageAttachmentPreview file={file}/>:null}<span><b>{file.name}</b> · {formatBytes(file.size)}<small>{file.type.startsWith("image/")?"Помощник увидит изображение и привяжет объяснение к нему.":file.type.startsWith("video/")?"Помощник покажет правки по кадрам и таймкодам.":"Помощник прочитает файл и объяснит его по шагам."}</small></span><button type="button" onClick={()=>{setFile(null);if(fileRef.current)fileRef.current.value=""}}>Убрать</button></div>:null}
     {notice?<div className="ai-notice">{notice}</div>:null}
     <small className="ai-disclaimer">Кнопки в приложениях иногда переезжают после обновлений. Помощник уточнит устройство и версию, когда это важно.</small>
   </section>
@@ -230,6 +230,12 @@ function imageToJpeg(file:File){
 function formatBytes(bytes:number){
   if(bytes<1024*1024)return Math.max(1,Math.round(bytes/1024))+" КБ";
   return (bytes/1024/1024).toFixed(1)+" МБ";
+}
+
+function ImageAttachmentPreview({file}:{file:File}){
+  const [url,setUrl]=useState("");
+  useEffect(()=>{const next=URL.createObjectURL(file);setUrl(next);return()=>URL.revokeObjectURL(next)},[file]);
+  return url?<img className="ai-attachment-preview" src={url} alt="Изображение, добавленное к вопросу"/>:null;
 }
 
 function AiMessageText({text}:{text:string}){

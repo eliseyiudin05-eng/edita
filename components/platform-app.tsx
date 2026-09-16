@@ -28,8 +28,12 @@ import BusinessDashboard from "@/components/business-dashboard";
 import BusinessInsights from "@/components/business-insights";
 import CreatorVerification from "@/components/creator-verification";
 import WorkWallet from "@/components/work-wallet";
+import MotivationCoach from "@/components/motivation-coach";
+import AcademyAssessment from "@/components/academy-assessment";
+import EditorDirectory from "@/components/editor-directory";
+import CreatorStudio from "@/components/creator-studio";
 
-type Tab="home"|"academy"|"insights"|"practice"|"coach"|"review"|"kivronix-challenges"|"arena"|"portfolio"|"jobs"|"messages"|"community"|"wallet"|"plans"|"profile"|"business";
+type Tab="home"|"academy"|"insights"|"practice"|"coach"|"review"|"kivronix-challenges"|"arena"|"portfolio"|"talent"|"jobs"|"messages"|"community"|"wallet"|"plans"|"profile"|"business";
 type Onboarding={level?:string;software?:string;goal?:string;ageGroup?:string;accountKind?:string;socialUrl?:string};
 type Viewer={
   name:string;
@@ -48,7 +52,7 @@ type Viewer={
 
 const allTabs:[Tab,string][]=[
   ["home","Главная"],["academy","Обучение"],["insights","Лайфхаки"],["practice","Практика"],["coach","Помощник"],["review","Разбор видео"],
-  ["kivronix-challenges","Конкурсы KIVRONIX"],["arena","Конкурсы компаний"],["portfolio","KIVRONIX Video"],["jobs","Работа"],["messages","Закрытые чаты"],["community","Сообщество"],["wallet","Мои итоги"],["plans","Тариф и доступ"],["profile","Профиль"],["business","Компания"]
+  ["kivronix-challenges","Конкурсы KIVRONIX"],["arena","Конкурсы компаний"],["portfolio","KIVRONIX Video"],["talent","Монтажёры"],["jobs","Работа"],["messages","Закрытые чаты"],["community","Сообщество"],["wallet","Мои итоги"],["plans","Тариф и доступ"],["profile","Профиль"],["business","Компания"]
 ];
 
 export default function PlatformApp(){
@@ -57,15 +61,17 @@ export default function PlatformApp(){
  const [viewer,setViewer]=useState<Viewer>({name:"Гость",role:null,onboarding:{}});
  const [wins,setWins]=useState(0);
  const [businessStats,setBusinessStats]=useState({challenges:0,submissions:0,jobs:0});
+ const [passedAssessments,setPassedAssessments]=useState<number[]>([]);
 
  const xp=useMemo(()=>done.reduce((sum,slug)=>sum+(curriculum.find(l=>l.slug===slug)?.xp||0),0),[done]);
  const experienceLevel=normalizeExperienceLevel(viewer.onboarding?.level);
  const isCreator=viewer.role==="business"&&viewer.onboarding?.accountKind==="creator";
  const suggestedStart=learningStarts[experienceLevel];
  const suggestedStartIndex=learningStartIndex(experienceLevel);
+ const suggestedModuleIndex=Math.max(0,curriculumModules.findIndex(group=>group.lessons.some(lesson=>lesson.slug===suggestedStart.slug)));
  const tabs=useMemo(()=>{
-   if(isCreator) return allTabs.filter(([id])=>["home","portfolio","jobs","messages","profile"].includes(id)).map(([id,label])=>[id,id==="home"?"Аналитика":id==="jobs"?"Мои задания":id==="messages"?"Чаты с монтажёрами":id==="profile"?"Проверка аккаунта":label] as [Tab,string]);
-   if(viewer.role==="business") return allTabs.filter(([id])=>["home","insights","coach","review","arena","portfolio","messages","plans","profile","business"].includes(id)).map(([id,label])=>[id,id==="home"?"Обзор":id==="coach"?"Бизнес-помощник":id==="review"?"Анализ роликов":id==="arena"?"Лига компаний":id==="profile"?"Профиль компании":label] as [Tab,string]);
+   if(isCreator) return allTabs.filter(([id])=>["home","portfolio","talent","jobs","messages","profile"].includes(id)).map(([id,label])=>[id,id==="home"?"Студия блогера":id==="talent"?"Найти монтажёра":id==="jobs"?"Мои задания":id==="messages"?"Чаты с монтажёрами":id==="profile"?"Проверка аккаунта":label] as [Tab,string]);
+   if(viewer.role==="business") return allTabs.filter(([id])=>["home","insights","coach","review","arena","portfolio","talent","messages","plans","profile","business"].includes(id)).map(([id,label])=>[id,id==="home"?"Обзор":id==="talent"?"Каталог монтажёров":id==="coach"?"Бизнес-помощник":id==="review"?"Анализ роликов":id==="arena"?"Лига компаний":id==="profile"?"Профиль компании":label] as [Tab,string]);
    if(viewer.role==="editor") return allTabs.filter(([id])=>id!=="business");
    return allTabs;
  },[viewer.role,isCreator]);
@@ -80,6 +86,8 @@ export default function PlatformApp(){
    try{
      const raw=localStorage.getItem("kivronix_lesson_done");
      if(raw)setDone(JSON.parse(raw));
+     const assessmentRaw=localStorage.getItem("kivronix_academy_assessments");
+     if(assessmentRaw)setPassedAssessments(JSON.parse(assessmentRaw));
      const onboardingRaw=localStorage.getItem("kivronix_onboarding");
      if(onboardingRaw)setViewer(v=>({...v,onboarding:JSON.parse(onboardingRaw)}));
    }catch{}
@@ -165,6 +173,14 @@ export default function PlatformApp(){
    window.location.assign("/login");
  }
 
+ function passAssessment(moduleIndex:number){
+   setPassedAssessments(current=>{
+     const next=current.includes(moduleIndex)?current:[...current,moduleIndex];
+     try{localStorage.setItem("kivronix_academy_assessments",JSON.stringify(next))}catch{}
+     return next;
+   });
+ }
+
  const roleLabel=isCreator?"Заказчик":viewer.role==="business"?"Бизнес":viewer.role==="editor"?"Монтажёр":"Гость";
  const activePaidPlan=Boolean(viewer.plan&&viewer.plan!=="free"&&viewer.planExpiresAt&&new Date(viewer.planExpiresAt).getTime()>Date.now());
  const accessLabel:string=activePaidPlan?(viewer.plan==="creator_plus"?"Creator+":viewer.plan==="studio_plus"?"Studio+":viewer.plan||"платный план"):"бесплатно";
@@ -190,6 +206,7 @@ export default function PlatformApp(){
        <b className="mobile">KIVRONIX.</b>
        <div className="user-pill"><ProfileAvatar src={viewer.avatarUrl} name={viewer.name} size="sm"/><span>{viewer.role?"в сети":"пример"} · {accessLabel}{viewer.role==="editor"?" · "+xp+" опыта":""}</span></div>
      </header>
+     {viewer.role?<MotivationCoach xp={xp} compact/>:null}
 
      {tab==="home"&&viewer.role==="business"&&!isCreator&&<Page title={"Добро пожаловать, "+viewer.name+"."} sub="Управляйте поиском монтажёров и результатами коротких видео из одного кабинета.">
        <BusinessDashboard stats={businessStats} points={viewer.referralPoints||0} onGo={goTab}/>
@@ -201,6 +218,7 @@ export default function PlatformApp(){
        <div className="business-kpi-grid"><article><span>Активные задания</span><strong>{businessStats.jobs}</strong></article><article><span>Новые отклики</span><strong>—</strong><small>появятся после публикации</small></article><article><span>В работе</span><strong>—</strong><small>выбранные монтажёры</small></article><article><span>Готово</span><strong>—</strong><small>история выполненных работ</small></article></div>
        <WorkWallet/>
        <div className="auth-msg"><b>Как это работает:</b> 1. Подтверди публичную страницу. 2. Создай понятное задание. 3. Выбери монтажёра из откликов. 4. Общайся с ним в закрытом чате до готового результата.</div>
+       <CreatorStudio onGo={value=>goTab(value)}/>
      </Page>}
 
      {tab==="home"&&viewer.role!=="business"&&<Page title={viewer.role?"Продолжай, "+viewer.name+".":"Добро пожаловать в KIVRONIX."} sub={viewer.role?"Открой ближайший урок и двигайся по шагам.":"Посмотри платформу. После входа помощник и учебный прогресс сохраняются."}>
@@ -222,7 +240,8 @@ export default function PlatformApp(){
          <header><div><div className="eyebrow">СТУПЕНЬ {moduleIndex+1}</div><h2>{group.module}</h2></div><span>{group.lessons.filter(item=>done.includes(item.slug)).length} / {group.lessons.length}</span></header>
          <div className="academy-lesson-grid">{group.lessons.map(lesson=>{
            const lessonIndex=curriculum.findIndex(item=>item.slug===lesson.slug);
-           const unlocked=lessonIndex<=suggestedStartIndex||curriculum.slice(suggestedStartIndex,lessonIndex).every(item=>done.includes(item.slug));
+           const moduleGateOpen=moduleIndex<=suggestedModuleIndex||passedAssessments.includes(moduleIndex-1);
+           const unlocked=moduleGateOpen&&(lessonIndex<=suggestedStartIndex||curriculum.slice(suggestedStartIndex,lessonIndex).every(item=>done.includes(item.slug)));
            return <article className={"academy-lesson-card "+(done.includes(lesson.slug)?"done ":"")+(unlocked?"":"locked")} key={lesson.slug}>
              <div className="academy-lesson-top"><span className="num">{done.includes(lesson.slug)?"✓":unlocked?lessonIndex+1:"—"}</span><div><small>{lesson.level} · {lesson.minutes} мин</small><b>{unlocked?lesson.software:"Откроется после предыдущего урока"}</b></div></div>
              <h3>{lesson.title}</h3><p>{lesson.summary}</p>
@@ -230,6 +249,7 @@ export default function PlatformApp(){
              <div className="lesson-actions">{unlocked?<Link className="btn btn-dark" href={"/academy/"+lesson.slug}>Открыть урок</Link>:<button className="btn btn-ghost" disabled>Сначала заверши предыдущий урок</button>}<span className="lesson-xp">+{lesson.xp} опыта</span></div>
            </article>
          })}</div>
+         {group.lessons.every(item=>done.includes(item.slug))&&moduleIndex>=suggestedModuleIndex?<AcademyAssessment moduleIndex={moduleIndex} moduleName={group.module} final={moduleIndex===curriculumModules.length-1} passed={passedAssessments.includes(moduleIndex)} onPassed={()=>passAssessment(moduleIndex)}/>:<div className="academy-assessment-preview"><b>{moduleIndex===curriculumModules.length-1?"Финальный экзамен":"Аттестация ступени"}</b><span>{moduleIndex===curriculumModules.length-1?"После уроков: 5 работ, общий тест и AI‑оценка от 85 баллов.":"Заверши уроки ступени, добавь 3 работы и пройди мини‑тест. AI подскажет, что исправить перед переходом."}</span></div>}
        </section>)}</div>
      </Page>}
 
@@ -265,6 +285,7 @@ export default function PlatformApp(){
        {viewer.onboarding?.ageGroup&&viewer.onboarding.ageGroup!=="18+"&&<div style={{marginTop:14}}><GuardianVerification/></div>}
        <div style={{marginTop:14}}>{viewer.username?<Link className="btn btn-dark" href={"/u/"+viewer.username}>Открыть страницу с работами</Link>:<Link className="btn btn-dark" href="/u/demo">Посмотреть пример</Link>}</div>
      </Page>}
+     {tab==="talent"&&viewer.role==="business"&&<Page title="Каталог монтажёров" sub="Сравните общий рейтинг, подтверждённый уровень, AI‑оценку и количество работ. Портфолио открывается до начала диалога."><EditorDirectory onOpenMessages={()=>goTab("messages")}/></Page>}
 
      {tab==="wallet"&&<Page title="Мои итоги" sub="Денежные выигрыши, KIVRONIX Points и текущий режим доступа.">
        <div className="grid">

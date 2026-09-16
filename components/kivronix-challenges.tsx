@@ -70,6 +70,8 @@ export default function KivronixChallenges(){
   const prizes=competition.prize_split_cents?.length?competition.prize_split_cents:fallback.prize_split_cents!;
   const count=Number(competition.entry_count||0);
   const limit=Number(competition.max_entries||100);
+  const launchMinimum=50;
+  const launched=count>=launchMinimum;
   const blocked=!levelEligible||competition.age_eligible===false||competition.guardian_required||count>=limit;
 
   return <div className="kivronix-challenges">
@@ -78,7 +80,7 @@ export default function KivronixChallenges(){
         <div className="eyebrow">ОФИЦИАЛЬНЫЙ КОНКУРС ПЛАТФОРМЫ</div>
         <h2>{competition.title}</h2>
         <p>{competition.description}</p>
-        <div className="kivronix-challenge-actions"><a className="btn btn-lime" href="#send-kivronix-work">Отправить ролик</a><Link className="btn btn-light" href="/challenge-rules">Полные правила</Link></div>
+        <div className="challenge-launch-state"><b>{launched?"Сезон стартовал":"До старта осталось "+Math.max(0,launchMinimum-count)+" участников"}</b><span>{launched?"Конкурсный этап идёт по опубликованным правилам.":"Срок конкурса начнётся только после 50 регистраций."}</span></div><div className="kivronix-challenge-actions"><a className="btn btn-lime" href="#send-kivronix-work">{launched?"Отправить ролик":"Зарегистрироваться и отправить ролик"}</a><Link className="btn btn-light" href="/challenge-rules">Полные правила</Link></div>
       </div>
       <div className="kivronix-prize-picture" aria-label="Призовой фонд 10 000 KIVRONIX Points">
         <span>ПРИЗОВОЙ ФОНД</span><strong>{points(competition.prize_pool_cents||1000000)}</strong><small>1 Point = 1 ₽ внутри платформы</small>
@@ -94,7 +96,7 @@ export default function KivronixChallenges(){
 
     <div className="kivronix-challenge-layout">
       <section className="card kivronix-challenge-brief">
-        <div className="eyebrow">ЧТО НУЖНО СДЕЛАТЬ</div><h3>Один ролик — четыре понятных шага</h3>
+        <div className="eyebrow">ЧТО НУЖНО СДЕЛАТЬ</div><h3>{launched?"Один ролик — четыре понятных шага":"Предрегистрация до набора 50 участников"}</h3>
         <ol>
           <li><b>Придумай историю.</b><span>Покажи проблему новичка, один полезный момент KIVRONIX и честный результат.</span></li>
           <li><b>Собери ролик.</b><span>Вертикальное видео 20–60 секунд. Используй только свои или разрешённые материалы.</span></li>

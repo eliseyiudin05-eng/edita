@@ -44,6 +44,7 @@ export default async function Home(){
   return <main className="landing">
     <header className="public-header sticky-public-nav"><nav className="topbar shell">
         <Link className="brand brand-home" href="/" title="Вернуться на главную" aria-label="KIVRONIX — перейти на главную">
+          <Image className="brand-logo-mark" src="/images/kivronix-logo-mark.png" width={42} height={42} alt="" aria-hidden="true"/>
           <span className="brand-name">KIVRONIX<b>.</b></span>
           <small>монтаж · обучение · работа</small>
         </Link>
@@ -96,7 +97,7 @@ export default async function Home(){
 
     <section id="challenge" className="challenge-home-band">
       <div className="shell challenge-home-grid">
-        <div><div className="section-kicker light">КОНКУРС KIVRONIX · СЕЗОН 1</div><h2>Сделай ролик и выиграй часть из 10 000 KIVRONIX Points</h2><p>Опубликуй ролик, отметь KIVRONIX и отправь ссылку до 12 ноября 2026 года. Мы проверим просмотры и определим три места.</p><ol className="prize-flow"><li><b>Ты выигрываешь</b><span>Результат и количество поинтов появляются в кабинете.</span></li><li><b>Поинты зачисляются</b><span>Например, победителю начисляется 5 000 KIVRONIX Points.</span></li><li><b>Используешь награду</b><span>1 KIVRONIX Point = 1 ₽ при оплате возможностей внутри платформы.</span></li></ol><p className="prize-note">KIVRONIX Points — внутренние поинты платформы. Курс использования: 1 Point = 1 ₽.</p><div className="challenge-home-actions"><Link className="btn btn-lime" href="/platform#kivronix-challenges">Участвовать</Link><Link className="btn btn-light" href="/challenge-rules">Прочитать правила</Link></div></div>
+        <div><div className="section-kicker light">КОНКУРС KIVRONIX · СЕЗОН 1</div><h2>Сделай ролик и выиграй часть из 10 000 KIVRONIX Points</h2><p><strong>Сезон официально стартует после регистрации 50 участников.</strong> Оставь заявку и ролик заранее: срок конкурсного этапа начнёт отсчитываться только после достижения порога.</p><ol className="prize-flow"><li><b>Набираем 50 участников</b><span>До старта заявки собираются без сокращения конкурсного срока.</span></li><li><b>Начинается сезон</b><span>Все участники получают одинаковый срок и понятные правила.</span></li><li><b>Подводим итоги</b><span>После проверки публикаций три победителя получают 10 000 KP.</span></li></ol><p className="prize-note">KIVRONIX Points — внутренние поинты платформы. Курс использования: 1 Point = 1 ₽.</p><div className="challenge-home-actions"><Link className="btn btn-lime" href="/platform#kivronix-challenges">Зарегистрироваться</Link><Link className="btn btn-light" href="/challenge-rules">Прочитать правила</Link></div></div>
         <div className="challenge-prize-card"><div><span>1 место</span><strong>5 000 KP</strong></div><div><span>2 место</span><strong>3 000 KP</strong></div><div><span>3 место</span><strong>2 000 KP</strong></div><p>1 KP = 1 ₽ внутри KIVRONIX · до 100 участников · с 14 лет</p></div>
       </div>
     </section>
@@ -126,7 +127,7 @@ export default async function Home(){
 
     <section className="section shell path-section">
       <div className="section-kicker">КАК РАСТЁТ СЛОЖНОСТЬ</div>
-      <h2>Сначала первый уверенный ролик. Потом скорость, стиль и заказчики.</h2>
+      <h2>От первого монтажа — к своему стилю, уверенной работе и сильным проектам.</h2>
       <div className="steps-road">
         <article><b>1</b><div><h3>Освой экран</h3><p>Установка, новый проект, файлы, экран программы, лента монтажа и сохранение видео.</p></div></article>
         <article><b>2</b><div><h3>Собери основу</h3><p>Чистые склейки, яркое начало, темп, звук, субтитры и дополнительные кадры.</p></div></article>
@@ -152,10 +153,10 @@ export default async function Home(){
     </section>
 
     <section className="section shell creator-ads-section">
-      <div className="section-kicker">РЕКЛАМА У КРЕАТОРОВ</div><h2>Получайте ролики и размещения под задачу бренда</h2>
-      <p className="section-lead">Компания создаёт кампанию, задаёт продукт, формат и условия. Креаторы откликаются на бесплатное тестирование продукта, фиксированную награду или KIVRONIX Points за подтверждённые просмотры.</p>
-      <div className="safety-grid"><article><h3>Бартер</h3><p>Продукт или услуга в обмен на честный ролик по заранее согласованным условиям.</p></article><article><h3>Награда за результат</h3><p>Поинты начисляются за подтверждённые просмотры. Монтажёр получает 100% назначенной суммы без комиссии за перевод.</p></article><article><h3>Пополнение баланса</h3><p>1 KIVRONIX Point = 1 ₽ базовой суммы. Комиссия 5% взимается только при пополнении.</p></article></div>
-      <Link className="btn btn-dark" href="/signup/business">Создать кампанию</Link>
+      <div className="creator-ads-copy"><div className="section-kicker">ПРОГРАММА ДЛЯ КРЕАТОРОВ</div><h2>Расскажи о KIVRONIX своей аудитории — и получай награды за результат</h2>
+      <p className="section-lead">Сними честный ролик о том, как KIVRONIX помогает учиться монтажу, искать специалистов или выпускать контент. Выбери готовый бриф, опубликуй видео и отправь ссылку — мы проверим размещение и начислим указанную награду.</p></div>
+      <div className="creator-program-flow"><article><b>01</b><h3>Выбери тему</h3><p>Готовый бриф объясняет, что показать в ролике, какие факты обязательны и чего нельзя обещать аудитории.</p></article><article><b>02</b><h3>Сними по‑своему</h3><p>Сохрани собственный стиль и честное мнение. Можно показать сайт, личный кабинет, урок или путь от задачи до монтажёра.</p></article><article><b>03</b><h3>Получи награду</h3><p>После модерации и проверки публикации награда появится в кабинете. Условия и критерии видны до участия.</p></article></div>
+      <div className="creator-program-cta"><p><strong>Не останавливайся — твой следующий ролик может привести сюда нового автора.</strong><span>Для участия нужен аккаунт блогера и подтверждённая публичная страница.</span></p><Link className="btn btn-dark" href="/signup/creator">Стать креатором</Link><Link className="btn btn-ghost" href="/creators">Посмотреть брифы</Link></div>
     </section>
 
     <section id="safety" className="section shell safety-home">

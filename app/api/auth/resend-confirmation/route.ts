@@ -20,7 +20,10 @@ export async function POST(req:NextRequest){
   // Do not reveal account existence.
   if(error)return NextResponse.json({ok:true});
 
-  const link=(data as any)?.properties?.action_link||(data as any)?.properties?.actionLink;
+  const tokenHash=(data as any)?.properties?.hashed_token||(data as any)?.properties?.hashedToken;
+  const link=tokenHash
+    ?site+"/auth/confirm?token_hash="+encodeURIComponent(tokenHash)+"&type=magiclink"
+    :(data as any)?.properties?.action_link||(data as any)?.properties?.actionLink;
   if(!link)return NextResponse.json({ok:true});
 
   try{

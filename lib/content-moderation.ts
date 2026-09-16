@@ -37,6 +37,14 @@ export async function moderateGroupMessage(raw:string):Promise<ModerationResult>
   }
 }
 
+export async function moderateReviewText(raw:string):Promise<ModerationResult>{
+  const text=raw.trim();
+  if(abusivePattern.test(text))return {allowed:false,reason:"abuse",message:"Отзыв содержит оскорбление или грубую брань. Опиши конкретный рабочий эпизод спокойно."};
+  if(emailPattern.test(text)||phonePattern.test(text))return {allowed:false,reason:"personal_info",message:"Убери телефон и электронную почту из публичного отзыва."};
+  if(text.length<10)return {allowed:false,reason:"off_topic",message:"Добавь конкретику: что было сделано хорошо или что стоит улучшить."};
+  return {allowed:true};
+}
+
 export async function createGroupAiReply(question:string,recent:string[]){
   if(!process.env.OPENAI_API_KEY)return "Я рядом. Напишите, в какой программе вы работаете и на каком шаге остановились — подскажу короткий путь.";
   try{
