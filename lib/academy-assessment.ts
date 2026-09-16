@@ -14,6 +14,29 @@ export type AssessmentConfig={
   questions:AssessmentQuestion[];
 };
 
+export type SavedAcademyAssessment={
+  moduleIndex:number;
+  score:number;
+  quizScore:number;
+  passed:true;
+  updatedAt:string;
+};
+
+export function savedAcademyAssessments(onboarding:unknown):SavedAcademyAssessment[]{
+  if(!onboarding||typeof onboarding!=="object"||Array.isArray(onboarding))return [];
+  const raw=(onboarding as Record<string,unknown>).academyAssessments;
+  if(!Array.isArray(raw))return [];
+  return raw.flatMap(item=>{
+    if(!item||typeof item!=="object"||Array.isArray(item))return [];
+    const value=item as Record<string,unknown>;
+    const moduleIndex=Number(value.moduleIndex);
+    const score=Number(value.score);
+    const quizScore=Number(value.quizScore);
+    if(!Number.isInteger(moduleIndex)||moduleIndex<0||moduleIndex>30||!Number.isFinite(score)||!Number.isFinite(quizScore)||value.passed!==true)return [];
+    return [{moduleIndex,score,quizScore,passed:true as const,updatedAt:String(value.updatedAt||"")}];
+  });
+}
+
 const questions:AssessmentQuestion[][]=[
   [
     {question:"С чего лучше начинать первый монтаж?",answers:["С понятной цели и простого плана","С набора сложных эффектов","С покупки дорогой программы"],correct:0},

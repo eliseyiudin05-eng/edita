@@ -522,6 +522,20 @@ export function nextAvailableLesson(completedSlugs:string[],passedAssessments:nu
   });
 }
 
+export function assessmentRequiredLessons(moduleIndex:number,level:unknown){
+  const group=curriculumModules[moduleIndex];
+  if(!group)return [];
+
+  const startIndex=learningStartIndex(level);
+  const startLesson=curriculum[startIndex];
+  const startModuleIndex=curriculumModules.findIndex(item=>item.module===startLesson?.module);
+  if(moduleIndex<startModuleIndex)return [];
+  if(moduleIndex>startModuleIndex)return group.lessons;
+
+  const firstRequiredIndex=group.lessons.findIndex(item=>item.slug===startLesson?.slug);
+  return firstRequiredIndex>=0?group.lessons.slice(firstRequiredIndex):group.lessons;
+}
+
 export const curriculumStats={
   lessons:curriculum.length,
   minutes:curriculum.reduce((total,lesson)=>total+lesson.minutes,0),

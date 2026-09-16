@@ -1,5 +1,6 @@
 import {after,NextRequest,NextResponse} from "next/server";
 import {curriculum,curriculumModules,learningStartIndex,lessonBySlug,normalizeExperienceLevel} from "@/lib/curriculum";
+import {savedAcademyAssessments} from "@/lib/academy-assessment";
 import {academyProgressShadowEnabled,compareAcademyProgressWithGo,normalizeAcademyProgress} from "@/lib/go-academy-shadow";
 import {academyProgressCanaryEnabled,recordAcademyProgressCanaryComparison,tryAcademyProgressCanary} from "@/lib/go-academy-canary";
 import {getLessonProgress,getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
@@ -65,8 +66,10 @@ export async function POST(req:NextRequest){
     const moduleIndex=curriculumModules.findIndex(group=>group.module===lesson.module);
     if(level!=="pro"&&moduleIndex>startModuleIndex){
       const requiredAssessmentIndexes=Array.from({length:moduleIndex-startModuleIndex},(_,offset)=>startModuleIndex+offset);
-      const assessments=await Promise.all(requiredAssessmentIndexes.map(requiredIndex=>service.from("academy_assessments").select("passed").eq("user_id",user.id).eq("module_index",requiredIndex).maybeSingle()));
-      if(assessments.some(result=>!result.data?.passed))return NextResponse.json({error:"Сначала пройди аттестацию предыдущей ступени."},{status:409});
+      const tableResult=await service.from("academy_assessments").select("module_index,passed").eq("user_id",user.id).eq("passed",true);
+      const passed=new Set(savedAcademyAssessments(profile?.onboarding).map(item=>item.moduleIndex));
+      if(!tableResult.error)for(const row of tableResult.data||[])passed.add(Number(row.module_index));
+      if(requiredAssessmentIndexes.some(requiredIndex=>!passed.has(requiredIndex)))return NextResponse.json({error:"Сначала пройди аттестацию предыдущей ступени."},{status:409});
     }
   }
 

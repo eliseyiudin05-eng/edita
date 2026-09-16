@@ -6,7 +6,7 @@ import {getFreshAccessToken} from "@/lib/supabase-browser";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 import {extractVideoFrames} from "@/lib/video-frames";
 import {uploadPortfolioVideo} from "@/lib/portfolio-video-upload";
-import {curriculumModules,lessonBySlug,normalizeExperienceLevel} from "@/lib/curriculum";
+import {assessmentRequiredLessons,curriculumModules,lessonBySlug,normalizeExperienceLevel} from "@/lib/curriculum";
 
 export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}:{slug:string;xp:number;nextSlug?:string|null;theoryOnly?:boolean}){
   const [done,setDone]=useState(false);
@@ -20,19 +20,26 @@ export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}
   const [shareApproved,setShareApproved]=useState(false);
   const [reviewing,setReviewing]=useState(false);
   const [isPro,setIsPro]=useState(false);
+  const [experienceLevel,setExperienceLevel]=useState<unknown>("new");
+  const [completedSlugs,setCompletedSlugs]=useState<string[]>([]);
   const currentLesson=lessonBySlug(slug);
-  const nextLesson=nextSlug?lessonBySlug(nextSlug):null;
   const currentModuleIndex=curriculumModules.findIndex(group=>group.module===currentLesson?.module);
-  const assessmentIndex=currentModuleIndex>=0&&(!nextLesson||nextLesson.module!==currentLesson?.module)&&!isPro?currentModuleIndex:null;
+  const requiredLessons=currentModuleIndex>=0?assessmentRequiredLessons(currentModuleIndex,experienceLevel):[];
+  const assessmentReady=currentModuleIndex>=0&&!isPro&&requiredLessons.length>0&&requiredLessons.every(item=>item.slug===slug||completedSlugs.includes(item.slug));
+  const assessmentIndex=assessmentReady?currentModuleIndex:null;
 
   useEffect(()=>{
     let active=true;
     async function load(){
       try{
         const saved=JSON.parse(localStorage.getItem("kivronix_lesson_done")||"[]");
-        if(Array.isArray(saved)&&saved.includes(slug)&&active)setDone(true);
+        if(Array.isArray(saved)&&active){
+          const values=saved.filter((item):item is string=>typeof item==="string");
+          setCompletedSlugs(values);
+          if(values.includes(slug))setDone(true);
+        }
         const onboarding=JSON.parse(localStorage.getItem("kivronix_onboarding")||"{}");
-        if(active)setIsPro(normalizeExperienceLevel(onboarding?.level)==="pro");
+        if(active){setExperienceLevel(onboarding?.level);setIsPro(normalizeExperienceLevel(onboarding?.level)==="pro")}
       }catch{}
       const accessToken=await getFreshAccessToken();
       if(!accessToken)return;
@@ -44,11 +51,15 @@ export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}
         ]);
         if(profileResponse.ok){
           const profile=await profileResponse.json();
-          if(active)setIsPro(normalizeExperienceLevel(profile?.preferences?.level)==="pro");
+          if(active){setExperienceLevel(profile?.preferences?.level);setIsPro(normalizeExperienceLevel(profile?.preferences?.level)==="pro")}
         }
         if(!response.ok)return;
         const data=await response.json();
-        if(active)setDone(Array.isArray(data?.completedSlugs)&&data.completedSlugs.includes(slug));
+        if(active&&Array.isArray(data?.completedSlugs)){
+          const values=data.completedSlugs.filter((item:unknown):item is string=>typeof item==="string");
+          setCompletedSlugs(values);
+          setDone(values.includes(slug));
+        }
       }catch{}
     }
     void load();
@@ -96,11 +107,14 @@ export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}
 
       const saved=JSON.parse(localStorage.getItem("kivronix_lesson_done")||"[]");
       const values=Array.isArray(saved)?saved.filter((item):item is string=>typeof item==="string"):[];
-      localStorage.setItem("kivronix_lesson_done",JSON.stringify(Array.from(new Set([...values,slug]))));
+      const nextCompleted=Array.from(new Set([...values,...completedSlugs,slug]));
+      localStorage.setItem("kivronix_lesson_done",JSON.stringify(nextCompleted));
+      setCompletedSlugs(nextCompleted);
       setDone(true);
-      setNotice(assessmentIndex!=null?"Ступень завершена. Открываем аттестацию…":theoryOnly?"Урок завершён. Следующий урок открыт.":"Задание принято. Следующий урок открыт.");
+      const readyForAssessment=currentModuleIndex>=0&&!isPro&&assessmentRequiredLessons(currentModuleIndex,experienceLevel).every(item=>nextCompleted.includes(item.slug));
+      setNotice(readyForAssessment?"Ступень завершена. Открываем аттестацию…":theoryOnly?"Урок завершён. Следующий урок открыт.":"Задание принято. Следующий урок открыт.");
       window.dispatchEvent(new CustomEvent("kivronix:lesson-completed",{detail:{slug}}));
-      if(assessmentIndex!=null)window.setTimeout(()=>window.location.assign(`/academy/assessment/${assessmentIndex}`),650);
+      if(readyForAssessment)window.setTimeout(()=>window.location.assign(`/academy/assessment/${currentModuleIndex}`),650);
     }catch(error){
       setNotice(error instanceof Error?error.message:"Ошибка сохранения задания.");
     }finally{setSaving(false)}

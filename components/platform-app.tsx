@@ -4,7 +4,7 @@ import Link from "next/link";
 import {getFreshAccessToken,getSupabaseBrowserClient} from "@/lib/supabase-browser";
 import ChallengeCenter from "@/components/challenge-center";
 import VideoReview from "@/components/video-review";
-import {curriculum,curriculumModules,curriculumStats,learningStartIndex,learningStarts,lessonAccess,nextAvailableLesson,normalizeExperienceLevel} from "@/lib/curriculum";
+import {assessmentRequiredLessons,curriculum,curriculumModules,curriculumStats,learningStartIndex,learningStarts,lessonAccess,nextAvailableLesson,normalizeExperienceLevel} from "@/lib/curriculum";
 import AiCoach from "@/components/ai-coach";
 import BrandBrain from "@/components/brand-brain";
 import ClientSimulator from "@/components/client-simulator";
@@ -71,7 +71,10 @@ export default function PlatformApp(){
  const suggestedStartIndex=learningStartIndex(experienceLevel);
  const suggestedModuleIndex=Math.max(0,curriculumModules.findIndex(group=>group.lessons.some(lesson=>lesson.slug===suggestedStart.slug)));
  const currentLesson=nextAvailableLesson(done,passedAssessments,experienceLevel);
- const nextAssessmentModuleIndex=experienceLevel==="pro"?-1:curriculumModules.findIndex((group,moduleIndex)=>moduleIndex>=suggestedModuleIndex&&group.lessons.every(item=>done.includes(item.slug))&&!passedAssessments.includes(moduleIndex));
+ const nextAssessmentModuleIndex=experienceLevel==="pro"?-1:curriculumModules.findIndex((_group,moduleIndex)=>{
+   const required=assessmentRequiredLessons(moduleIndex,experienceLevel);
+   return moduleIndex>=suggestedModuleIndex&&required.length>0&&required.every(item=>done.includes(item.slug))&&!passedAssessments.includes(moduleIndex);
+ });
  const routeNeedsAssessment=!currentLesson&&nextAssessmentModuleIndex>=0;
  const tabs=useMemo(()=>{
    if(isCreator) return allTabs.filter(([id])=>["home","portfolio","talent","jobs","messages","profile"].includes(id)).map(([id,label])=>[id,id==="home"?"Студия блогера":id==="talent"?"Найти монтажёра":id==="jobs"?"Мои задания":id==="messages"?"Чаты с монтажёрами":id==="profile"?"Проверка аккаунта":label] as [Tab,string]);
@@ -244,7 +247,7 @@ export default function PlatformApp(){
              <div className="lesson-actions">{unlocked?<Link className="btn btn-dark" href={"/academy/"+lesson.slug}>{done.includes(lesson.slug)?"Открыть урок снова":"Открыть урок"}</Link>:<button className="btn btn-ghost" disabled>{access.reason==="assessment"?"Сначала пройди аттестацию":"Урок пока недоступен"}</button>}<span className="lesson-xp">+{lesson.xp} опыта</span></div>
            </article>
          })}</div>
-         {experienceLevel==="pro"?<div className="academy-assessment-preview"><b>Маршрут PRO открыт</b><span>Ты можешь открывать уроки всех ступеней без обязательной аттестации.</span></div>:passedAssessments.includes(moduleIndex)?<div className="academy-assessment-preview passed"><b>✓ Ступень подтверждена</b><span>Результат сохранён. Уроки следующего блока уже открыты.</span><Link className="btn btn-ghost" href={`/academy/assessment/${moduleIndex}`}>Посмотреть результат</Link></div>:group.lessons.every(item=>done.includes(item.slug))&&moduleIndex>=suggestedModuleIndex?<div className="academy-assessment-preview ready"><b>{moduleIndex===curriculumModules.length-1?"Финальная аттестация готова":"Пора подтвердить ступень"}</b><span>Отдельная страница, ИИ‑проверка 1–3 видео и вопросы по пройденным темам.</span><Link className="btn btn-dark" href={`/academy/assessment/${moduleIndex}`}>Открыть аттестацию →</Link></div>:<div className="academy-assessment-preview"><b>{moduleIndex===curriculumModules.length-1?"Финальная аттестация":"Аттестация ступени"}</b><span>Заверши уроки ступени. Число видео и проходной балл подстраиваются под сложность уровня.</span></div>}
+         {experienceLevel==="pro"?<div className="academy-assessment-preview"><b>Маршрут PRO открыт</b><span>Ты можешь открывать уроки всех ступеней без обязательной аттестации.</span></div>:passedAssessments.includes(moduleIndex)?<div className="academy-assessment-preview passed"><b>✓ Ступень подтверждена</b><span>Результат сохранён. Уроки следующего блока уже открыты.</span><Link className="btn btn-ghost" href={`/academy/assessment/${moduleIndex}`}>Посмотреть результат</Link></div>:(()=>{const required=assessmentRequiredLessons(moduleIndex,experienceLevel);return required.length>0&&required.every(item=>done.includes(item.slug))&&moduleIndex>=suggestedModuleIndex?<div className="academy-assessment-preview ready"><b>{moduleIndex===curriculumModules.length-1?"Финальная аттестация готова":"Пора подтвердить ступень"}</b><span>Отдельная страница, ИИ‑проверка 1–3 видео и вопросы по пройденным темам.</span><Link className="btn btn-dark" href={`/academy/assessment/${moduleIndex}`}>Открыть аттестацию →</Link></div>:<div className="academy-assessment-preview"><b>{moduleIndex===curriculumModules.length-1?"Финальная аттестация":"Аттестация ступени"}</b><span>{moduleIndex<suggestedModuleIndex?"Эта ступень находится до твоей стартовой точки.":"Заверши уроки ступени. Число видео и проходной балл подстраиваются под сложность уровня."}</span></div>})()}
        </section>)}</div>
      </Page>}
 

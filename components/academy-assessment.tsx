@@ -5,6 +5,7 @@ import {useEffect,useMemo,useState} from "react";
 import {academyAssessmentConfig} from "@/lib/academy-assessment";
 import {extractVideoFrames} from "@/lib/video-frames";
 import {getFreshAccessToken} from "@/lib/supabase-browser";
+import {curriculumModules} from "@/lib/curriculum";
 
 type Review={
   name:string;
@@ -30,6 +31,7 @@ export default function AcademyAssessment({moduleIndex,moduleName,final=false}:{
   const [passed,setPassed]=useState(false);
   const [checking,setChecking]=useState(true);
   const average=results.length?Math.round(results.reduce((sum,item)=>sum+item.overall_score,0)/results.length):0;
+  const nextLessonSlug=curriculumModules[moduleIndex+1]?.lessons[0]?.slug||null;
 
   useEffect(()=>{
     let active=true;
@@ -115,7 +117,7 @@ export default function AcademyAssessment({moduleIndex,moduleName,final=false}:{
   if(passed)return <section className="assessment-success">
     <div className="assessment-success-mark">✓</div>
     <div><div className="eyebrow">УРОВЕНЬ ПОДТВЕРЖДЁН</div><h1>{final?"Маршрут завершён":"Следующий блок уже открыт"}</h1><p>{final?"Ты прошёл финальную проверку знаний и работ. Можно возвращаться к урокам и усиливать портфолио.":"Результат сохранён в профиле. Возвращайся в Академию — уроки следующей ступени уже доступны."}</p>{results.length?<b>Средняя ИИ‑оценка: {average}/100</b>:null}</div>
-    <Link className="btn btn-lime" href="/platform#academy">{final?"Вернуться в Академию":"Перейти к следующему блоку →"}</Link>
+    <Link className="btn btn-lime" href={final||!nextLessonSlug?"/platform#academy":"/academy/"+nextLessonSlug}>{final?"Вернуться в Академию":"Открыть первый урок следующего блока →"}</Link>
   </section>;
 
   return <div className="assessment-workspace">
