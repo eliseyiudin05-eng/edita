@@ -40,9 +40,12 @@ type PublicEditor struct {
 }
 
 type CreateInput struct {
-	Title    string   `json:"title"`
-	VideoURL string   `json:"videoUrl"`
-	Tags     []string `json:"tags"`
+	Title              string   `json:"title"`
+	VideoURL           string   `json:"videoUrl"`
+	Tags               []string `json:"tags"`
+	AIScore            *int64   `json:"aiScore,omitempty"`
+	PublicationConsent bool     `json:"publicationConsent"`
+	SourceLabel        string   `json:"sourceLabel,omitempty"`
 }
 
 type Store interface {
@@ -54,9 +57,11 @@ type Store interface {
 func NormalizeCreate(input CreateInput) (CreateInput, error) {
 	input.Title = bounded(input.Title, 160)
 	input.VideoURL = strings.TrimSpace(input.VideoURL)
-	if utf8.RuneCountInString(input.Title) < 2 || len(input.VideoURL) > 1000 || !safeHTTPS(input.VideoURL) || len(input.Tags) > 12 {
+	if utf8.RuneCountInString(input.Title) < 2 || len(input.VideoURL) > 1000 || !safeHTTPS(input.VideoURL) || len(input.Tags) > 12 || !input.PublicationConsent {
 		return CreateInput{}, ErrInvalid
 	}
+	input.SourceLabel=bounded(input.SourceLabel,80)
+	if input.AIScore!=nil&&(*input.AIScore<0||*input.AIScore>100){return CreateInput{},ErrInvalid}
 	seen := make(map[string]struct{}, len(input.Tags))
 	input.Tags = sanitizeLabels(input.Tags, 12, 40, seen)
 	return input, nil

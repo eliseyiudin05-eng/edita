@@ -40,6 +40,7 @@ func (r *PostgresRepository) Feed(ctx context.Context, subject string) (Feed, er
 		       exists(select 1 from public.profile_follows f where f.follower_id=$1 and f.following_id=i.editor_id)
 		from public.portfolio_items i join public.profiles p on p.id=i.editor_id
 		left join public.businesses b on b.owner_id=p.id
+		where i.publication_consent=true
 		order by i.created_at desc,i.id desc limit $2`, subject, feedLimit)
 	if err != nil {
 		return Feed{}, ErrUnavailable

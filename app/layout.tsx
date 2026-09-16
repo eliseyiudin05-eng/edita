@@ -5,7 +5,7 @@ import BackToTop from "@/components/back-to-top";
 import {KIVRONIX_SITE_URL} from "@/lib/public-config";
 
 const siteUrl=KIVRONIX_SITE_URL;
-const siteDescription="Платформа для обучения видеомонтажу и поиска монтажёров. Новички осваивают профессию, профессионалы находят проекты, а компании выбирают исполнителей по опыту и портфолио.";
+const siteDescription="KIVRONIX объединяет обучение видеомонтажу, портфолио, проекты и безопасное сотрудничество. Новички осваивают профессию, монтажёры находят заказчиков, а блогеры и компании выбирают специалистов по уровню и работам.";
 
 // A small inline safety net keeps the platform readable when a browser, VPN,
 // or stale cache temporarily fails to download Next.js' hashed CSS bundle.
@@ -101,8 +101,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         "@type":"EducationalOrganization",
         name:"KIVRONIX",
         url:siteUrl,
-        logo:`${siteUrl}/images/kivronix-logo-mark.png`,
-        description:"Платформа для понятного обучения видеомонтажу и первых рабочих проектов.",
+        logo:`${siteUrl}/images/kivronix-frog-logo.png`,
+        description:"Платформа для обучения видеомонтажу, поиска специалистов и совместной работы монтажёров, блогеров и компаний.",
       },
     ],
   };

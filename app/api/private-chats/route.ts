@@ -251,6 +251,11 @@ export async function POST(req:NextRequest){
       companyName:business.name||"Компания",
       title:"Вакансия: "+job.title
     });
+    if(process.env.PAYMENTS_ENABLED!=="true"){
+      await auth.service.from("job_applications").update({status:"accepted"}).eq("job_id",job.id).eq("editor_id",editorId);
+      await auth.service.from("jobs").update({status:"closed"}).eq("id",job.id);
+      return NextResponse.json({ok:true,conversationId:conversation.id,paymentStatus:"prelaunch"});
+    }
     const {data:orderId,error:reserveError}=await auth.service.rpc("reserve_job_points",{
       p_customer:auth.user.id,p_job:job.id,p_editor:editorId,p_conversation:conversation.id
     });

@@ -2,9 +2,9 @@ import type {MetadataRoute} from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name:"KIVRONIX — монтаж с нуля",
+    name:"KIVRONIX — обучение, монтажёры и видеопроекты",
     short_name:"KIVRONIX",
-    description:"Уроки видеомонтажа, задания, помощник, разбор роликов и путь к первой работе. Ранний доступ открыт бесплатно.",
+    description:"Обучение видеомонтажу, портфолио, поиск специалистов и безопасная работа монтажёров, блогеров и компаний на одной платформе.",
     start_url:"/",
     display:"standalone",
     background_color:"#f5f5f2",

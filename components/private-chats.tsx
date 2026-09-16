@@ -5,6 +5,7 @@ import {FormEvent,useEffect,useRef,useState} from "react";
 import ProfileAvatar from "@/components/profile-avatar";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 import {findPrivateChatBlockReason,privateChatBlockMessage} from "@/lib/private-chat-moderation";
+import AiCoach from "@/components/ai-coach";
 
 type Conversation={
   id:string;
@@ -209,6 +210,7 @@ export default function PrivateChats(){
       {current?<>
         <header><div><div className="private-chat-title"><span className="private-chat-shield">◆</span><div><h3>{current.otherName}</h3><p>{current.title}</p></div></div></div><span className="private-chat-badge">Закрытый чат</span></header>
         <div className="private-chat-safety"><b>Сообщения видят только компания и монтажёр.</b><span>Телефоны, электронная почта, ссылки, адреса страниц и названия мессенджеров остаются за пределами чата. Общайтесь внутри KIVRONIX.</span></div>
+        <details className="chat-ai-brief" open><summary>ИИ‑разбор задания · виден обеим сторонам</summary><div><p><b>Задача:</b> {current.title}</p><p>Помощник учитывает название задания и контекст этого рабочего чата. Он поможет уточнить результат, формат, сроки, критерии готовности и собрать правки без личных контактов.</p><AiCoach compact scopeKey={`work-brief:${current.id}`} title="Помощник по ТЗ" welcome={`Я знаю задачу «${current.title}». Помогу превратить её в точное ТЗ и проверить, одинаково ли обе стороны понимают результат.`} prompts={["Разбери ТЗ по пунктам","Каких данных не хватает?","Собери чек-лист приёмки"]} context={{role:current.side,goal:current.title}}/></div></details>
         {current.workOrder?<WorkOrderPanel
           order={current.workOrder}
           side={current.side}

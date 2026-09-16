@@ -1,6 +1,6 @@
 "use client";
 
-type BusinessTab="home"|"academy"|"insights"|"practice"|"coach"|"review"|"kivronix-challenges"|"arena"|"portfolio"|"jobs"|"messages"|"community"|"wallet"|"plans"|"profile"|"business";
+type BusinessTab="home"|"academy"|"insights"|"practice"|"coach"|"review"|"kivronix-challenges"|"arena"|"portfolio"|"talent"|"jobs"|"messages"|"community"|"wallet"|"plans"|"profile"|"business";
 
 export default function BusinessDashboard({stats,points,onGo}:{stats:{challenges:number;submissions:number;jobs:number};points:number;onGo:(tab:BusinessTab)=>void}){
   const conversion=stats.challenges?Math.round(stats.submissions/stats.challenges):0;
@@ -11,10 +11,10 @@ export default function BusinessDashboard({stats,points,onGo}:{stats:{challenges
     </section>
 
     <section className="business-kpi-grid">
-      <article><span>Активные конкурсы</span><strong>{stats.challenges}</strong><button onClick={()=>onGo("business")}>Управлять →</button></article>
+      <article><span>Активные конкурсы</span><strong>{stats.challenges}</strong><button onClick={()=>onGo("arena")}>Открыть конкурсы →</button></article>
       <article><span>Работы монтажёров</span><strong>{stats.submissions}</strong><small>{conversion||"—"} в среднем на конкурс</small></article>
-      <article><span>Открытые вакансии</span><strong>{stats.jobs}</strong><button onClick={()=>onGo("business")}>Найти человека →</button></article>
-      <article className="points-kpi"><span>Баланс компании</span><strong>{points.toLocaleString("ru-RU")} KP</strong><small>1 KIVRONIX Point = 1 ₽ внутри платформы</small></article>
+      <article><span>Открытые задания</span><strong>{stats.jobs}</strong><button onClick={()=>onGo("talent")}>Найти человека →</button></article>
+      <article className="points-kpi"><span>Бонусные Points</span><strong>{points.toLocaleString("ru-RU")} KP</strong><small>Награды за полезные действия, не платёжное средство</small></article>
     </section>
 
     <div className="business-dashboard-grid">

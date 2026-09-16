@@ -5,6 +5,7 @@ import LessonProgressButton from "@/components/lesson-progress-button";
 import LessonRouteGate from "@/components/lesson-route-gate";
 import LessonVisual from "@/components/lesson-visual";
 import AuthGate from "@/components/auth-gate";
+import LessonSoftwareAdapter from "@/components/lesson-software-adapter";
 import {curriculum,lessonBySlug} from "@/lib/curriculum";
 
 export default async function LessonPage({params}:{params:Promise<{slug:string}>}){
@@ -34,6 +35,7 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
     </header>
 
     <LessonRouteGate requiredSlugs={curriculum.slice(0,index).map(item=>item.slug)} previousSlug={previous?.slug}>
+    <LessonSoftwareAdapter lessonSoftware={lesson.software}/>
     <div className="lesson-layout">
       <div className="lesson-content">
         <section className="lesson-panel lesson-simple">

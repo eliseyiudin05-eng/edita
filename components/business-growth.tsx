@@ -38,8 +38,15 @@ export default function BusinessGrowth(){
     const h=await headers();
     const r=await fetch("/api/business/growth",{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({action:"save_editor",username,note})});
     const d=await r.json();
-    setMessage(r.ok?"Монтажёр добавлен в ваш список.":d?.error||"Ошибка.");
-    if(r.ok){setUsername("");setNote("");await load()}
+    if(r.ok&&d.editorId){await openChat(d.editorId);return}
+    setMessage(d?.error||"Ошибка.");
+  }
+
+  async function openChat(editorId:string){
+    const h=await headers();const r=await fetch("/api/private-chats",{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({action:"open_editor",editorId})});const d=await r.json();
+    if(!r.ok){setMessage(d?.error||"Не удалось открыть чат.");return}
+    try{sessionStorage.setItem("kivronix_open_conversation",d.conversationId)}catch{}
+    window.location.hash="messages";window.location.reload();
   }
 
   async function remove(editorId:string){
@@ -66,7 +73,7 @@ export default function BusinessGrowth(){
         {board.length===0?<p className="muted">Лига стартует с первых проверенных компаний.</p>:board.slice(0,8).map((b,i)=><div className="business-league-row" key={b.id}><b>#{i+1}</b><span>{b.name}{b.review_rating!=null?" · "+b.review_rating+" ★":""}</span><strong>{b.points}</strong></div>)}
       </div>
       <p className="muted">Счёт ограничивает количество однотипных действий, поэтому просто создать много пустых вакансий недостаточно.</p>
-      <div className="lesson-example"><b>Награды сезона</b><span>Лидеры получают знак компании сезона, дополнительное продвижение заданий и KIVRONIX Points. 1 Point = 1 ₽ при использовании внутри платформы.</span></div>
+      <div className="lesson-example"><b>Награды сезона</b><span>Лидеры получают знак компании сезона, дополнительное продвижение заданий и бонусные KIVRONIX Points.</span></div>
     </section>
 
     <section className="card">
@@ -80,7 +87,7 @@ export default function BusinessGrowth(){
       </form>
       {message&&<div className="auth-msg">{message}</div>}
       <div className="talent-pool">
-        {talent.length===0?<p className="muted">Пока пусто. Добавьте первого монтажёра по адресу его страницы.</p>:talent.map(t=><div className="talent-row" key={t.editor_id}><div><b>@{t.profile?.username||"editor"}</b><span>{t.profile?.rating_points||0} баллов рейтинга · {t.profile?.xp||0} опыта</span></div><button className="btn btn-ghost" onClick={()=>remove(t.editor_id)}>Убрать</button></div>)}
+        {talent.length===0?<p className="muted">Пока пусто. Добавьте первого монтажёра по адресу его страницы.</p>:talent.map(t=><div className="talent-row" key={t.editor_id}><div><b>@{t.profile?.username||"editor"}</b><span>{t.profile?.rating_points||0} баллов рейтинга · {t.profile?.xp||0} опыта</span></div><div className="lesson-actions"><button className="btn btn-dark" onClick={()=>void openChat(t.editor_id)}>Открыть чат</button><button className="btn btn-ghost" onClick={()=>remove(t.editor_id)}>Убрать</button></div></div>)}
       </div>
     </section>
 

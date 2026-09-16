@@ -6,9 +6,9 @@ import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
 type JobApplication={job_id:string;editor_id:string;status:string;created_at?:string;editor?:{display_name?:string|null;username?:string|null}|null};
 type Job={id:string;title:string;description:string;status?:string;budget_min_cents:number|null;budget_max_cents:number|null;payment_points?:number;businesses?:{name?:string;verified?:boolean;verification_level?:string}|null;applications?:JobApplication[];my_status?:string|null};
 const demoJobs:Job[]=[
-  {id:"d1",title:"Монтажёр коротких роликов",description:"5–7 вертикальных роликов в неделю.",budget_min_cents:4500000,budget_max_cents:6000000,businesses:{name:"Пример компании"}},
-  {id:"d2",title:"Монтажёр для YouTube",description:"Видео с экспертом и дополнительными кадрами.",budget_min_cents:250000,budget_max_cents:350000,businesses:{name:"Студия авторов"}},
-  {id:"d3",title:"Монтажёр рекламы",description:"Короткие ролики о товарах и услугах.",budget_min_cents:6000000,budget_max_cents:8000000,businesses:{name:"Команда роста"}},
+  {id:"d1",title:"Монтажёр коротких роликов",description:"5–7 вертикальных роликов в неделю.",budget_min_cents:null,budget_max_cents:null,businesses:{name:"Пример компании"}},
+  {id:"d2",title:"Монтажёр для YouTube",description:"Видео с экспертом и дополнительными кадрами.",budget_min_cents:null,budget_max_cents:null,businesses:{name:"Студия авторов"}},
+  {id:"d3",title:"Монтажёр рекламы",description:"Короткие ролики о товарах и услугах.",budget_min_cents:null,budget_max_cents:null,businesses:{name:"Команда роста"}},
 ];
 
 export default function JobBoard({mode,viewerName="Компания",ageGroup,guardianVerified}:{mode:"editor"|"business";viewerName?:string;ageGroup?:string;guardianVerified?:boolean}){
@@ -111,15 +111,15 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
     if(!businessVerified){setMessage("Сначала пройди проверку компании. После этого можно публиковать реальные вакансии.");return;}
     const {error}=await supabase.from("jobs").insert({
       business_id:businessId,title:form.title,description:form.description,status:"open",
-      payment_points:Math.max(100,Math.floor(Number(form.points)||0))
+      payment_points:0,budget_min_cents:null,budget_max_cents:null
     });
     if(error){setMessage(error.message);return;}
-    setForm({title:"",description:"",points:""});setMessage("Задание опубликовано. При выборе монтажёра оплата будет зарезервирована.");
+    setForm({title:"",description:"",points:""});setMessage("Задание опубликовано. Условия безопасной сделки фиксируются после выбора монтажёра внутри KIVRONIX.");
     await load();
   }
 
-  function startEdit(job:Job){setEditingId(job.id);setForm({title:job.title,description:job.description,points:String(job.payment_points||"")});setMessage("Меняйте только формулировку, описание и оплату. Уже полученные отклики сохранятся.")}
-  async function saveEdit(e:FormEvent){e.preventDefault();if(!editingId)return;const supabase=getSupabaseBrowserClient();const {error}=await supabase.from("jobs").update({title:form.title,description:form.description,payment_points:Math.max(100,Math.floor(Number(form.points)||0))}).eq("id",editingId).eq("status","open");if(error){setMessage(error.message);return}setEditingId(null);setForm({title:"",description:"",points:""});setMessage("Изменения сохранены. Отклики остались на месте.");await load()}
+  function startEdit(job:Job){setEditingId(job.id);setForm({title:job.title,description:job.description,points:""});setMessage("Меняйте формулировку и описание. Уже полученные отклики сохранятся.")}
+  async function saveEdit(e:FormEvent){e.preventDefault();if(!editingId)return;const supabase=getSupabaseBrowserClient();const {error}=await supabase.from("jobs").update({title:form.title,description:form.description}).eq("id",editingId).eq("status","open");if(error){setMessage(error.message);return}setEditingId(null);setForm({title:"",description:"",points:""});setMessage("Изменения сохранены. Отклики остались на месте.");await load()}
   async function removeJob(jobId:string){if(!window.confirm("Удалить задание и закрыть приём откликов?"))return;const supabase=getSupabaseBrowserClient();const {error}=await supabase.from("jobs").delete().eq("id",jobId);setMessage(error?error.message:"Задание удалено.");if(!error)await load()}
 
   return <div className="job-board">
@@ -127,8 +127,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
     {mode==="business"&&<section className="card"><div className="eyebrow">{editingId?"ПОВЕРХНОСТНОЕ РЕДАКТИРОВАНИЕ":"НОВОЕ ЗАДАНИЕ"}</div><h3>{editingId?"Уточнить опубликованное задание":"Опубликовать работу"}</h3>{!businessVerified&&<div className="auth-msg">Сначала нужна проверка аккаунта. Это защищает монтажёров от вымышленных заказчиков.</div>}<form className="business-form" onSubmit={editingId?saveEdit:create}>
       <input required placeholder="Что нужно смонтировать" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
       <textarea required placeholder="Задачи, объём, формат работы" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
-      <input required type="number" min="100" placeholder="Оплата, KIVRONIX Points" value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/>
-      <p className="muted">Сумма резервируется только после выбора исполнителя. Задание остаётся открытым, пока вы не выберете монтажёра или не удалите публикацию. Монтажёр получает 100% указанной суммы.</p>
+      <p className="safe-deal-note"><b>Оплата — только через безопасную сделку KIVRONIX.</b><span>Публично указывать рубли, телефон, почту или мессенджер нельзя. Условия фиксируются внутри заказа после выбора исполнителя; платёжный запуск появится после проверки банка и юриста.</span></p>
       <div className="lesson-actions"><button className="btn btn-dark" disabled={!businessVerified}>{businessVerified?(editingId?"Сохранить изменения":"Опубликовать"):"Сначала пройти проверку"}</button>{editingId?<button type="button" className="btn btn-ghost" onClick={()=>{setEditingId(null);setForm({title:"",description:"",points:""})}}>Отмена</button>:null}</div>
     </form></section>}
 
@@ -145,15 +144,7 @@ export default function JobBoard({mode,viewerName="Компания",ageGroup,gu
   </div>
 }
 
-function budget(job:Job){
-  if(job.payment_points)return new Intl.NumberFormat("ru-RU").format(job.payment_points)+" KIVRONIX Points";
-  const min=job.budget_min_cents?Math.round(job.budget_min_cents/100):null;
-  const max=job.budget_max_cents?Math.round(job.budget_max_cents/100):null;
-  if(min&&max)return new Intl.NumberFormat("ru-RU").format(min)+"–"+new Intl.NumberFormat("ru-RU").format(max)+" ₽";
-  if(min)return "от "+new Intl.NumberFormat("ru-RU").format(min)+" ₽";
-  if(max)return "до "+new Intl.NumberFormat("ru-RU").format(max)+" ₽";
-  return "Бюджет по договорённости";
-}
+function budget(_job:Job){return "Безопасная сделка внутри KIVRONIX"}
 
 
 function badgeName(level?:string){

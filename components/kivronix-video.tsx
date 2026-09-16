@@ -1,7 +1,8 @@
 "use client";
 
 import {FormEvent,useCallback,useEffect,useMemo,useState} from "react";
-import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
+import {getFreshAccessToken,getSupabaseBrowserClient} from "@/lib/supabase-browser";
+import {uploadPortfolioVideo} from "@/lib/portfolio-video-upload";
 
 type Author={display_name:string;username?:string;avatar_url?:string;kind:"editor"|"creator"|"business";verified:boolean};
 type Comment={id:string;body:string;created_at:string;author:Author};
@@ -15,12 +16,12 @@ export default function KivronixVideo({isCreator=false}:{isCreator?:boolean}){
   const [message,setMessage]=useState("");
   const [busy,setBusy]=useState("");
   const [publish,setPublish]=useState({title:"",videoUrl:"",tags:""});
+  const [videoFile,setVideoFile]=useState<File|null>(null);
   const [comment,setComment]=useState<Record<string,string>>({});
   const [contest,setContest]=useState({title:"",brief:"",prizeText:"",endsAt:""});
 
   const token=useCallback(async()=>{
-    const client=getSupabaseBrowserClient();if(!client)return "";
-    return (await client.auth.getSession()).data.session?.access_token||"";
+    return getFreshAccessToken();
   },[]);
   const call=useCallback(async(path:string,init?:RequestInit)=>{
     const access=await token();if(!access)throw new Error("Войдите в аккаунт, чтобы открыть KIVRONIX Video.");
@@ -39,7 +40,13 @@ export default function KivronixVideo({isCreator=false}:{isCreator?:boolean}){
       await load();
     }catch(error){setMessage(error instanceof Error?error.message:"Действие не выполнено.");}finally{setBusy("");}
   }
-  async function publishVideo(event:FormEvent){event.preventDefault();setBusy("publish");try{await call("/api/portfolio",{method:"POST",body:JSON.stringify({title:publish.title,videoUrl:publish.videoUrl,tags:publish.tags.split(",").map(x=>x.trim()).filter(Boolean)})});setPublish({title:"",videoUrl:"",tags:""});setMessage("Ролик опубликован с хештегом #KIVRONIX.");await load();}catch(error){setMessage(error instanceof Error?error.message:"Не удалось опубликовать ролик.");}finally{setBusy("");}}
+  async function publishVideo(event:FormEvent){event.preventDefault();setBusy("publish");try{
+    let videoUrl=publish.videoUrl.trim();
+    if(videoFile){const {data:{user}}=await getSupabaseBrowserClient().auth.getUser();if(!user)throw new Error("Войди в аккаунт, чтобы загрузить файл.");videoUrl=await uploadPortfolioVideo(videoFile,user.id)}
+    if(!videoUrl)throw new Error("Добавь видеофайл или HTTPS-ссылку.");
+    await call("/api/portfolio",{method:"POST",body:JSON.stringify({title:publish.title,videoUrl,tags:publish.tags.split(",").map(x=>x.trim()).filter(Boolean),publicationConsent:true,sourceLabel:videoFile?"Загрузка из файлов":"Внешняя ссылка"})});
+    setPublish({title:"",videoUrl:"",tags:""});setVideoFile(null);setMessage("Ролик опубликован с хештегом #KIVRONIX.");await load();
+  }catch(error){setMessage(error instanceof Error?error.message:"Не удалось опубликовать ролик.");}finally{setBusy("");}}
   async function createCompetition(event:FormEvent){event.preventDefault();setBusy("contest");try{await call("/api/video/competitions",{method:"POST",body:JSON.stringify({action:"create",...contest,endsAt:new Date(contest.endsAt).toISOString()})});setContest({title:"",brief:"",prizeText:"",endsAt:""});setMessage("Соревнование опубликовано.");await load();}catch(error){setMessage(error instanceof Error?error.message:"Не удалось создать соревнование.");}finally{setBusy("");}}
   async function enterCompetition(item:Competition,videoId:string){setBusy(item.id);try{await call("/api/video/competitions",{method:"POST",body:JSON.stringify({action:"enter",competitionId:item.id,videoId})});setMessage("Работа отправлена на соревнование.");await load();}catch(error){setMessage(error instanceof Error?error.message:"Не удалось отправить работу.");}finally{setBusy("");}}
 
@@ -48,7 +55,7 @@ export default function KivronixVideo({isCreator=false}:{isCreator?:boolean}){
     <header className="kv-video-intro"><div><div className="eyebrow">KIVRONIX VIDEO</div><h2>Работы, которые хочется досмотреть</h2><p>Общая вертикальная лента монтажёров, блогеров и компаний. Смотри, подписывайся и начинай совместную работу внутри платформы.</p></div><nav><button className={section==="feed"?"active":""} onClick={()=>setSection("feed")}>Лента</button><button className={section==="competitions"?"active":""} onClick={()=>setSection("competitions")}>Соревнования блогеров</button></nav></header>
     {message&&<div className="auth-msg kv-video-message">{message}</div>}
     {section==="feed"&&<>
-      <details className="kv-publish"><summary>＋ Опубликовать свой ролик</summary><form className="business-form" onSubmit={publishVideo}><input required minLength={2} maxLength={160} placeholder="Название ролика" value={publish.title} onChange={e=>setPublish({...publish,title:e.target.value})}/><input required type="url" placeholder="Прямая HTTPS-ссылка на видео" value={publish.videoUrl} onChange={e=>setPublish({...publish,videoUrl:e.target.value})}/><input placeholder="Темы через запятую" value={publish.tags} onChange={e=>setPublish({...publish,tags:e.target.value})}/><button className="btn btn-lime" disabled={busy==="publish"}>{busy==="publish"?"Публикуем…":"Опубликовать · #KIVRONIX"}</button></form></details>
+      <details className="kv-publish"><summary>＋ Опубликовать свой ролик</summary><form className="business-form" onSubmit={publishVideo}><input required minLength={2} maxLength={160} placeholder="Название ролика" value={publish.title} onChange={e=>setPublish({...publish,title:e.target.value})}/><label className="styled-file-control"><span>Загрузить видео из файлов</span><small>{videoFile?videoFile.name:"MP4, MOV или WebM · до 200 МБ"}</small><input type="file" accept="video/mp4,video/quicktime,video/webm,video/*" onChange={e=>setVideoFile(e.target.files?.[0]||null)}/></label><div className="form-divider">или вставь ссылку</div><input type="url" placeholder="Прямая HTTPS-ссылка на видео" value={publish.videoUrl} onChange={e=>setPublish({...publish,videoUrl:e.target.value})}/><input placeholder="Темы через запятую" value={publish.tags} onChange={e=>setPublish({...publish,tags:e.target.value})}/><p className="publish-consent">Нажимая «Опубликовать», ты разрешаешь показать этот ролик в общей ленте KIVRONIX Video. Разрешение можно отозвать, удалив работу из профиля.</p><button className="btn btn-lime" disabled={busy==="publish"}>{busy==="publish"?"Загружаем…":"Опубликовать · #KIVRONIX"}</button></form></details>
       <section className="kv-reel-feed">{clips.length?clips.map(clip=><article className="kv-reel" key={clip.id}>
         <div className="kv-reel-stage">{clip.display_url&&isDirectVideo(clip.display_url)?<video src={clip.display_url} controls playsInline preload="metadata"/>:clip.display_url?<a href={clip.display_url} target="_blank" rel="noreferrer" className="kv-video-placeholder"><b>Открыть работу ↗</b><span>Видео размещено на внешней защищённой странице</span></a>:<div className="kv-video-placeholder"><b>KIVRONIX ORIGINAL</b><span>{clip.storage_backed?"Защищённый файл автора":"Превью готовится"}</span></div>}
           <div className="kv-reel-copy"><div className="kv-author"><Avatar author={clip.author}/><div><b>{clip.author.display_name}</b><span>{kindLabel(clip.author.kind)}{clip.author.verified?" · подтверждён":""}</span></div>{!clip.own&&<button onClick={()=>void act(clip,"follow")}>{clip.following?"Вы подписаны":"Подписаться"}</button>}</div><h3>{clip.title}</h3><p>{["#KIVRONIX",...(clip.tags||[]).filter(tag=>tag.toLowerCase()!=="#kivronix"&&tag.toLowerCase()!=="kivronix")].join("  ")}</p>{clip.ai_score!=null&&<small>Оценка KIVRONIX AI · {clip.ai_score}/100</small>}</div>

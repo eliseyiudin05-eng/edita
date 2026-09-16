@@ -75,7 +75,7 @@ func (r *PostgresRepository) Create(ctx context.Context, _ string, subject strin
 		}
 		tags = append(tags, "#KIVRONIX")
 	}
-	if err = tx.QueryRow(ctx, `insert into public.portfolio_items(editor_id,title,video_url,tags) values($1,$2,$3,$4) returning id::text,title,tags,ai_score`, subject, input.Title, input.VideoURL, tags).Scan(&item.ID, &item.Title, &item.Tags, &item.AIScore); err != nil {
+	if err = tx.QueryRow(ctx, `insert into public.portfolio_items(editor_id,title,video_url,tags,ai_score,publication_consent,source_label) values($1,$2,$3,$4,$5,$6,$7) returning id::text,title,tags,ai_score`, subject, input.Title, input.VideoURL, tags,input.AIScore,input.PublicationConsent,input.SourceLabel).Scan(&item.ID, &item.Title, &item.Tags, &item.AIScore); err != nil {
 		return Item{}, ErrUnavailable
 	}
 	item.DisplayURL = input.VideoURL

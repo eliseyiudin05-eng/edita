@@ -78,7 +78,7 @@ export async function POST(req:NextRequest){
       business_id:business.id,editor_id:editor.id,note:String(body?.note||"").trim().slice(0,500)||null
     },{onConflict:"business_id,editor_id"});
     if(error)return NextResponse.json({error:error.message},{status:400});
-    return NextResponse.json({ok:true});
+    return NextResponse.json({ok:true,editorId:editor.id});
   }
 
   if(action==="remove_editor"){

@@ -78,7 +78,7 @@ export default function CampaignHub({mode}:{mode:"editor"|"business"}){
     const item=apply[id]||{portfolioUrl:"",note:""};
     try{
       await call({action:"apply",campaignId:id,...item});
-      setMessage("Отклик отправлен компании.");
+      setMessage("Отклик отправлен. Статус заявки теперь виден в карточке проекта; после принятия здесь появится кнопка перехода в рабочий чат.");
       await load();
     }catch(e){setMessage(e instanceof Error?e.message:"Ошибка.");}
     finally{setBusy(false)}
@@ -101,12 +101,12 @@ export default function CampaignHub({mode}:{mode:"editor"|"business"}){
     {mode==="business"&&<section className="card">
       <div className="eyebrow">НАБОР МОНТАЖЁРОВ</div>
       <h3>Создать проект для команды</h3>
-      <p className="muted">Здесь компания может собрать несколько монтажёров для запуска продукта, коротких роликов, отзывов или постоянной работы.</p>
+      <p className="muted">Здесь компания или блогер может собрать несколько монтажёров. Участники получают задачи внутри единого проекта, а после выбора открываются постоянные рабочие чаты с общим контекстом ТЗ.</p>
       {!business?.verified&&<div className="auth-msg">Публиковать кампании может только проверенная компания. Сначала закончи проверку бизнеса выше.</div>}
       <form className="business-form" onSubmit={create}>
         <input required placeholder="Название проекта" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
         <textarea required placeholder="Какой результат нужен компании?" value={form.goal} onChange={e=>setForm({...form,goal:e.target.value})}/>
-        <input required placeholder="Условия оплаты, например: 5 000 ₽ за принятый ролик" value={form.budgetText} onChange={e=>setForm({...form,budgetText:e.target.value})}/>
+        <input required placeholder="Условия безопасной сделки внутри KIVRONIX" value={form.budgetText} onChange={e=>setForm({...form,budgetText:e.target.value})}/>
         <div className="split-fields">
           <input min="1" max="100" type="number" placeholder="Сколько монтажёров" value={form.creatorSlots} onChange={e=>setForm({...form,creatorSlots:e.target.value})}/>
           <input placeholder="Форматы через запятую" value={form.contentTypes} onChange={e=>setForm({...form,contentTypes:e.target.value})}/>
@@ -131,7 +131,7 @@ export default function CampaignHub({mode}:{mode:"editor"|"business"}){
           </div>
           <p>{raw.goal}</p>
           <div className="chip-row">{(raw.content_types||[]).map((x:string)=><span className="tag" key={x}>{x}</span>)}</div>
-          <div className="campaign-meta"><span><b>Оплата работы:</b> {raw.budget_text}</span><span><b>Нужно монтажёров:</b> {raw.creator_slots}</span></div>
+          <div className="campaign-meta"><span><b>Безопасная сделка:</b> {raw.budget_text}</span><span><b>Нужно монтажёров:</b> {raw.creator_slots}</span></div>
           {raw.requirements&&<div className="lesson-example"><b>Что важно</b><span>{raw.requirements}</span></div>}
 
           {mode==="editor"&&(raw.myStatus?<div className="auth-msg">Твой отклик: <b>{statusRu(raw.myStatus)}</b>{raw.myStatus==="accepted"&&<><br/><a className="btn btn-dark" href="#messages" onClick={()=>rememberChat("campaign",raw.id)}>Открыть закрытый чат</a></>}</div>:<div className="business-form campaign-apply">

@@ -11,6 +11,7 @@ func TestNormalizeCreate(t *testing.T) {
 		Title:    "  Реклама спортзала  ",
 		VideoURL: " https://video.example/work.mp4 ",
 		Tags:     []string{" Реклама ", "спорт", "реклама", ""},
+		PublicationConsent:true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -19,7 +20,7 @@ func TestNormalizeCreate(t *testing.T) {
 		t.Fatalf("unexpected input: %+v", input)
 	}
 	longTitle := strings.Repeat("я", 161)
-	boundedInput, err := NormalizeCreate(CreateInput{Title: longTitle, VideoURL: "https://example.com/video"})
+	boundedInput, err := NormalizeCreate(CreateInput{Title: longTitle, VideoURL: "https://example.com/video",PublicationConsent:true})
 	if err != nil || len([]rune(boundedInput.Title)) != 160 {
 		t.Fatalf("title len=%d err=%v", len([]rune(boundedInput.Title)), err)
 	}
@@ -27,11 +28,12 @@ func TestNormalizeCreate(t *testing.T) {
 
 func TestNormalizeCreateRejectsUnsafeInput(t *testing.T) {
 	for _, input := range []CreateInput{
-		{Title: "x", VideoURL: "https://example.com/video"},
+		{Title: "x", VideoURL: "https://example.com/video",PublicationConsent:true},
 		{Title: "Работа", VideoURL: "http://example.com/video"},
 		{Title: "Работа", VideoURL: "javascript:alert(1)"},
 		{Title: "Работа", VideoURL: "https://user:pass@example.com/video"},
 		{Title: "Работа", VideoURL: "https://example.com/video", Tags: make([]string, 13)},
+		{Title: "Работа", VideoURL: "https://example.com/video",PublicationConsent:false},
 	} {
 		if _, err := NormalizeCreate(input); !errors.Is(err, ErrInvalid) {
 			t.Fatalf("expected ErrInvalid for %+v, got %v", input, err)

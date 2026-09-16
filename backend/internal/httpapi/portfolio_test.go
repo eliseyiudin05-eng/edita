@@ -46,7 +46,7 @@ func portfolioTestHandler(store *fakePortfolioStore) http.Handler {
 
 func TestPortfolioCreateValidatesAndDelegates(t *testing.T) {
 	store := &fakePortfolioStore{created: portfolio.Item{ID: "223e4567-e89b-12d3-a456-426614174000", Title: "Реклама спортзала"}}
-	req := httptest.NewRequest(http.MethodPost, "/v1/marketplace/portfolio", strings.NewReader(`{"title":"  Реклама спортзала  ","videoUrl":"https://video.example/work.mp4","tags":[" Реклама ","реклама","спорт"]}`))
+	req := httptest.NewRequest(http.MethodPost, "/v1/marketplace/portfolio", strings.NewReader(`{"title":"  Реклама спортзала  ","videoUrl":"https://video.example/work.mp4","tags":[" Реклама ","реклама","спорт"],"publicationConsent":true}`))
 	req.Header.Set("Authorization", "Bearer token")
 	req.Header.Set("Content-Type", "application/json")
 	res := httptest.NewRecorder()
