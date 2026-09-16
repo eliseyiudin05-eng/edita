@@ -495,17 +495,21 @@ export function lessonAccess(slug:string,completedSlugs:string[],passedAssessmen
   const completed=new Set(completedSlugs);
   if(completed.has(slug))return {unlocked:true,reason:"completed"};
 
-  const startIndex=learningStartIndex(level);
-  if(lessonIndex<startIndex)return {unlocked:false,reason:"before-start"};
+  const normalizedLevel=normalizeExperienceLevel(level);
+  if(normalizedLevel==="pro")return {unlocked:true,reason:"available"};
 
+  const startIndex=learningStartIndex(level);
   const startModuleIndex=Math.max(0,curriculumModules.findIndex(group=>group.lessons.some(item=>item.slug===curriculum[startIndex]?.slug)));
   const lessonModuleIndex=curriculumModules.findIndex(group=>group.module===curriculum[lessonIndex]?.module);
-  if(lessonModuleIndex>startModuleIndex&&!passedAssessments.includes(lessonModuleIndex-1)){
+  if(lessonModuleIndex<=startModuleIndex)return {unlocked:true,reason:"available"};
+
+  const missingAssessment=Array.from(
+    {length:lessonModuleIndex-startModuleIndex},
+    (_,offset)=>startModuleIndex+offset,
+  ).some(moduleIndex=>!passedAssessments.includes(moduleIndex));
+  if(missingAssessment){
     return {unlocked:false,reason:"assessment"};
   }
-
-  const previousIncomplete=curriculum.slice(startIndex,lessonIndex).some(item=>!completed.has(item.slug));
-  if(previousIncomplete)return {unlocked:false,reason:"sequence"};
 
   return {unlocked:true,reason:"available"};
 }

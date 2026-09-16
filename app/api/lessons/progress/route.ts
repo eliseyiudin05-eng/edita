@@ -1,5 +1,5 @@
 import {after,NextRequest,NextResponse} from "next/server";
-import {curriculum,curriculumModules,learningStartIndex,lessonBySlug} from "@/lib/curriculum";
+import {curriculum,curriculumModules,learningStartIndex,lessonBySlug,normalizeExperienceLevel} from "@/lib/curriculum";
 import {academyProgressShadowEnabled,compareAcademyProgressWithGo,normalizeAcademyProgress} from "@/lib/go-academy-shadow";
 import {academyProgressCanaryEnabled,recordAcademyProgressCanaryComparison,tryAcademyProgressCanary} from "@/lib/go-academy-canary";
 import {getLessonProgress,getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
@@ -59,16 +59,15 @@ export async function POST(req:NextRequest){
     ]);
     const completedSlugs=new Set((completedRows||[]).map((row:any)=>row.lessons?.slug).filter(Boolean));
     if(completedSlugs.has(lesson.slug))return NextResponse.json({ok:true,completed:true,slug:lesson.slug,alreadyCompleted:true});
-    const startIndex=learningStartIndex(profile?.onboarding?.level);
+    const level=normalizeExperienceLevel(profile?.onboarding?.level);
+    const startIndex=learningStartIndex(level);
     const startModuleIndex=curriculumModules.findIndex(group=>group.lessons.some(item=>item.slug===curriculum[startIndex]?.slug));
     const moduleIndex=curriculumModules.findIndex(group=>group.module===lesson.module);
-    if(moduleIndex>startModuleIndex){
-      const {data:assessment}=await service.from("academy_assessments").select("passed").eq("user_id",user.id).eq("module_index",moduleIndex-1).maybeSingle();
-      if(!assessment?.passed)return NextResponse.json({error:"Сначала пройди промежуточную аттестацию предыдущей ступени."},{status:409});
+    if(level!=="pro"&&moduleIndex>startModuleIndex){
+      const requiredAssessmentIndexes=Array.from({length:moduleIndex-startModuleIndex},(_,offset)=>startModuleIndex+offset);
+      const assessments=await Promise.all(requiredAssessmentIndexes.map(requiredIndex=>service.from("academy_assessments").select("passed").eq("user_id",user.id).eq("module_index",requiredIndex).maybeSingle()));
+      if(assessments.some(result=>!result.data?.passed))return NextResponse.json({error:"Сначала пройди аттестацию предыдущей ступени."},{status:409});
     }
-    const required=curriculum.slice(startIndex,lessonIndex).map(item=>item.slug);
-    const missing=required.find(slug=>!completedSlugs.has(slug));
-    if(missing)return NextResponse.json({error:"Сначала заверши предыдущий урок."},{status:409});
   }
 
   const {data:lessonRow,error:lessonError}=await service.from("lessons").upsert({
