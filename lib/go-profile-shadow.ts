@@ -1,6 +1,6 @@
 export type LearningPreferencesResponse={
   role:"editor"|"business"|"admin";
-  preferences:{level:string;software:string;goal:string};
+  preferences:{level:string;software:string;goal:string;operatingSystem?:string};
 };
 
 export type GoProfileReadResult=
@@ -24,6 +24,7 @@ export function normalizeLearningPreferences(role:unknown,onboarding:unknown):Le
       level:boundedString(source.level),
       software:boundedString(source.software),
       goal:boundedString(source.goal),
+      operatingSystem:boundedString(source.operatingSystem),
     },
   };
 }
@@ -84,14 +85,16 @@ function parseLearningPreferences(candidate:unknown):LearningPreferencesResponse
   const preferences=value.preferences;
   if(!preferences||typeof preferences.level!=="string"||typeof preferences.software!=="string"||typeof preferences.goal!=="string")return null;
   if(preferences.level.length>80||preferences.software.length>80||preferences.goal.length>80)return null;
-  return {role:value.role,preferences:{level:preferences.level,software:preferences.software,goal:preferences.goal}};
+  const operatingSystem=typeof preferences.operatingSystem==="string"?preferences.operatingSystem.slice(0,80):undefined;
+  return {role:value.role,preferences:{level:preferences.level,software:preferences.software,goal:preferences.goal,operatingSystem}};
 }
 
 export function sameLearningPreferences(candidate:LearningPreferencesResponse,legacy:LearningPreferencesResponse){
   return candidate.role===legacy.role&&
     candidate.preferences.level===legacy.preferences.level&&
     candidate.preferences.software===legacy.preferences.software&&
-    candidate.preferences.goal===legacy.preferences.goal;
+    candidate.preferences.goal===legacy.preferences.goal&&
+    (candidate.preferences.operatingSystem||"")===(legacy.preferences.operatingSystem||"");
 }
 
 function failed(outcome:string,started:number):GoProfileReadResult{

@@ -4,17 +4,21 @@ import AiCoach from "@/components/ai-coach";
 import LessonProgressButton from "@/components/lesson-progress-button";
 import LessonRouteGate from "@/components/lesson-route-gate";
 import LessonVisual from "@/components/lesson-visual";
+import LessonLearningPlan from "@/components/lesson-learning-plan";
 import AuthGate from "@/components/auth-gate";
 import LessonSoftwareAdapter from "@/components/lesson-software-adapter";
-import {curriculum,lessonBySlug} from "@/lib/curriculum";
+import {curriculum,lessonBySlug,optionalCurriculumModules,requiredCurriculum} from "@/lib/curriculum";
 
 export default async function LessonPage({params}:{params:Promise<{slug:string}>}){
   const {slug}=await params;
   const lesson=lessonBySlug(slug);
   if(!lesson)notFound();
-  const index=curriculum.findIndex(item=>item.slug===slug);
-  const previous=index>0?curriculum[index-1]:null;
-  const next=index<curriculum.length-1?curriculum[index+1]:null;
+  const curriculumIndex=curriculum.findIndex(item=>item.slug===slug);
+  const requiredIndex=requiredCurriculum.findIndex(item=>item.slug===slug);
+  const routeLessons=requiredIndex>=0?requiredCurriculum:optionalCurriculumModules.flatMap(group=>group.lessons);
+  const routeIndex=routeLessons.findIndex(item=>item.slug===slug);
+  const previous=routeIndex>0?routeLessons[routeIndex-1]:null;
+  const next=routeIndex<routeLessons.length-1?routeLessons[routeIndex+1]:null;
 
   return <AuthGate><main className="lesson-shell-page">
     <nav className="lesson-topbar">
@@ -23,7 +27,7 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
     </nav>
 
     <header className="lesson-hero">
-      <div className="lesson-count">{String(index+1).padStart(2,"0")} / {curriculum.length}</div>
+      <div className="lesson-count">{requiredIndex>=0?`${String(requiredIndex+1).padStart(2,"0")} / ${requiredCurriculum.length}`:`БИБЛИОТЕКА · ${String(routeIndex+1).padStart(2,"0")}`}</div>
       <div>
         <div className="eyebrow">{lesson.module}</div>
         <h1>{lesson.title}</h1>
@@ -34,8 +38,8 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
       </div>
     </header>
 
-    <LessonRouteGate requiredSlugs={curriculum.slice(0,index).map(item=>item.slug)} previousSlug={previous?.slug}>
-    <LessonSoftwareAdapter lessonSoftware={lesson.software}/>
+    <LessonRouteGate requiredSlugs={curriculum.slice(0,curriculumIndex).map(item=>item.slug)} previousSlug={previous?.slug}>
+    <LessonSoftwareAdapter lesson={lesson}/>
     <div className="lesson-layout">
       <div className="lesson-content">
         <section className="lesson-panel lesson-simple">
@@ -44,6 +48,8 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
           <p className="lesson-lead">{lesson.simple}</p>
           <div className="lesson-example"><b>Пример</b><span>{lesson.example}</span></div>
         </section>
+
+        <LessonLearningPlan lesson={lesson}/>
 
         <section className="lesson-panel lesson-visual-panel">
           <div className="eyebrow">ВИЗУАЛЬНАЯ КАРТА</div>
@@ -82,8 +88,8 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
         <section className="lesson-panel lifehack-panel"><div className="lifehack-icon">⚡</div><div><div className="eyebrow">ПОЛЕЗНЫЙ СОВЕТ</div><h2>Сделай быстрее</h2><p>{lesson.lifehack}</p></div></section>
 
         <section className={"lesson-panel assignment-card "+(lesson.theoryOnly?"theory-completion-card":"")}>
-          <div className="eyebrow">{lesson.theoryOnly?"БЕЗ ПРАКТИКИ":"МАЛЕНЬКАЯ ПРАКТИКА"}</div>
-          <h2>{lesson.theoryOnly?"Проверь, что всё понятно":"Теперь попробуй сам"}</h2>
+          <div className="eyebrow">{lesson.theoryOnly?"ПРОВЕРКА ПОНИМАНИЯ":"САМОСТОЯТЕЛЬНАЯ ПРАКТИКА"}</div>
+          <h2>{lesson.theoryOnly?"Объясни своими словами":"Теперь попробуй сам"}</h2>
           <p>{lesson.assignment}</p>
           <LessonProgressButton slug={lesson.slug} xp={lesson.xp} nextSlug={next?.slug} theoryOnly={lesson.theoryOnly}/>
         </section>

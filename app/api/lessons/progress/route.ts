@@ -1,6 +1,8 @@
 import {after,NextRequest,NextResponse} from "next/server";
-import {curriculum,curriculumModules,learningStartIndex,lessonBySlug,normalizeExperienceLevel} from "@/lib/curriculum";
-import {savedAcademyAssessments} from "@/lib/academy-assessment";
+import {lessonAccess,lessonBySlug,normalizeExperienceLevel} from "@/lib/curriculum";
+import {assessmentPublicIndex,isCurrentAssessmentStorageIndex,savedAcademyAssessments} from "@/lib/academy-assessment";
+import {lessonCompletionRules,lessonQuiz} from "@/lib/academy-teaching";
+import {verifyAcademyReviewProof} from "@/lib/academy-review-proof";
 import {academyProgressShadowEnabled,compareAcademyProgressWithGo,normalizeAcademyProgress} from "@/lib/go-academy-shadow";
 import {academyProgressCanaryEnabled,recordAcademyProgressCanaryComparison,tryAcademyProgressCanary} from "@/lib/go-academy-canary";
 import {getLessonProgress,getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
@@ -51,26 +53,32 @@ export async function POST(req:NextRequest){
   const submissionNote=String(body?.submissionNote||"").trim().slice(0,1000);
   if(!lesson)return NextResponse.json({error:"Урок отсутствует."},{status:404});
   if(completed&&!taskConfirmed)return NextResponse.json({error:lesson.theoryOnly?"Подтверди, что главная мысль урока понятна.":"Сначала выполни практическое задание урока."},{status:400});
+  if(completed){
+    const rules=lessonCompletionRules(lesson);
+    const quiz=lessonQuiz(lesson);
+    const quizAnswers=Array.isArray(body?.quizAnswers)?body.quizAnswers.map(Number):[];
+    const quizCorrect=quiz.filter((question,index)=>quizAnswers[index]===question.correct).length;
+    if(quizAnswers.length!==quiz.length||quizCorrect<rules.quizRequired)return NextResponse.json({error:`Пройди мини-тест: нужно минимум ${rules.quizRequired} правильных ответа из ${quiz.length}.`},{status:400});
+    if(submissionNote.length<rules.noteMinimum)return NextResponse.json({error:`Опиши результат своими словами — минимум ${rules.noteMinimum} символов.`},{status:400});
+    if(rules.videoRequired){
+      const proof=verifyAcademyReviewProof(body?.reviewProof,{userId:user.id,purpose:"lesson",lessonSlug:lesson.slug});
+      if(!proof||proof.score<rules.reviewMinimum)return NextResponse.json({error:`Добавь видео и получи подтверждённый ИИ-разбор не ниже ${rules.reviewMinimum}/100.`},{status:400});
+    }
+  }
 
-  const lessonIndex=curriculum.findIndex(item=>item.slug===lesson.slug);
-  if(completed&&lessonIndex>0){
-    const [{data:profile},{data:completedRows}]=await Promise.all([
+  if(completed){
+    const [{data:profile},{data:completedRows},assessmentResult]=await Promise.all([
       service.from("profiles").select("onboarding").eq("id",user.id).maybeSingle(),
-      service.from("lesson_progress").select("status,lessons!inner(slug)").eq("user_id",user.id).eq("status","completed")
+      service.from("lesson_progress").select("status,lessons!inner(slug)").eq("user_id",user.id).eq("status","completed"),
+      service.from("academy_assessments").select("module_index,passed").eq("user_id",user.id).eq("passed",true),
     ]);
     const completedSlugs=new Set((completedRows||[]).map((row:any)=>row.lessons?.slug).filter(Boolean));
     if(completedSlugs.has(lesson.slug))return NextResponse.json({ok:true,completed:true,slug:lesson.slug,alreadyCompleted:true});
     const level=normalizeExperienceLevel(profile?.onboarding?.level);
-    const startIndex=learningStartIndex(level);
-    const startModuleIndex=curriculumModules.findIndex(group=>group.lessons.some(item=>item.slug===curriculum[startIndex]?.slug));
-    const moduleIndex=curriculumModules.findIndex(group=>group.module===lesson.module);
-    if(level!=="pro"&&moduleIndex>startModuleIndex){
-      const requiredAssessmentIndexes=Array.from({length:moduleIndex-startModuleIndex},(_,offset)=>startModuleIndex+offset);
-      const tableResult=await service.from("academy_assessments").select("module_index,passed").eq("user_id",user.id).eq("passed",true);
-      const passed=new Set(savedAcademyAssessments(profile?.onboarding).map(item=>item.moduleIndex));
-      if(!tableResult.error)for(const row of tableResult.data||[])passed.add(Number(row.module_index));
-      if(requiredAssessmentIndexes.some(requiredIndex=>!passed.has(requiredIndex)))return NextResponse.json({error:"Сначала пройди аттестацию предыдущей ступени."},{status:409});
-    }
+    const passed=new Set(savedAcademyAssessments(profile?.onboarding).map(item=>item.moduleIndex));
+    if(!assessmentResult.error)for(const row of assessmentResult.data||[]){const stored=Number(row.module_index);if(isCurrentAssessmentStorageIndex(stored))passed.add(assessmentPublicIndex(stored))}
+    const access=lessonAccess(lesson.slug,Array.from(completedSlugs),Array.from(passed),level);
+    if(!access.unlocked)return NextResponse.json({error:access.reason==="assessment"?"Сначала пройди аттестацию предыдущего уровня.":"Сначала заверши предыдущий урок."},{status:409});
   }
 
   const {data:lessonRow,error:lessonError}=await service.from("lessons").upsert({

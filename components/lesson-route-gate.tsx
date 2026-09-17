@@ -23,7 +23,7 @@ export default function LessonRouteGate({children}:{requiredSlugs:string[];previ
       try{
         const saved=JSON.parse(localStorage.getItem("kivronix_lesson_done")||"[]");
         if(Array.isArray(saved))completed=saved.filter((item):item is string=>typeof item==="string");
-        const savedAssessments=JSON.parse(localStorage.getItem("kivronix_academy_assessments")||"[]");
+        const savedAssessments=JSON.parse(localStorage.getItem("kivronix_academy_assessments_v2")||"[]");
         if(Array.isArray(savedAssessments))passed=savedAssessments.filter((item):item is number=>Number.isInteger(item));
         const savedOnboarding=JSON.parse(localStorage.getItem("kivronix_onboarding")||"{}");
         if(savedOnboarding&&typeof savedOnboarding==="object")level=savedOnboarding.level;
@@ -77,6 +77,6 @@ export default function LessonRouteGate({children}:{requiredSlugs:string[];previ
   },[pathname,router]);
 
   if(checking)return <div className="lesson-gate-card"><b>Проверяем вход и прогресс…</b></div>;
-  if(!unlocked)return <div className="lesson-gate-card locked"><div className="eyebrow">СЛЕДУЮЩАЯ СТУПЕНЬ ПОКА ЗАКРЫТА</div><h2>{lockedByAssessment?"Сначала пройди аттестацию текущей ступени":"Этот урок пока недоступен"}</h2><p>{lockedByAssessment?"Все уроки текущей ступени можно открывать в любом порядке. После аттестации откроется следующий блок.":"Вернись в учебный план и выбери открытый урок."}</p><div>{returnSlug?<Link className="btn btn-dark" href={"/academy/"+returnSlug}>Открыть доступный урок</Link>:null}<Link className="btn btn-ghost" href="/platform#academy">Перейти к учебному плану</Link></div></div>;
+  if(!unlocked)return <div className="lesson-gate-card locked"><div className="eyebrow">УРОК ПОКА ЗАКРЫТ</div><h2>{lockedByAssessment?"Сначала пройди аттестацию текущего уровня":"Сначала заверши предыдущий урок"}</h2><p>{lockedByAssessment?"После успешной проверки откроется первый урок следующего уровня.":"Выполни действие, мини‑тест и проверку результата в текущем уроке — затем маршрут продолжится."}</p><div>{returnSlug?<Link className="btn btn-dark" href={"/academy/"+returnSlug}>Открыть следующий доступный урок</Link>:null}<Link className="btn btn-ghost" href="/platform#academy">Перейти к учебному плану</Link></div></div>;
   return <>{children}</>;
 }

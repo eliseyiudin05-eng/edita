@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import {useEffect,useState} from "react";
 import type {Lesson} from "@/lib/curriculum";
 
 type VisualKind="theory"|"mobile"|"desktop"|"social"|"audio"|"career";
@@ -100,6 +103,13 @@ function interfaceShot(lesson:Lesson,focus:Focus):InterfaceShot|null{
 }
 
 export default function LessonVisual({lesson}:{lesson:Lesson}){
+  const [expanded,setExpanded]=useState(false);
+  useEffect(()=>{
+    if(!expanded)return;
+    const close=(event:KeyboardEvent)=>{if(event.key==="Escape")setExpanded(false)};
+    window.addEventListener("keydown",close);
+    return()=>window.removeEventListener("keydown",close);
+  },[expanded]);
   const kind=visualKind(lesson);
   const focus=focusBySlug[lesson.slug]||"preview";
   const ui=labels(lesson.software);
@@ -117,10 +127,11 @@ export default function LessonVisual({lesson}:{lesson:Lesson}){
   if(shot)return <figure className={"lesson-visual lesson-real-interface "+(shot.mobile?"real-mobile-interface":"real-desktop-interface")}>
     <div className="lesson-visual-head"><span>РЕАЛЬНЫЙ ИНТЕРФЕЙС · {lesson.software}</span><b>{lesson.title}</b></div>
     <div className="lesson-real-interface-frame">
-      <Image src={shot.src} width={shot.width} height={shot.height} sizes={shot.mobile?"(max-width: 720px) 78vw, 330px":"(max-width: 900px) 92vw, 760px"} alt={shot.alt}/>
+      <button type="button" className="lesson-image-zoom" onClick={()=>setExpanded(true)} aria-label="Открыть изображение интерфейса крупно"><Image src={shot.src} width={shot.width} height={shot.height} sizes={shot.mobile?"(max-width: 720px) 78vw, 330px":"(max-width: 900px) 92vw, 760px"} alt={shot.alt}/><span>Увеличить ↗</span></button>
       <span className="lesson-interface-focus"><small>СЕЙЧАС ИЩЕМ</small><b>{focusLabel(focus,ui)}</b></span>
     </div>
-    <figcaption><b>Смотри на отмеченную зону:</b> весь остальной экран можно изучить позже. В новой версии кнопка может немного сдвинуться. <a href={shot.sourceUrl} target="_blank" rel="noreferrer">Источник: {shot.sourceLabel} ↗</a></figcaption>
+    <figcaption><b>Смотри на отмеченную зону:</b> весь остальной экран можно изучить позже. Нажми на изображение, чтобы открыть его крупно. В новой версии кнопка может немного сдвинуться. <a href={shot.sourceUrl} target="_blank" rel="noreferrer">Источник: {shot.sourceLabel} ↗</a></figcaption>
+    {expanded?<div className="lesson-image-modal" role="dialog" aria-modal="true" aria-label="Увеличенное изображение интерфейса" onClick={()=>setExpanded(false)}><button autoFocus type="button" aria-label="Закрыть" onClick={()=>setExpanded(false)}>×</button><Image src={shot.src} width={shot.width} height={shot.height} sizes="96vw" alt={shot.alt}/></div>:null}
   </figure>;
 
   if(kind==="audio")return <figure className="lesson-visual lesson-audio-visual" role="img" aria-label={"Схема звука: "+lesson.title}>
@@ -141,18 +152,9 @@ export default function LessonVisual({lesson}:{lesson:Lesson}){
     <figcaption><b>Что замечаем:</b> {lesson.summary}</figcaption>
   </figure>;
 
-  const isMobile=kind==="mobile";
-  return <figure className={"lesson-visual lesson-ui-visual "+(isMobile?"mobile-ui":"desktop-ui")+" focus-"+focus} role="img" aria-label={"Простая карта экрана "+lesson.software}>
-    <div className="lesson-visual-head"><span>{lesson.software}</span><b>{lesson.title}</b></div>
-    <div className="lesson-ui-window">
-      <div className="lesson-ui-top"><i/><i/><i/><span>{focus==="home"?"Официальная установка":"Проект KIVRONIX"}</span><b className="ui-export">{ui.export}</b></div>
-      <div className="lesson-ui-main">
-        <div className="ui-media"><em>1</em><b>{ui.media}</b><span/><span/><span/></div>
-        <div className="ui-preview"><em>2</em><div><span>9:16</span><b>ТВОЙ<br/>РОЛИК</b></div><small>{ui.preview}</small></div>
-        <div className="ui-tools"><em>3</em><b>{ui.tools}</b><span/><span/><span/><span/></div>
-      </div>
-      <div className="ui-timeline"><em>4</em><b>{ui.timeline}</b><div/><div/><i/></div>
-    </div>
-    <figcaption><b>Сейчас ищем:</b> {focusLabel(focus,ui)}. Цифры показывают четыре главные зоны; остальные кнопки можно изучить позже.</figcaption>
+  return <figure className="lesson-visual lesson-missing-interface" role="img" aria-label={"Техническое задание на снимок интерфейса "+lesson.software}>
+    <div className="lesson-visual-head"><span>ТОЧНЫЙ ИНТЕРФЕЙС · БЕЗ МАКЕТА</span><b>{lesson.title}</b></div>
+    <div className="missing-interface-marker">[НУЖЕН СКРИНШОТ: {lesson.software}; актуальная версия; общий экран редактора и крупный план зоны «{focusLabel(focus,ui)}»; показать путь до инструмента, состояние до и после; проверить подписи на Windows и macOS; без выдуманных кнопок.]</div>
+    <figcaption>Пока проверенного снимка нет, урок показывает точное техническое задание вместо ненастоящего интерфейса.</figcaption>
   </figure>;
 }

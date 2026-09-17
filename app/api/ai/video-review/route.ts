@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { canUseArenaReview, hasFullAccess } from "@/lib/server-supabase";
+import { canUseArenaReview, getUserFromAccessToken, hasFullAccess } from "@/lib/server-supabase";
+import {createAcademyReviewProof} from "@/lib/academy-review-proof";
 
 const REVIEW_SCHEMA = {
   type: "object",
@@ -104,6 +105,7 @@ export async function POST(req: NextRequest) {
     const height = Number(body.height || 0);
     const purpose = body.purpose === "arena" ? "arena" : body.purpose === "business_campaign" ? "business_campaign" : body.purpose === "academy_assessment" ? "academy_assessment" : "standalone";
     const moduleIndex=Number.isInteger(Number(body.moduleIndex))?Number(body.moduleIndex):null;
+    const lessonSlug=typeof body.lessonSlug==="string"?body.lessonSlug.slice(0,120):null;
     const difficulty=typeof body.difficulty==="string"?body.difficulty.slice(0,100):"по текущей ступени";
     const challengeId = typeof body.challengeId === "string" ? body.challengeId : null;
     const bearer=req.headers.get("authorization");
@@ -120,14 +122,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const reviewUser=purpose==="academy_assessment"||(purpose==="standalone"&&lessonSlug)
+      ?await getUserFromAccessToken(accessToken)
+      :null;
+    const reviewProof=(review:{overall_score?:unknown})=>{
+      const score=Number(review.overall_score);
+      if(!reviewUser||!Number.isFinite(score))return null;
+      if(purpose==="academy_assessment")return createAcademyReviewProof({userId:reviewUser.id,purpose:"academy_assessment",moduleIndex,lessonSlug:null,score});
+      if(purpose==="standalone"&&lessonSlug)return createAcademyReviewProof({userId:reviewUser.id,purpose:"lesson",moduleIndex:null,lessonSlug,score});
+      return null;
+    };
+    const requiresVerifiedReview=purpose==="academy_assessment"||Boolean(lessonSlug);
+
     if (!frames.length) {
       return NextResponse.json({ error: "Добавьте кадры из видео." }, { status: 400 });
     }
 
     if (!process.env.OPENAI_API_KEY) {
+      if(requiresVerifiedReview){
+        return NextResponse.json({error:"ИИ-проверка учебной работы временно недоступна. Прогресс не будет засчитан по тестовому ответу."},{status:503});
+      }
+      const review=demoReview(frames);
       return NextResponse.json({
         demo: true,
-        review: demoReview(frames),
+        review,
       });
     }
 
@@ -182,6 +200,9 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       const detail = await response.text();
       console.error("Video review OpenAI error", response.status, detail);
+      if(requiresVerifiedReview){
+        return NextResponse.json({error:"ИИ-проверка не завершилась. Повтори разбор чуть позже — тестовая оценка не засчитывается."},{status:502});
+      }
       const fallback=demoReview(frames);
       const technical=technicalReview(width,height,duration);
       fallback.format_score=technical.format_score;
@@ -190,7 +211,7 @@ export async function POST(req: NextRequest) {
         demo:true,
         degraded:true,
         upstreamStatus:response.status,
-        review:fallback
+        review:fallback,
       });
     }
 
@@ -214,6 +235,7 @@ export async function POST(req: NextRequest) {
       demo: false,
       model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
       review,
+      reviewProof:reviewProof(review),
     });
   } catch (error) {
     console.error("Video review route error", error);

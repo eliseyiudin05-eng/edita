@@ -49,8 +49,9 @@ export async function POST(req:NextRequest){
   const level=String(body?.level||"").slice(0,80);
   const software=String(body?.software||"").slice(0,80);
   const goal=String(body?.goal||"").slice(0,80);
+  const operatingSystem=String(body?.operatingSystem||"").slice(0,80);
 
-  if(token){
+  if(token&&!operatingSystem){
     const canary=await tryLearningPreferencesUpdateCanary(token,{level,software,goal});
     if(canary)return NextResponse.json(canary,{headers:{"Cache-Control":"no-store"}});
   }
@@ -59,7 +60,7 @@ export async function POST(req:NextRequest){
   if(!profile)return NextResponse.json({error:"Профиль отсутствует."},{status:404});
   if(profile.role!=="editor")return NextResponse.json({error:"Эти настройки доступны только монтажёру."},{status:403});
 
-  const onboarding={...(profile.onboarding||{}),level,software,goal};
+  const onboarding={...(profile.onboarding||{}),level,software,goal,...(operatingSystem?{operatingSystem}:{})};
   const {error}=await service.from("profiles").update({onboarding}).eq("id",user.id);
   if(error)return NextResponse.json({error:error.message},{status:500});
   return NextResponse.json({ok:true,onboarding},{headers:{"Cache-Control":"no-store"}});

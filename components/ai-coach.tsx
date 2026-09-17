@@ -8,6 +8,7 @@ import {extractVideoFrames} from "@/lib/video-frames";
 type CoachContext={
   level?:string;
   editor?:string;
+  operatingSystem?:string;
   goal?:string;
   role?:string|null;
   xp?:number;
@@ -99,6 +100,11 @@ export default function AiCoach({scopeKey,title="Помощник KIVRONIX",welc
     if(textareaRef.current)textareaRef.current.style.height="auto";
     try{
       const attachment=file?await prepareAttachment(file):null;
+      let preferenceContext:CoachContext={};
+      try{
+        const saved=JSON.parse(localStorage.getItem("kivronix_onboarding")||"{}");
+        if(saved&&typeof saved==="object")preferenceContext={editor:saved.software,operatingSystem:saved.operatingSystem,level:saved.level,goal:saved.goal};
+      }catch{}
       const supabase=getSupabaseBrowserClient();
       const {data:{session}}=await supabase.auth.getSession();
       const headers:Record<string,string>={"Content-Type":"application/json"};
@@ -108,7 +114,7 @@ export default function AiCoach({scopeKey,title="Помощник KIVRONIX",welc
         headers,
         body:JSON.stringify({
           message:question,
-          context:{...context,scopeKey},
+          context:{...context,...preferenceContext,scopeKey},
           history:messages.slice(-12),
           attachment
         })

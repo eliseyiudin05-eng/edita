@@ -12,7 +12,8 @@ export default function EditorSignup(){
   const [email,setEmail]=useState("");
   const [password,setPassword]=useState("");
   const [ageGroup,setAgeGroup]=useState<Age>("18+");
-  const [software,setSoftware]=useState("CapCut");
+  const [software,setSoftware]=useState("CapCut Desktop");
+  const [operatingSystem,setOperatingSystem]=useState("Windows");
   const [level,setLevel]=useState("new");
   const [goal,setGoal]=useState("freelance");
   const [motivation,setMotivation]=useState("");
@@ -35,7 +36,7 @@ export default function EditorSignup(){
     if(!acceptTerms||!acceptPersonalData){setMessage("Нужно принять условия и отдельно согласиться на обработку персональных данных.");return;}
     if(motivation.trim().length<5){setMessage("Напиши несколькими словами, почему хочешь стать монтажёром.");return;}
     setLoading(true);setMessage("");
-    const onboarding={role:"editor",ageGroup,software,level,goal,motivation:motivation.trim(),schoolName:schoolName.trim()||undefined};
+    const onboarding={role:"editor",ageGroup,software,operatingSystem,level,goal,motivation:motivation.trim(),schoolName:schoolName.trim()||undefined};
     localStorage.setItem("kivronix_onboarding",JSON.stringify(onboarding));
     const r=await fetch("/api/auth/signup",{
       method:"POST",
@@ -91,9 +92,15 @@ export default function EditorSignup(){
       <small className="field-hint">Сохраним только в твоём аккаунте. Включить школу в командный рейтинг можно потом в профиле. Класс, адрес и другие личные данные оставь за пределами формы.</small>
 
       <label className="field-label">В какой программе монтируешь?</label>
-      <select value={software} onChange={e=>setSoftware(e.target.value)}>
-        <option>CapCut</option><option>Premiere Pro</option><option>DaVinci Resolve</option><option>Final Cut</option>
+      <select value={software} onChange={e=>{const value=e.target.value;setSoftware(value);if(value==="Final Cut Pro")setOperatingSystem("macOS")}}>
+        <option>CapCut Desktop</option><option>Adobe Premiere Pro</option><option>DaVinci Resolve</option><option>Final Cut Pro</option>
       </select>
+
+      <label className="field-label">Операционная система</label>
+      <select value={operatingSystem} disabled={software==="Final Cut Pro"} onChange={e=>setOperatingSystem(e.target.value)}>
+        <option>Windows</option><option>macOS</option>
+      </select>
+      {software==="Final Cut Pro"?<small className="field-hint">Final Cut Pro работает на macOS, поэтому система выбрана автоматически.</small>:null}
 
       <label className="field-label">Твой уровень</label>
       <select value={level} onChange={e=>setLevel(e.target.value)}>
@@ -102,7 +109,7 @@ export default function EditorSignup(){
 
       <label className="field-label">Главная цель</label>
       <select value={goal} onChange={e=>setGoal(e.target.value)}>
-        <option value="freelance">Найти первые заказы</option><option value="reels">Делать короткие вертикальные ролики</option><option value="youtube">Монтировать видео для YouTube</option><option value="career">Развиваться как монтажёр</option>
+        <option value="freelance">Найти первые заказы</option><option value="reels">Делать короткие вертикальные ролики</option><option value="commercial">Делать видео для брендов и экспертов</option><option value="career">Развиваться как монтажёр</option>
       </select>
 
       <label className="field-label">Почему ты хочешь стать монтажёром?</label>
