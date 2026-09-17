@@ -69,14 +69,14 @@ export default async function Home(){
         <div>
           <div className="eyebrow">ВСЁ О ВИДЕОМОНТАЖЕ В ОДНОМ МЕСТЕ</div>
           <h1 className="structured-title">Научись монтировать<span>Или найди профессионала</span></h1>
-          <p className="hero-copy"><strong>KIVRONIX объединяет обучение видеомонтажу и профессиональный рынок исполнителей.</strong> Новички осваивают профессию с нуля и собирают первые работы, а опытные монтажёры приходят за новыми проектами. Компания может сравнить навыки, портфолио и результаты реальных заданий, чтобы выбрать специалиста нужного уровня.</p>
+          <p className="hero-copy"><strong>KIVRONIX — обучение видеомонтажу с 14 лет и поиск монтажёров для блогеров и компаний.</strong> Новички осваивают профессию с нуля и собирают первые работы, а опытные монтажёры приходят за новыми проектами. Компания может сравнить навыки, портфолио и результаты реальных заданий, чтобы выбрать специалиста нужного уровня.</p>
           <div className="hero-actions">
             <Link className="btn btn-primary" href="/signup/editor">Хочу научиться монтажу</Link>
             <Link className="btn btn-ghost" href="/signup/business">Найти монтажёра</Link>
           </div>
           <div className="simple-proof">
             <span>{curriculumStats.lessons} уроков и {curriculumStats.assignments} заданий</span>
-            <span>Новички и профессионалы</span>
+            <span>Обучение с 14 лет</span>
             <span>Основные функции бесплатно</span>
           </div>
         </div>
