@@ -73,13 +73,13 @@ export const metadata: Metadata = {
     siteName:"KIVRONIX",
     locale:"ru_RU",
     type:"website",
-    images:[{url:"/images/kivronix-frog-mark.png",width:384,height:384,alt:"Логотип KIVRONIX — лягушка с символом видео"}],
+    images:[{url:"/share/opengraph-image?v=30",width:1200,height:630,alt:"KIVRONIX — обучение видеомонтажу, профессиональный рост и поиск монтажёров"}],
   },
   twitter:{
     card:"summary_large_image",
     title:siteTitle,
     description:siteDescription,
-    images:["/images/kivronix-frog-mark.png"],
+    images:["/share/opengraph-image?v=30"],
   },
   icons:{
     icon:[
@@ -91,7 +91,7 @@ export const metadata: Metadata = {
   },
   verification:{
     google:"ZLKhQUkAlr1PwVmsfQL6_Bx3IFIBvbbIjZHSaZh26uI",
-    yandex:"189ef5499fda2b5d",
+    yandex:"a7686ed26c978920",
   },
   appleWebApp:{capable:true,title:"KIVRONIX",statusBarStyle:"black-translucent"},
   robots:{index:true,follow:true,googleBot:{index:true,follow:true}},
