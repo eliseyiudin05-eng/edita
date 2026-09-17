@@ -30,10 +30,14 @@ type Message struct {
 }
 
 type Result struct {
-	ClientReply  string  `json:"client_reply"`
-	Score        float64 `json:"score"`
-	Feedback     string  `json:"feedback"`
-	BetterAnswer string  `json:"better_answer"`
+	ClientReply  string         `json:"client_reply"`
+	Score        float64        `json:"score"`
+	Feedback     string         `json:"feedback"`
+	BetterAnswer string         `json:"better_answer,omitempty"`
+	CoachHint    string         `json:"coach_hint,omitempty"`
+	DealStatus   string         `json:"deal_status,omitempty"`
+	DealReason   string         `json:"deal_reason,omitempty"`
+	ScenarioMeta map[string]any `json:"scenario_meta,omitempty"`
 }
 
 type Session struct {
@@ -97,6 +101,9 @@ func ValidSession(value Session) bool {
 	return utf8.RuneCountInString(value.Result.ClientReply) <= 2000 &&
 		utf8.RuneCountInString(value.Result.Feedback) <= 3000 &&
 		utf8.RuneCountInString(value.Result.BetterAnswer) <= 3000 &&
+		utf8.RuneCountInString(value.Result.CoachHint) <= 3000 &&
+		utf8.RuneCountInString(value.Result.DealReason) <= 2000 &&
+		(value.Result.DealStatus == "" || value.Result.DealStatus == "ongoing" || value.Result.DealStatus == "won" || value.Result.DealStatus == "lost") &&
 		!math.IsNaN(value.Result.Score) && !math.IsInf(value.Result.Score, 0) && value.Result.Score >= 0 && value.Result.Score <= 100
 }
 

@@ -1,61 +1,170 @@
 "use client";
 
-import {useMemo,useState} from "react";
+import Link from "next/link";
+import {useEffect,useMemo,useState} from "react";
+import {academyAssessmentConfig} from "@/lib/academy-assessment";
 import {extractVideoFrames} from "@/lib/video-frames";
 import {getFreshAccessToken} from "@/lib/supabase-browser";
+import {curriculumModules} from "@/lib/curriculum";
 
-const quizzes=[
-  {question:"Что важнее проверить перед эффектами?",answers:["Темп и понятность истории","Количество переходов","Название программы"],correct:0},
-  {question:"Как понять, что первые секунды работают?",answers:["Зрителю сразу ясны тема и причина смотреть","В начале стоит длинная заставка","Музыка громче речи"],correct:0},
-  {question:"Как передавать правки монтажёру?",answers:["Одним списком с приоритетами и таймкодами","Отдельными сообщениями весь день","Только словами «сделай лучше»"],correct:0},
-  {question:"Что помогает оценить рост навыка?",answers:["Одинаковые критерии для нескольких работ","Один случайный комментарий","Число установленных эффектов"],correct:0},
-  {question:"Что нужно сделать перед экспортом?",answers:["Проверить начало, звук, субтитры и формат","Удалить исходники","Добавить ещё один переход"],correct:0}
-];
+type Review={
+  name:string;
+  overall_score:number;
+  hook_score:number;
+  pacing_score:number;
+  subtitles_score:number;
+  visual_variety_score:number;
+  brief_match_score:number;
+  format_score:number;
+  summary:string;
+  strengths:string[];
+  next_steps:string[];
+};
 
-type Result={name:string;score:number;summary:string;steps:string[]};
+export default function AcademyAssessment({moduleIndex,moduleName,final=false}:{moduleIndex:number;moduleName:string;final?:boolean}){
+  const config=useMemo(()=>academyAssessmentConfig(moduleIndex),[moduleIndex]);
+  const [files,setFiles]=useState<File[]>([]);
+  const [answers,setAnswers]=useState<Record<number,number>>({});
+  const [results,setResults]=useState<Review[]>([]);
+  const [busy,setBusy]=useState(false);
+  const [message,setMessage]=useState("");
+  const [passed,setPassed]=useState(false);
+  const [checking,setChecking]=useState(true);
+  const average=results.length?Math.round(results.reduce((sum,item)=>sum+item.overall_score,0)/results.length):0;
+  const nextLessonSlug=curriculumModules[moduleIndex+1]?.lessons[0]?.slug||null;
 
-export default function AcademyAssessment({moduleIndex,moduleName,final=false,passed,onPassed}:{moduleIndex:number;moduleName:string;final?:boolean;passed:boolean;onPassed:(result:{score:number;quizScore:number})=>Promise<void>}){
-  const required=final?5:3;
-  const threshold=final?85:Math.min(85,60+moduleIndex*5);
-  const questions=useMemo(()=>quizzes.slice(0,final?5:3),[final]);
-  const [files,setFiles]=useState<File[]>([]),[answers,setAnswers]=useState<Record<number,number>>({}),[results,setResults]=useState<Result[]>([]);
-  const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
-  const quizScore=Math.round(questions.filter((q,index)=>answers[index]===q.correct).length/questions.length*100);
-  const average=results.length?Math.round(results.reduce((sum,item)=>sum+item.score,0)/results.length):0;
+  useEffect(()=>{
+    let active=true;
+    async function load(){
+      try{
+        const token=await getFreshAccessToken();
+        if(!token)return;
+        const response=await fetch("/api/academy/assessments",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
+        const data=await response.json();
+        if(active&&response.ok&&Array.isArray(data.passed))setPassed(data.passed.includes(moduleIndex));
+      }catch{}finally{if(active)setChecking(false)}
+    }
+    void load();
+    return()=>{active=false};
+  },[moduleIndex]);
+
+  function chooseFiles(list:FileList|null){
+    const selected=Array.from(list||[]).filter(file=>file.type.startsWith("video/")).slice(0,config.requiredVideos);
+    setFiles(selected);
+    setResults([]);
+    setMessage(selected.length?`${selected.length} из ${config.requiredVideos} видео готовы к проверке.`:"");
+  }
 
   async function review(){
-    if(files.length!==required){setMessage(`Добавь ${required} ${required===5?"работ":"работы"}.`);return}
-    if(Object.keys(answers).length!==questions.length){setMessage("Ответь на все вопросы мини‑теста.");return}
+    if(files.length!==config.requiredVideos){setMessage(`Для этой ступени добавь ${config.requiredVideos} ${videoWord(config.requiredVideos)}.`);return}
+    if(Object.keys(answers).length!==config.questions.length){setMessage("Ответь на все вопросы проверки знаний.");return}
     setBusy(true);setMessage("");setResults([]);
     try{
       const accessToken=await getFreshAccessToken();
       if(!accessToken)throw new Error("Войди в аккаунт, чтобы ИИ оценил работы.");
-      const reviewed:Result[]=[];
+      const reviewed:Review[]=[];
       for(let index=0;index<files.length;index++){
-        setMessage(`AI разбирает работу ${index+1} из ${required}…`);
-        const extracted=await extractVideoFrames(files[index],7);
-        const response=await fetch("/api/ai/video-review",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+accessToken},body:JSON.stringify({frames:extracted.frames,duration:extracted.duration,width:extracted.width,height:extracted.height,filename:files[index].name,brief:`Аттестация ступени «${moduleName}». Оцени готовность перейти дальше.`,purpose:"standalone"})});
+        setMessage(`ИИ изучает видео ${index+1} из ${config.requiredVideos}: выбирает кадры и сверяет критерии…`);
+        const extracted=await extractVideoFrames(files[index],8);
+        const response=await fetch("/api/ai/video-review",{
+          method:"POST",
+          headers:{"Content-Type":"application/json",Authorization:"Bearer "+accessToken},
+          body:JSON.stringify({
+            frames:extracted.frames,
+            duration:extracted.duration,
+            width:extracted.width,
+            height:extracted.height,
+            filename:files[index].name,
+            brief:`Аттестация ступени «${moduleName}». Задание: ${config.task} Критерии: ${config.criteria.join(", ")}.`,
+            purpose:"academy_assessment",
+            moduleIndex,
+            difficulty:config.difficulty,
+          })
+        });
         const data=await response.json();
-        if(!response.ok)throw new Error(data?.error||"Одна из работ пока не разобрана.");
-        reviewed.push({name:files[index].name,score:Number(data.review?.overall_score||0),summary:String(data.review?.summary||"Разбор готов."),steps:Array.isArray(data.review?.next_steps)?data.review.next_steps.slice(0,2):[]});
+        if(!response.ok||!data.review)throw new Error(data?.error||"Одна из работ пока не разобрана.");
+        const item:Review={name:files[index].name,...data.review};
+        reviewed.push(item);
         setResults([...reviewed]);
       }
-      const workAverage=Math.round(reviewed.reduce((sum,item)=>sum+item.score,0)/reviewed.length);
-      if(workAverage>=threshold&&quizScore>=80){await onPassed({score:workAverage,quizScore});setMessage(final?"Экзамен сдан. Путь академии завершён — ты готов к сложным проектам.":"Ступень пройдена. Следующий уровень открыт.")}
-      else setMessage(`Пока нужно усилить работы: средний балл ${workAverage}/${threshold}, тест ${quizScore}/80. Исправь подсказки AI и отправь версии ещё раз.`);
+      const response=await fetch("/api/academy/assessments",{
+        method:"POST",
+        headers:{"Content-Type":"application/json",Authorization:"Bearer "+accessToken},
+        body:JSON.stringify({
+          moduleIndex,
+          moduleName,
+          final,
+          answers:config.questions.map((_,index)=>answers[index]),
+          videoCount:reviewed.length,
+          reviews:reviewed.map(item=>({overall_score:item.overall_score})),
+        })
+      });
+      const data=await response.json();
+      if(!response.ok)throw new Error(data?.error||"Аттестация пока не пройдена.");
+      setPassed(true);
+      try{
+        const saved=JSON.parse(localStorage.getItem("kivronix_academy_assessments")||"[]");
+        const next=Array.isArray(saved)&&saved.includes(moduleIndex)?saved:[...(Array.isArray(saved)?saved:[]),moduleIndex];
+        localStorage.setItem("kivronix_academy_assessments",JSON.stringify(next));
+      }catch{}
+      setMessage(final?"Финальная аттестация пройдена. Полный маршрут завершён.":"Аттестация пройдена. Следующий блок обучения открыт.");
     }catch(error){setMessage(error instanceof Error?error.message:"Не удалось провести аттестацию.")}
     finally{setBusy(false)}
   }
 
-  return <section className={"academy-assessment "+(passed?"passed":"")}>
-    <header><div><div className="eyebrow">{final?"ФИНАЛЬНЫЙ ЭКЗАМЕН":"ПЕРЕХОД НА СЛЕДУЮЩУЮ СТУПЕНЬ"}</div><h3>{final?"5 работ + общий тест":"3 работы + мини‑тест"}</h3><p>{passed?"Аттестация пройдена и сохранена в профиле.":`ИИ оценит каждую работу по шкале 1–100. Проходной балл — ${threshold}, тест — от 80.`}</p></div><div className="assessment-threshold"><strong>{threshold}</strong><span>минимум</span></div></header>
-    {passed?<div className="assessment-passed">✓ Уровень подтверждён</div>:<>
-      <label className="styled-file-control"><span>＋ Добавить {required} {required===5?"работ":"работы"}</span><small>{files.length} / {required} · MP4, MOV или WebM</small><input type="file" accept="video/mp4,video/quicktime,video/webm,video/*" multiple onChange={event=>setFiles(Array.from(event.target.files||[]).slice(0,required))}/></label>
-      <div className="assessment-files">{files.map(file=><span key={file.name}>{file.name}</span>)}</div>
-      <div className="assessment-quiz">{questions.map((item,index)=><fieldset key={item.question}><legend>{index+1}. {item.question}</legend>{item.answers.map((answer,answerIndex)=><label key={answer}><input type="radio" name={`assessment-${moduleIndex}-${index}`} checked={answers[index]===answerIndex} onChange={()=>setAnswers(current=>({...current,[index]:answerIndex}))}/><span>{answer}</span></label>)}</fieldset>)}</div>
-      <button className="btn btn-dark" type="button" disabled={busy} onClick={()=>void review()}>{busy?"AI проверяет работы…":final?"Сдать финальный экзамен":"Проверить и открыть уровень"}</button>
-    </>}
-    {results.length?<div className="assessment-results">{results.map(result=><article key={result.name}><div><b>{result.name}</b><strong>{result.score}/100</strong></div><p>{result.summary}</p>{result.steps.map(step=><span key={step}>→ {step}</span>)}</article>)}</div>:null}
-    {message?<div className="auth-msg">{message}</div>:null}
+  if(checking)return <section className="assessment-loading"><span className="assessment-ai-orb">✦</span><b>Проверяем прогресс аттестации…</b></section>;
+
+  if(passed)return <section className="assessment-success">
+    <div className="assessment-success-mark">✓</div>
+    <div><div className="eyebrow">УРОВЕНЬ ПОДТВЕРЖДЁН</div><h1>{final?"Маршрут завершён":"Следующий блок уже открыт"}</h1><p>{final?"Ты прошёл финальную проверку знаний и работ. Можно возвращаться к урокам и усиливать портфолио.":"Результат сохранён в профиле. Возвращайся в Академию — уроки следующей ступени уже доступны."}</p>{results.length?<b>Средняя ИИ‑оценка: {average}/100</b>:null}</div>
+    <Link className="btn btn-lime" href={final||!nextLessonSlug?"/platform#academy":"/academy/"+nextLessonSlug}>{final?"Вернуться в Академию":"Открыть первый урок следующего блока →"}</Link>
   </section>;
+
+  return <div className="assessment-workspace">
+    <section className="assessment-hero-panel">
+      <div><div className="eyebrow">АТТЕСТАЦИЯ · СТУПЕНЬ {moduleIndex+1}</div><h1>{moduleName}</h1><p>{config.task}</p><div className="assessment-criteria">{config.criteria.map(item=><span key={item}>✓ {item}</span>)}</div></div>
+      <div className="assessment-threshold-large"><strong>{config.threshold}</strong><span>проходной балл</span><small>{config.difficulty}</small></div>
+    </section>
+
+    <div className="assessment-progress-row">
+      <span className={files.length===config.requiredVideos?"done":"active"}><b>1</b>Добавь видео</span>
+      <span className={Object.keys(answers).length===config.questions.length?"done":files.length===config.requiredVideos?"active":""}><b>2</b>Ответь на вопросы</span>
+      <span className={results.length?"active":""}><b>3</b>Получи ИИ-разбор</span>
+      <span><b>4</b>Открой блок</span>
+    </div>
+
+    <div className="assessment-main-grid">
+      <div className="assessment-primary-column">
+        <section className="assessment-panel">
+          <header><div><div className="eyebrow">РАБОТЫ ДЛЯ ПРОВЕРКИ</div><h2>{config.requiredVideos} {videoWord(config.requiredVideos)} по сложности ступени</h2></div><span>{files.length}/{config.requiredVideos}</span></header>
+          <p className="assessment-privacy">Полное видео остаётся на устройстве. Для ИИ-проверки браузер отправит только 8 ключевых кадров, длительность и размер.</p>
+          <label className="assessment-dropzone">
+            <span className="assessment-upload-icon">↥</span>
+            <b>{files.length?"Заменить выбранные видео":"Выбрать видео"}</b>
+            <small>MP4, MOV или WebM · одновременно до {config.requiredVideos}</small>
+            <input type="file" accept="video/mp4,video/quicktime,video/webm,video/*" multiple={config.requiredVideos>1} onChange={event=>chooseFiles(event.target.files)}/>
+          </label>
+          {files.length?<div className="assessment-file-list">{files.map((file,index)=><article key={`${file.name}-${file.lastModified}`}><span>{index+1}</span><div><b>{file.name}</b><small>{formatBytes(file.size)}</small></div><button type="button" aria-label={`Убрать ${file.name}`} onClick={()=>{setFiles(current=>current.filter((_,itemIndex)=>itemIndex!==index));setResults([])}}>×</button></article>)}</div>:null}
+        </section>
+
+        <section className="assessment-panel assessment-quiz-light">
+          <div className="eyebrow">ПРОВЕРКА ЗНАНИЙ</div><h2>Три коротких вопроса</h2><p>Нужно набрать минимум {config.quizThreshold} баллов. Ответы относятся к урокам этой ступени.</p>
+          <div className="assessment-question-list">{config.questions.map((item,index)=><fieldset key={item.question}><legend><span>{index+1}</span>{item.question}</legend>{item.answers.map((answer,answerIndex)=><label className={answers[index]===answerIndex?"selected":""} key={answer}><input type="radio" name={`assessment-${moduleIndex}-${index}`} checked={answers[index]===answerIndex} onChange={()=>setAnswers(current=>({...current,[index]:answerIndex}))}/><span>{answer}</span></label>)}</fieldset>)}</div>
+        </section>
+
+        <button className="assessment-submit" type="button" disabled={busy} onClick={()=>void review()}><span>{busy?"✦":"→"}</span><div><b>{busy?"ИИ проводит аттестацию…":"Проверить работы и открыть следующий блок"}</b><small>{busy?"Можно оставаться на странице — результаты появятся ниже.":`Видео: ${files.length}/${config.requiredVideos} · тест: ${Object.keys(answers).length}/${config.questions.length}`}</small></div></button>
+        {message?<div className="assessment-message">{message}</div>:null}
+      </div>
+
+      <aside className="assessment-ai-column">
+        <section className="assessment-ai-card"><span className="assessment-ai-orb">✦</span><div><div className="eyebrow">ИИ-ЭКСПЕРТ KIVRONIX</div><h3>Проверка по твоему уровню</h3><p>ИИ сравнит каждую работу с критериями ступени, отметит сильные стороны и даст конкретные действия для роста.</p></div><dl><div><dt>Сложность</dt><dd>{config.difficulty}</dd></div><div><dt>Видео</dt><dd>{config.requiredVideos}</dd></div><div><dt>Проходной балл</dt><dd>{config.threshold}/100</dd></div><div><dt>Мини‑тест</dt><dd>{config.quizThreshold}/100</dd></div></dl></section>
+        {results.length?<section className="assessment-live-score"><div><span>Средний балл</span><strong>{average}</strong></div><div className="assessment-score-bar"><i style={{width:`${average}%`}}/></div><small>{average>=config.threshold?"Баллов достаточно. Проверяем тест и сохраняем результат.":`До проходного уровня: ${Math.max(0,config.threshold-average)} баллов.`}</small></section>:null}
+      </aside>
+    </div>
+
+    {results.length?<section className="assessment-review-results"><header><div className="eyebrow">РЕЗУЛЬТАТЫ ИИ-ПРОВЕРКИ</div><h2>Разбор каждой работы</h2></header><div>{results.map(result=><article key={result.name}><header><div><small>{result.name}</small><h3>{result.summary}</h3></div><strong>{result.overall_score}<span>/100</span></strong></header><div className="assessment-mini-scores"><span>Начало <b>{result.hook_score}</b></span><span>Темп <b>{result.pacing_score}</b></span><span>Субтитры <b>{result.subtitles_score}</b></span><span>Задание <b>{result.brief_match_score}</b></span></div>{result.strengths?.length?<p><b>Уже хорошо:</b> {result.strengths.slice(0,2).join(" · ")}</p>:null}{result.next_steps?.length?<ol>{result.next_steps.slice(0,3).map(step=><li key={step}>{step}</li>)}</ol>:null}</article>)}</div></section>:null}
+  </div>;
 }
+
+function videoWord(value:number){return value===1?"ролик":"ролика"}
+function formatBytes(value:number){return value>=1024*1024?`${(value/1024/1024).toFixed(1)} МБ`:`${Math.max(1,Math.round(value/1024))} КБ`}

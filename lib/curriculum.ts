@@ -483,6 +483,59 @@ export const curriculumModules=Array.from(new Set(curriculum.map((lesson)=>lesso
   lessons:curriculum.filter((lesson)=>lesson.module===module)
 }));
 
+export type LessonAccess={
+  unlocked:boolean;
+  reason:"available"|"completed"|"sequence"|"assessment"|"before-start"|"missing";
+};
+
+export function lessonAccess(slug:string,completedSlugs:string[],passedAssessments:number[],level:unknown):LessonAccess{
+  const lessonIndex=curriculum.findIndex(item=>item.slug===slug);
+  if(lessonIndex<0)return {unlocked:false,reason:"missing"};
+
+  const completed=new Set(completedSlugs);
+  if(completed.has(slug))return {unlocked:true,reason:"completed"};
+
+  const normalizedLevel=normalizeExperienceLevel(level);
+  if(normalizedLevel==="pro")return {unlocked:true,reason:"available"};
+
+  const startIndex=learningStartIndex(level);
+  const startModuleIndex=Math.max(0,curriculumModules.findIndex(group=>group.lessons.some(item=>item.slug===curriculum[startIndex]?.slug)));
+  const lessonModuleIndex=curriculumModules.findIndex(group=>group.module===curriculum[lessonIndex]?.module);
+  if(lessonModuleIndex<=startModuleIndex)return {unlocked:true,reason:"available"};
+
+  const missingAssessment=Array.from(
+    {length:lessonModuleIndex-startModuleIndex},
+    (_,offset)=>startModuleIndex+offset,
+  ).some(moduleIndex=>!passedAssessments.includes(moduleIndex));
+  if(missingAssessment){
+    return {unlocked:false,reason:"assessment"};
+  }
+
+  return {unlocked:true,reason:"available"};
+}
+
+export function nextAvailableLesson(completedSlugs:string[],passedAssessments:number[],level:unknown){
+  const startIndex=learningStartIndex(level);
+  return curriculum.slice(startIndex).find(lesson=>{
+    if(completedSlugs.includes(lesson.slug))return false;
+    return lessonAccess(lesson.slug,completedSlugs,passedAssessments,level).unlocked;
+  });
+}
+
+export function assessmentRequiredLessons(moduleIndex:number,level:unknown){
+  const group=curriculumModules[moduleIndex];
+  if(!group)return [];
+
+  const startIndex=learningStartIndex(level);
+  const startLesson=curriculum[startIndex];
+  const startModuleIndex=curriculumModules.findIndex(item=>item.module===startLesson?.module);
+  if(moduleIndex<startModuleIndex)return [];
+  if(moduleIndex>startModuleIndex)return group.lessons;
+
+  const firstRequiredIndex=group.lessons.findIndex(item=>item.slug===startLesson?.slug);
+  return firstRequiredIndex>=0?group.lessons.slice(firstRequiredIndex):group.lessons;
+}
+
 export const curriculumStats={
   lessons:curriculum.length,
   minutes:curriculum.reduce((total,lesson)=>total+lesson.minutes,0),

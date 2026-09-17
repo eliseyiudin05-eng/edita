@@ -1,5 +1,14 @@
 export type PracticeMessage={from:"client"|"user";text:string};
-export type PracticeResult={client_reply:string;score:number;feedback:string;better_answer:string};
+export type PracticeResult={
+  client_reply:string;
+  score:number;
+  feedback:string;
+  better_answer?:string;
+  coach_hint?:string;
+  deal_status?:"ongoing"|"won"|"lost";
+  deal_reason?:string;
+  scenario_meta?:Record<string,unknown>|null;
+};
 export type StoredPracticeSession={scenario:string;messages:PracticeMessage[];result:PracticeResult|null;updated_at:string};
 export type PracticeSessionResponse={session:StoredPracticeSession|null};
 
@@ -34,8 +43,20 @@ export function normalizePracticeSessionResponse(value:unknown):PracticeSessionR
     if(typeof candidate.client_reply!=="string"||Array.from(candidate.client_reply).length>2000||
       typeof candidate.score!=="number"||!Number.isFinite(candidate.score)||candidate.score<0||candidate.score>100||
       typeof candidate.feedback!=="string"||Array.from(candidate.feedback).length>3000||
-      typeof candidate.better_answer!=="string"||Array.from(candidate.better_answer).length>3000)return null;
-    result={client_reply:candidate.client_reply,score:candidate.score,feedback:candidate.feedback,better_answer:candidate.better_answer};
+      (candidate.better_answer!=null&&(typeof candidate.better_answer!=="string"||Array.from(candidate.better_answer).length>3000))||
+      (candidate.coach_hint!=null&&(typeof candidate.coach_hint!=="string"||Array.from(candidate.coach_hint).length>3000))||
+      (candidate.deal_reason!=null&&(typeof candidate.deal_reason!=="string"||Array.from(candidate.deal_reason).length>2000))||
+      (candidate.deal_status!=null&&!(["ongoing","won","lost"] as unknown[]).includes(candidate.deal_status)))return null;
+    result={
+      client_reply:candidate.client_reply,
+      score:candidate.score,
+      feedback:candidate.feedback,
+      ...(typeof candidate.better_answer==="string"?{better_answer:candidate.better_answer}:{}),
+      ...(typeof candidate.coach_hint==="string"?{coach_hint:candidate.coach_hint}:{}),
+      ...(typeof candidate.deal_status==="string"?{deal_status:candidate.deal_status as "ongoing"|"won"|"lost"}:{}),
+      ...(typeof candidate.deal_reason==="string"?{deal_reason:candidate.deal_reason}:{}),
+      ...(candidate.scenario_meta&&typeof candidate.scenario_meta==="object"&&!Array.isArray(candidate.scenario_meta)?{scenario_meta:candidate.scenario_meta as Record<string,unknown>}:{})
+    };
   }
   if(typeof row.updated_at!=="string"||!row.updated_at||!Number.isFinite(Date.parse(row.updated_at)))return null;
   return {session:{scenario:row.scenario,messages,result,updated_at:row.updated_at}};

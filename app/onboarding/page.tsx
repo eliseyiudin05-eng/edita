@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {useEffect,useMemo,useState} from "react";
 import {getSupabaseBrowserClient} from "@/lib/supabase-browser";
+import {extractVideoFrames} from "@/lib/video-frames";
 
 type State={
   level:string;
@@ -17,6 +18,9 @@ export default function OnboardingPage(){
   const [state,setState]=useState<State>(defaults);
   const [saving,setSaving]=useState(false);
   const [role,setRole]=useState<string|null>(null);
+  const [assessment,setAssessment]=useState<{level:string;label:string;score:number;summary:string}|null>(null);
+  const [assessing,setAssessing]=useState(false);
+  const [assessmentError,setAssessmentError]=useState("");
   const progress=useMemo(()=>((step+1)/3)*100,[step]);
 
   useEffect(()=>{
@@ -66,6 +70,24 @@ export default function OnboardingPage(){
     }
   }
 
+  async function assessLevel(file:File){
+    setAssessing(true);setAssessmentError("");setAssessment(null);
+    try{
+      const supabase=getSupabaseBrowserClient();
+      const {data:{session}}=await supabase.auth.getSession();
+      if(!session?.access_token)throw new Error("Войди в аккаунт, чтобы пройти оценку.");
+      const video=await extractVideoFrames(file,8);
+      const response=await fetch("/api/ai/video-review",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify({...video,brief:"Входная диагностика монтажёра. Оцени реальный уровень работы по композиции, темпу, титрам и визуальной логике. Рекомендуй подходящую стартовую ступень обучения."})});
+      const data=await response.json();
+      if(!response.ok)throw new Error(data?.error||"Не удалось оценить видео.");
+      const score=Number(data.review?.overall_score||0);
+      const level=score>=85?"pro":score>=70?"intermediate":score>=50?"beginner":"new";
+      const label={new:"С нуля",beginner:"Начинающий",intermediate:"Уверенный",pro:"Работаю регулярно"}[level];
+      setAssessment({level,label,score,summary:String(data.review?.summary||"")});
+    }catch(error){setAssessmentError(error instanceof Error?error.message:"Не удалось оценить видео.")}
+    finally{setAssessing(false)}
+  }
+
   if(role==="business"){
     return <main className="onboarding-page"><section className="onboarding-card">
       <Link href="/" className="brand">KIVRONIX<span>.</span></Link>
@@ -89,6 +111,7 @@ export default function OnboardingPage(){
         ["intermediate","Уверенный","Уже есть свои работы или первые клиенты."],
         ["pro","Работаю регулярно","Хочу улучшать качество и брать более сильные проекты."]
       ].map(([v,t,d])=><Choice key={v} active={state.level===v} title={t} text={d} onClick={()=>setState({...state,level:v})}/>)}
+      {state.level==="pro"?<div className="ai-level-check"><div><b>Проверь уровень по своей работе</b><p>Добавь готовый ролик. ИИ посмотрит ключевые кадры, оценит монтаж и посоветует честную стартовую ступень.</p></div><label className="styled-file-control"><span>{assessing?"ИИ анализирует ролик…":"Выбрать видео для оценки"}</span><small>MP4, MOV или WebM</small><input type="file" accept="video/*" disabled={assessing} onChange={event=>{const file=event.target.files?.[0];if(file)void assessLevel(file)}}/></label>{assessment?<div className="ai-level-result"><strong>{assessment.score}/100 · {assessment.label}</strong><p>{assessment.summary}</p><button type="button" className="btn btn-lime" onClick={()=>setState({...state,level:assessment.level})}>Начать с рекомендованного уровня</button></div>:null}{assessmentError?<small className="auth-msg">{assessmentError}</small>:null}</div>:null}
     </>}
 
     {step===1&&<>

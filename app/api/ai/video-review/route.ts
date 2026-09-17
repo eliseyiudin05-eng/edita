@@ -79,6 +79,21 @@ const BUSINESS_REVIEW_SYSTEM = `
 Пиши по-русски, коротко и по-деловому. Полный файл и звук тебе недоступны, поэтому выводы о них не делай.
 `;
 
+const ACADEMY_REVIEW_SYSTEM = `
+Ты — строгий, доброжелательный экзаменатор Академии KIVRONIX. Ты оцениваешь работу монтажёра на переходе между ступенями.
+
+Сложность, учебное задание и критерии передаются вместе с кадрами. Сравнивай работу именно с указанным уровнем: базовую работу оценивай по фундаменту, уверенную — по истории и качеству, продвинутую — по осознанным решениям и готовности к клиентской задаче.
+
+Правила:
+- оценивай только то, что видно на переданных кадрах и в технических метаданных;
+- звук и плавность между отдельными кадрами называй ограничением анализа, а не установленным фактом;
+- не завышай балл ради поддержки и не занижай его за приёмы, которые ещё не относятся к этой ступени;
+- summary объясняет, готова ли работа к следующему уровню;
+- strengths называют конкретные удачные решения;
+- next_steps содержат 2–4 выполнимых исправления, начиная с самого важного;
+- пиши по-русски, ясно и уважительно.
+`;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -87,7 +102,9 @@ export async function POST(req: NextRequest) {
     const duration = Number(body.duration || 0);
     const width = Number(body.width || 0);
     const height = Number(body.height || 0);
-    const purpose = body.purpose === "arena" ? "arena" : body.purpose === "business_campaign" ? "business_campaign" : "standalone";
+    const purpose = body.purpose === "arena" ? "arena" : body.purpose === "business_campaign" ? "business_campaign" : body.purpose === "academy_assessment" ? "academy_assessment" : "standalone";
+    const moduleIndex=Number.isInteger(Number(body.moduleIndex))?Number(body.moduleIndex):null;
+    const difficulty=typeof body.difficulty==="string"?body.difficulty.slice(0,100):"по текущей ступени";
     const challengeId = typeof body.challengeId === "string" ? body.challengeId : null;
     const bearer=req.headers.get("authorization");
     const accessToken=bearer?.startsWith("Bearer ")?bearer.slice(7):null;
@@ -122,6 +139,7 @@ export async function POST(req: NextRequest) {
           "Разрешение: " + width + "x" + height + ". Соотношение: " + (height ? (width/height).toFixed(3) : "unknown") + ".\n" +
           "Задание: " +
           (brief || "Задание пока пустое.") +
+          (purpose==="academy_assessment"?`\nУчебная ступень: ${moduleIndex==null?"не указана":moduleIndex+1}. Сложность: ${difficulty}.`:"")+
           "\nНиже идут кадры в хронологическом порядке. Оцени только то, что действительно можно вывести из них.",
       },
     ];
@@ -147,7 +165,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
-        instructions: purpose==="business_campaign"?BUSINESS_REVIEW_SYSTEM:SYSTEM,
+        instructions: purpose==="business_campaign"?BUSINESS_REVIEW_SYSTEM:purpose==="academy_assessment"?ACADEMY_REVIEW_SYSTEM:SYSTEM,
         input: [{ role: "user", content }],
         max_output_tokens: 1800,
         text: {

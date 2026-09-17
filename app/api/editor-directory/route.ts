@@ -17,7 +17,7 @@ export async function GET(req:NextRequest){
   if(!current)return NextResponse.json({error:"Войдите в аккаунт."},{status:401});
   if(current.profile.role!=="business")return NextResponse.json({error:"Каталог доступен компаниям и блогерам."},{status:403});
   const [{data:editors,error},{data:portfolio},{data:reviews}]=await Promise.all([
-    current.service.from("public_profiles").select("id,display_name,username,avatar_url,level,xp,ai_score,skills,editor_verification_level,rating_points").order("rating_points",{ascending:false}).limit(100),
+    current.service.from("public_profiles").select("id,display_name,username,avatar_url,level,xp,ai_score,skills,editor_verification_level,rating_points").order("rating_points",{ascending:false}).range(0,999),
     current.service.from("portfolio_items").select("editor_id"),
     current.service.from("editor_reviews").select("editor_id,rating").eq("moderation_status","approved")
   ]);
