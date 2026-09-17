@@ -54,7 +54,7 @@ const fallbackStyles=`
 export const metadata: Metadata = {
   metadataBase:new URL(siteUrl),
   title:{
-    default:"KIVRONIX — видеомонтаж с 14 лет и поиск монтажёров",
+    default:"KIVRONIX — обучение монтажу, профессиональный рост и поиск специалистов",
     template:"%s · KIVRONIX",
   },
   description:siteDescription,
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
   category:"education",
   manifest:"/manifest.webmanifest",
   openGraph:{
-    title:"KIVRONIX — видеомонтаж с 14 лет и поиск монтажёров",
+    title:"KIVRONIX — обучение монтажу, профессиональный рост и поиск специалистов",
     description:siteDescription,
     url:siteUrl,
     siteName:"KIVRONIX",
@@ -76,7 +76,7 @@ export const metadata: Metadata = {
   },
   twitter:{
     card:"summary_large_image",
-    title:"KIVRONIX — видеомонтаж с 14 лет и поиск монтажёров",
+    title:"KIVRONIX — обучение монтажу, профессиональный рост и поиск специалистов",
     description:siteDescription,
     images:["/images/kivronix-frog-mark.png"],
   },
