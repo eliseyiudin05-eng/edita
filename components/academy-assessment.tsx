@@ -122,7 +122,7 @@ export default function AcademyAssessment({moduleIndex,moduleName,final=false}:{
 
   return <div className="assessment-workspace">
     <section className="assessment-hero-panel">
-      <div><div className="eyebrow">АТТЕСТАЦИЯ · СТУПЕНЬ {moduleIndex+1}</div><h1>{moduleName}</h1><p>{config.task}</p><div className="assessment-criteria">{config.criteria.map(item=><span key={item}>✓ {item}</span>)}</div></div>
+      <div><div className="eyebrow">{final?"ВЫПУСК · УРОВЕНЬ PRO":`АТТЕСТАЦИЯ · СТУПЕНЬ ${moduleIndex+1}`}</div><h1>{moduleName}</h1><p>{final?"Финальная проверка объединяет навыки всего маршрута. Покажи лучшие работы и подтверди готовность к самостоятельным проектам.":config.task}</p><div className="assessment-criteria">{config.criteria.map(item=><span key={item}>✓ {item}</span>)}</div></div>
       <div className="assessment-threshold-large"><strong>{config.threshold}</strong><span>проходной балл</span><small>{config.difficulty}</small></div>
     </section>
 
@@ -130,7 +130,7 @@ export default function AcademyAssessment({moduleIndex,moduleName,final=false}:{
       <span className={files.length===config.requiredVideos?"done":"active"}><b>1</b>Добавь видео</span>
       <span className={Object.keys(answers).length===config.questions.length?"done":files.length===config.requiredVideos?"active":""}><b>2</b>Ответь на вопросы</span>
       <span className={results.length?"active":""}><b>3</b>Получи ИИ-разбор</span>
-      <span><b>4</b>Открой блок</span>
+      <span><b>4</b>{final?"Получи выпуск":"Открой блок"}</span>
     </div>
 
     <div className="assessment-main-grid">
@@ -152,7 +152,7 @@ export default function AcademyAssessment({moduleIndex,moduleName,final=false}:{
           <div className="assessment-question-list">{config.questions.map((item,index)=><fieldset key={item.question}><legend><span>{index+1}</span>{item.question}</legend>{item.answers.map((answer,answerIndex)=><label className={answers[index]===answerIndex?"selected":""} key={answer}><input type="radio" name={`assessment-${moduleIndex}-${index}`} checked={answers[index]===answerIndex} onChange={()=>setAnswers(current=>({...current,[index]:answerIndex}))}/><span>{answer}</span></label>)}</fieldset>)}</div>
         </section>
 
-        <button className="assessment-submit" type="button" disabled={busy} onClick={()=>void review()}><span>{busy?"✦":"→"}</span><div><b>{busy?"ИИ проводит аттестацию…":"Проверить работы и открыть следующий блок"}</b><small>{busy?"Можно оставаться на странице — результаты появятся ниже.":`Видео: ${files.length}/${config.requiredVideos} · тест: ${Object.keys(answers).length}/${config.questions.length}`}</small></div></button>
+        <button className="assessment-submit" type="button" disabled={busy} onClick={()=>void review()}><span>{busy?"✦":"→"}</span><div><b>{busy?"ИИ проводит проверку…":final?"Сдать выпускной экзамен":"Проверить работы и открыть следующий блок"}</b><small>{busy?"Можно оставаться на странице — результаты появятся ниже.":`Видео: ${files.length}/${config.requiredVideos} · тест: ${Object.keys(answers).length}/${config.questions.length}`}</small></div></button>
         {message?<div className="assessment-message">{message}</div>:null}
       </div>
 

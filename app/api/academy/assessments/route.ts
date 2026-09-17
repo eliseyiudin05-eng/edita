@@ -1,6 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {academyAssessmentConfig,savedAcademyAssessments} from "@/lib/academy-assessment";
-import {assessmentRequiredLessons,curriculum,curriculumModules,learningStartIndex,normalizeExperienceLevel} from "@/lib/curriculum";
+import {assessmentRequiredLessons,curriculum,curriculumModules,finalAssessmentIndex,learningStartIndex,normalizeExperienceLevel} from "@/lib/curriculum";
 import {getSupabaseServiceClient,getUserFromAccessToken} from "@/lib/server-supabase";
 
 function token(req:NextRequest){return /^Bearer\s+(.+)$/i.exec(req.headers.get("authorization")||"")?.[1]||""}
@@ -28,7 +28,7 @@ export async function POST(req:NextRequest){
   if(!user||!service)return NextResponse.json({error:"Нужен вход в аккаунт."},{status:401});
   const body=await req.json().catch(()=>({}));
   const moduleIndex=Number(body.moduleIndex);
-  if(!Number.isInteger(moduleIndex)||moduleIndex<0||moduleIndex>=curriculumModules.length)return NextResponse.json({error:"Ступень аттестации не найдена."},{status:404});
+  if(!Number.isInteger(moduleIndex)||moduleIndex<0||moduleIndex>finalAssessmentIndex)return NextResponse.json({error:"Ступень аттестации не найдена."},{status:404});
   const config=academyAssessmentConfig(moduleIndex);
   const answers=Array.isArray(body.answers)?body.answers.map(Number):[];
   const correct=config.questions.filter((question,index)=>answers[index]===question.correct).length;
@@ -50,15 +50,16 @@ export async function POST(req:NextRequest){
   const passedRows=passedResult.data;
   const completed=new Set((completedRows||[]).map((row:any)=>row.lessons?.slug).filter(Boolean));
   const level=normalizeExperienceLevel(profile?.onboarding?.level);
-  const moduleLessons=assessmentRequiredLessons(moduleIndex,level);
-  if(!moduleLessons.length)return NextResponse.json({error:"Эта ступень находится до твоей стартовой точки обучения."},{status:409});
-  if(moduleLessons.some(lesson=>!completed.has(lesson.slug)))return NextResponse.json({error:"Сначала заверши все уроки этой ступени."},{status:409});
+  const final=moduleIndex===finalAssessmentIndex;
+  const moduleLessons=final?curriculum.slice(learningStartIndex(level)):assessmentRequiredLessons(moduleIndex,level);
+  if(level!=="pro"&&!moduleLessons.length)return NextResponse.json({error:"Эта ступень находится до твоей стартовой точки обучения."},{status:409});
+  if(level!=="pro"&&moduleLessons.some(lesson=>!completed.has(lesson.slug)))return NextResponse.json({error:final?"Сначала заверши весь учебный маршрут.":"Сначала заверши все уроки этой ступени."},{status:409});
   const startIndex=learningStartIndex(level);
   const startModuleIndex=Math.max(0,curriculumModules.findIndex(group=>group.lessons.some(lesson=>lesson.slug===curriculum[startIndex]?.slug)));
   if(level!=="pro"&&moduleIndex>startModuleIndex){
     const passed=new Set(savedAcademyAssessments(profile?.onboarding).map(item=>item.moduleIndex));
     if(!passedResult.error)for(const row of passedRows||[])passed.add(Number(row.module_index));
-    for(let index=startModuleIndex;index<moduleIndex;index++)if(!passed.has(index))return NextResponse.json({error:"Сначала пройди предыдущую аттестацию."},{status:409});
+    for(let index=startModuleIndex;index<moduleIndex;index++)if(!passed.has(index))return NextResponse.json({error:final?"Сначала пройди все аттестации ступеней.":"Сначала пройди предыдущую аттестацию."},{status:409});
   }
   if(score<config.threshold||quizScore<config.quizThreshold)return NextResponse.json({error:`Пока нужно усилить результат: видео ${score}/${config.threshold}, тест ${quizScore}/${config.quizThreshold}. Исправь подсказки ИИ и попробуй снова.`},{status:400});
   const updatedAt=new Date().toISOString();
@@ -68,5 +69,5 @@ export async function POST(req:NextRequest){
   const onboarding={...(profile?.onboarding&&typeof profile.onboarding==="object"?profile.onboarding:{}),academyAssessments:saved};
   const profileWrite=await service.from("profiles").update({onboarding}).eq("id",user.id);
   if(tableWrite.error&&profileWrite.error)return NextResponse.json({error:"Не удалось сохранить аттестацию."},{status:503});
-  return NextResponse.json({ok:true,moduleIndex,nextModuleIndex:moduleIndex+1<curriculumModules.length?moduleIndex+1:null,score,quizScore});
+  return NextResponse.json({ok:true,moduleIndex,nextModuleIndex:moduleIndex+1<curriculumModules.length?moduleIndex+1:null,final,score,quizScore});
 }
