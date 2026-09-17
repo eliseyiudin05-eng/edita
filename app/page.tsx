@@ -1,9 +1,14 @@
+import type {Metadata} from "next";
 import Image from "next/image";
 import Link from "next/link";
 import SiteFooter from "@/components/site-footer";
 import {curriculumStats} from "@/lib/curriculum";
 import {getSupabasePublicConfig} from "@/lib/public-config";
 import {createClient} from "@supabase/supabase-js";
+
+export const metadata:Metadata={
+  alternates:{canonical:"/"},
+};
 
 async function getTestimonials(){
   try{

@@ -7,6 +7,8 @@ const securityHeaders=[
   {key:"Permissions-Policy",value:"camera=(), microphone=(), geolocation=()"},
 ];
 
+const privateRoutes=["/api/:path*","/admin/:path*","/platform","/academy/:path*","/auth/:path*","/payment/:path*","/login","/signup/:path*","/onboarding","/forgot-password","/reset-password"];
+
 const legacyHosts=[
   "getedita.app",
   "www.getedita.app",
@@ -46,7 +48,10 @@ const nextConfig: NextConfig = {
     ];
   },
   async headers(){
-    return [{source:"/:path*",headers:securityHeaders}];
+    return [
+      {source:"/:path*",headers:securityHeaders},
+      ...privateRoutes.map(source=>({source,headers:[{key:"X-Robots-Tag",value:"noindex, nofollow"}]})),
+    ];
   },
 };
 

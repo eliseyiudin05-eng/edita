@@ -1,7 +1,14 @@
+import type {Metadata} from "next";
 import Link from "next/link";
 import PlanInterest from "@/components/plan-interest";
 import SiteFooter from "@/components/site-footer";
 import {futurePlans} from "@/lib/plans";
+
+export const metadata:Metadata={
+  title:"Тарифы и бесплатный доступ",
+  description:"Возможности KIVRONIX для монтажёров, блогеров и компаний: бесплатный ранний доступ и будущие дополнительные тарифы.",
+  alternates:{canonical:"/pricing"},
+};
 
 const editor=futurePlans.creator_plus;
 const business=futurePlans.studio_plus;

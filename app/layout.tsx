@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import CookieNotice from "@/components/cookie-notice";
 import BackToTop from "@/components/back-to-top";
@@ -64,7 +64,6 @@ export const metadata: Metadata = {
   creator:"KIVRONIX",
   publisher:"KIVRONIX",
   category:"education",
-  alternates:{canonical:"/"},
   manifest:"/manifest.webmanifest",
   openGraph:{
     title:"KIVRONIX — обучение и профессиональные монтажёры",
@@ -82,7 +81,17 @@ export const metadata: Metadata = {
     images:["/images/kivronix-search-card.png"],
   },
   icons:{icon:"/icon.png",apple:"/apple-icon.png"},
+  verification:{yandex:"189ef5499fda2b5d"},
+  appleWebApp:{capable:true,title:"KIVRONIX",statusBarStyle:"black-translucent"},
   robots:{index:true,follow:true,googleBot:{index:true,follow:true}},
+};
+
+export const viewport: Viewport = {
+  width:"device-width",
+  initialScale:1,
+  viewportFit:"cover",
+  themeColor:"#171816",
+  colorScheme:"light",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
