@@ -5,7 +5,8 @@ import BackToTop from "@/components/back-to-top";
 import {KIVRONIX_SITE_URL} from "@/lib/public-config";
 
 const siteUrl=KIVRONIX_SITE_URL;
-const siteDescription="Обучение видеомонтажу с 14 лет: пошаговые уроки, практика и портфолио. Блогеры и компании находят монтажёров по навыкам, уровню и работам.";
+const siteTitle="KIVRONIX — обучение видеомонтажу, профессиональный рост и поиск монтажёров для блогеров и компаний";
+const siteDescription="KIVRONIX — обучение видеомонтажу, профессиональный рост и поиск монтажёров для блогеров и компаний.";
 
 // A small inline safety net keeps the platform readable when a browser, VPN,
 // or stale cache temporarily fails to download Next.js' hashed CSS bundle.
@@ -54,19 +55,19 @@ const fallbackStyles=`
 export const metadata: Metadata = {
   metadataBase:new URL(siteUrl),
   title:{
-    default:"KIVRONIX — обучение монтажу, профессиональный рост и поиск специалистов",
+    default:siteTitle,
     template:"%s · KIVRONIX",
   },
   description:siteDescription,
   applicationName:"KIVRONIX",
-  keywords:["обучение видеомонтажу с 14 лет","монтаж видео с нуля","профессиональный видеомонтажёр","найти монтажёра для компании","работа видеомонтажёром","KIVRONIX"],
+  keywords:["обучение видеомонтажу","монтаж видео с нуля","профессиональный видеомонтажёр","найти монтажёра для компании","работа видеомонтажёром","KIVRONIX"],
   authors:[{name:"KIVRONIX",url:siteUrl}],
   creator:"KIVRONIX",
   publisher:"KIVRONIX",
   category:"education",
   manifest:"/manifest.webmanifest",
   openGraph:{
-    title:"KIVRONIX — обучение монтажу, профессиональный рост и поиск специалистов",
+    title:siteTitle,
     description:siteDescription,
     url:siteUrl,
     siteName:"KIVRONIX",
@@ -76,7 +77,7 @@ export const metadata: Metadata = {
   },
   twitter:{
     card:"summary_large_image",
-    title:"KIVRONIX — обучение монтажу, профессиональный рост и поиск специалистов",
+    title:siteTitle,
     description:siteDescription,
     images:["/images/kivronix-frog-mark.png"],
   },
@@ -128,7 +129,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           height:384,
         },
         image:`${siteUrl}/images/kivronix-frog-mark.png`,
-        description:"Платформа для обучения видеомонтажу с 14 лет и поиска монтажёров для блогеров и компаний.",
+        description:siteDescription,
       },
     ],
   };

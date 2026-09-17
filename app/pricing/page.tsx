@@ -21,7 +21,7 @@ export default function PricingPage(){
     </nav>
 
     <section className="shell beta-price-hero">
-      <div><div className="eyebrow">ОСНОВНЫЕ ФУНКЦИИ БЕСПЛАТНО</div><h1>Начните за 0 ₽.</h1><p>Учебные и бизнес-инструменты KIVRONIX доступны без банковской карты. Дополнительные возможности Creator+ и Studio+ подключаются только отдельным действием пользователя.</p></div>
+      <div><div className="eyebrow">ОСНОВНЫЕ ФУНКЦИИ БЕСПЛАТНО</div><h1>Начните за 0 ₽</h1><p>Учебные и бизнес-инструменты KIVRONIX доступны без банковской карты. Дополнительные возможности Creator+ и Studio+ подключаются только отдельным действием пользователя.</p></div>
       <div className="beta-price-number"><small>ДОСТУП</small><strong>0 ₽</strong><span>банковская карта не нужна</span></div>
     </section>
 
