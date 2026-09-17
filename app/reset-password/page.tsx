@@ -22,10 +22,11 @@ export default function ResetPassword(){
   return <main className="auth-wrap"><section className="auth-card">
     <div className="eyebrow">НОВЫЙ ПАРОЛЬ</div><h1>Новый пароль</h1>
     <form className="auth-form" onSubmit={submit}>
-      <input required minLength={8} type="password" placeholder="Минимум 8 символов" value={password} onChange={e=>setPassword(e.target.value)}/>
+      <label className="field-label" htmlFor="new-password">Новый пароль</label>
+      <input id="new-password" required minLength={8} type="password" autoComplete="new-password" placeholder="Минимум 8 символов" value={password} onChange={e=>setPassword(e.target.value)}/>
       <button className="btn btn-dark" disabled={loading}>{loading?"Сохраняем…":"Сохранить пароль"}</button>
     </form>
-    {message&&<div className="auth-msg">{message}</div>}
+    {message&&<div className="auth-msg" role="status" aria-live="polite">{message}</div>}
     <div className="auth-footer"><Link href="/login">Войти в KIVRONIX</Link></div>
   </section></main>
 }

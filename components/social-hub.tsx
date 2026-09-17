@@ -97,7 +97,7 @@ export default function SocialHub({ageGroup}:{ageGroup?:string}){
     const h=await headers();
     const r=await fetch("/api/social/friends",{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({action,...payload})});
     const d=await r.json();
-    setMessage(r.ok?(action==="send"?"Запрос в друзья отправлен.":"Готово."):d?.error||"Ошибка выполнения действия.");
+    setMessage(r.ok?(action==="send"?"Запрос в друзья отправлен.":"Запрос в друзья обновлён."):d?.error||"Не удалось изменить запрос в друзья. Повтори действие.");
     if(r.ok){setSearchRows([]);setSearch("");await load()}
   }
 

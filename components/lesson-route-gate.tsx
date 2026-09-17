@@ -13,6 +13,7 @@ export default function LessonRouteGate({children}:{requiredSlugs:string[];previ
   const [unlocked,setUnlocked]=useState(false);
   const [returnSlug,setReturnSlug]=useState<string|null>(null);
   const [lockedByAssessment,setLockedByAssessment]=useState(false);
+  const [accessError,setAccessError]=useState("");
 
   useEffect(()=>{
     let active=true;
@@ -20,14 +21,6 @@ export default function LessonRouteGate({children}:{requiredSlugs:string[];previ
       let completed:string[]=[];
       let passed:number[]=[];
       let level:unknown="new";
-      try{
-        const saved=JSON.parse(localStorage.getItem("kivronix_lesson_done")||"[]");
-        if(Array.isArray(saved))completed=saved.filter((item):item is string=>typeof item==="string");
-        const savedAssessments=JSON.parse(localStorage.getItem("kivronix_academy_assessments_v2")||"[]");
-        if(Array.isArray(savedAssessments))passed=savedAssessments.filter((item):item is number=>Number.isInteger(item));
-        const savedOnboarding=JSON.parse(localStorage.getItem("kivronix_onboarding")||"{}");
-        if(savedOnboarding&&typeof savedOnboarding==="object")level=savedOnboarding.level;
-      }catch{}
 
       const applyAccess=()=>{
         const slug=pathname.split("/").pop()||"";
@@ -54,12 +47,12 @@ export default function LessonRouteGate({children}:{requiredSlugs:string[];previ
           fetch("/api/academy/assessments",{headers,cache:"no-store"}),
         ]).catch(()=>null);
         if(!responses){
-          applyAccess();
+          if(active){setAccessError("Не удалось проверить доступ к уроку из-за соединения. Обнови страницу, когда связь восстановится.");setChecking(false)}
           return;
         }
         const [profileResponse,progressResponse,assessmentResponse]=responses;
         if(!profileResponse.ok||!progressResponse.ok||!assessmentResponse.ok){
-          applyAccess();
+          if(active){setAccessError("Не удалось проверить прогресс. Урок останется закрытым, пока проверка не завершится.");setChecking(false)}
           return;
         }
         const [profile,progress,assessments]=await Promise.all([profileResponse.json(),progressResponse.json(),assessmentResponse.json()]);
@@ -77,6 +70,7 @@ export default function LessonRouteGate({children}:{requiredSlugs:string[];previ
   },[pathname,router]);
 
   if(checking)return <div className="lesson-gate-card"><b>Проверяем вход и прогресс…</b></div>;
+  if(accessError)return <div className="lesson-gate-card locked" role="status"><div className="eyebrow">ДОСТУП НЕ ПРОВЕРЕН</div><h2>Урок временно не открыт</h2><p>{accessError} Сохранённый прогресс не изменился.</p><div><Link className="btn btn-dark" href="/platform#academy">Вернуться к учебному плану</Link></div></div>;
   if(!unlocked)return <div className="lesson-gate-card locked"><div className="eyebrow">УРОК ПОКА ЗАКРЫТ</div><h2>{lockedByAssessment?"Сначала пройди аттестацию текущего уровня":"Сначала заверши предыдущий урок"}</h2><p>{lockedByAssessment?"После успешной проверки откроется первый урок следующего уровня.":"Выполни действие, мини‑тест и проверку результата в текущем уроке — затем маршрут продолжится."}</p><div>{returnSlug?<Link className="btn btn-dark" href={"/academy/"+returnSlug}>Открыть следующий доступный урок</Link>:null}<Link className="btn btn-ghost" href="/platform#academy">Перейти к учебному плану</Link></div></div>;
   return <>{children}</>;
 }

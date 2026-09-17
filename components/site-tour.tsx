@@ -69,7 +69,7 @@ export default function SiteTour({role,onGo}:{role:Role;onGo:(tab:string)=>void}
             {index>0&&<button className="btn btn-ghost" onClick={()=>setIndex(i=>i-1)}>Назад</button>}
             {index<steps.length-1
               ?<button className="btn btn-dark" onClick={()=>setIndex(i=>i+1)}>Дальше</button>
-              :<button className="btn btn-dark" onClick={finish}>Готово</button>}
+              :<button className="btn btn-dark" onClick={finish}>Завершить знакомство</button>}
           </div>
         </div>
       </section>

@@ -41,16 +41,16 @@ export default function BusinessVerificationAdmin(){
       body:JSON.stringify({requestId:id,action,level,note})
     });
     const data=await r.json();
-    setMessage(r.ok?"Готово.":data?.error||"Ошибка.");
+    setMessage(r.ok?"Статус проверки компании обновлён.":data?.error||"Не удалось обновить проверку компании. Повтори действие.");
     if(r.ok)await load();
   }
 
   return <main className="legal-page"><div className="legal-shell">
     <Link href="/platform" className="brand">KIVRONIX<span>.</span></Link>
-    <div className="eyebrow">ADMIN · BUSINESS VERIFICATION</div>
+    <div className="eyebrow">АДМИН · ПРОВЕРКА КОМПАНИЙ</div>
     <h1>Проверка компаний</h1>
     <p>Документы закрыты от обычных пользователей. Ссылки ниже временные и нужны только для ручной проверки.</p>
-    {message&&<div className="auth-msg">{message}</div>}
+    {message&&<div className="auth-msg" role="status" aria-live="polite">{message}</div>}
     <div className="business-stack">
       {rows.map(row=><section className="legal-card" key={row.id}>
         <div className="verification-head"><div><div className="eyebrow">{row.requested_level==="popular_brand"?"ЗАПРОС: ИЗВЕСТНЫЙ БРЕНД":"ЗАПРОС: ПРОВЕРЕННАЯ КОМПАНИЯ"}</div><h2>{row.legal_name}</h2></div><span className="verification-badge pending">{row.status}</span></div>

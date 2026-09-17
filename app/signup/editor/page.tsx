@@ -74,12 +74,15 @@ export default function EditorSignup(){
     <p>Никаких данных компании. Только то, что помогает настроить обучение и безопасный доступ.</p>{typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("ref")&&<div className="auth-msg"><b>Тебя пригласил друг.</b> После подтверждения электронной почты и первых 3 уроков вы оба получите бонусы внутри KIVRONIX.</div>}
 
     <form className="auth-form" onSubmit={submit}>
-      <input required placeholder="Как тебя зовут" value={name} onChange={e=>setName(e.target.value)}/>
-      <input required type="email" autoComplete="email" placeholder="Электронная почта" value={email} onChange={e=>setEmail(e.target.value)}/>
-      <input required minLength={8} type="password" autoComplete="new-password" placeholder="Пароль — минимум 8 символов" value={password} onChange={e=>setPassword(e.target.value)}/>
+      <label className="field-label" htmlFor="editor-name">Как тебя зовут</label>
+      <input id="editor-name" required placeholder="Имя или псевдоним" value={name} onChange={e=>setName(e.target.value)}/>
+      <label className="field-label" htmlFor="editor-email">Электронная почта</label>
+      <input id="editor-email" required type="email" autoComplete="email" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)}/>
+      <label className="field-label" htmlFor="editor-password">Пароль</label>
+      <input id="editor-password" required minLength={8} type="password" autoComplete="new-password" placeholder="Минимум 8 символов" value={password} onChange={e=>setPassword(e.target.value)}/>
 
-      <label className="field-label">Сколько тебе лет?</label>
-      <select value={ageGroup} onChange={e=>setAgeGroup(e.target.value as Age)}>
+      <label className="field-label" htmlFor="editor-age">Сколько тебе лет?</label>
+      <select id="editor-age" value={ageGroup} onChange={e=>setAgeGroup(e.target.value as Age)}>
         <option value="under14">Мне меньше 14</option>
         <option value="14-17">Мне 14–17</option>
         <option value="18+">Мне 18 или больше</option>
@@ -87,33 +90,33 @@ export default function EditorSignup(){
 
       {ageGroup!=="18+"&&<div className="minor-safety-note"><b>Учиться можно сразу.</b><span>Оплата, вакансии и коммерческие задания откроются только после подтверждения родителя или законного представителя.</span></div>}
 
-      <label className="field-label">Школа, колледж или вуз — необязательно</label>
-      <input maxLength={160} placeholder="Например: школа № 1253 или РУДН" value={schoolName} onChange={e=>setSchoolName(e.target.value)}/>
+      <label className="field-label" htmlFor="editor-school">Школа, колледж или вуз — необязательно</label>
+      <input id="editor-school" maxLength={160} placeholder="Например: школа № 1253 или РУДН" value={schoolName} onChange={e=>setSchoolName(e.target.value)}/>
       <small className="field-hint">Сохраним только в твоём аккаунте. Включить школу в командный рейтинг можно потом в профиле. Класс, адрес и другие личные данные оставь за пределами формы.</small>
 
-      <label className="field-label">В какой программе монтируешь?</label>
-      <select value={software} onChange={e=>{const value=e.target.value;setSoftware(value);if(value==="Final Cut Pro")setOperatingSystem("macOS")}}>
+      <label className="field-label" htmlFor="editor-software">В какой программе монтируешь?</label>
+      <select id="editor-software" value={software} onChange={e=>{const value=e.target.value;setSoftware(value);if(value==="Final Cut Pro")setOperatingSystem("macOS")}}>
         <option>CapCut Desktop</option><option>Adobe Premiere Pro</option><option>DaVinci Resolve</option><option>Final Cut Pro</option>
       </select>
 
-      <label className="field-label">Операционная система</label>
-      <select value={operatingSystem} disabled={software==="Final Cut Pro"} onChange={e=>setOperatingSystem(e.target.value)}>
+      <label className="field-label" htmlFor="editor-os">Операционная система</label>
+      <select id="editor-os" value={operatingSystem} disabled={software==="Final Cut Pro"} onChange={e=>setOperatingSystem(e.target.value)}>
         <option>Windows</option><option>macOS</option>
       </select>
       {software==="Final Cut Pro"?<small className="field-hint">Final Cut Pro работает на macOS, поэтому система выбрана автоматически.</small>:null}
 
-      <label className="field-label">Твой уровень</label>
-      <select value={level} onChange={e=>setLevel(e.target.value)}>
+      <label className="field-label" htmlFor="editor-level">Твой уровень</label>
+      <select id="editor-level" value={level} onChange={e=>setLevel(e.target.value)}>
         <option value="new">С нуля</option><option value="beginner">Начинающий</option><option value="intermediate">Уверенный</option><option value="pro">Работаю регулярно</option>
       </select>
 
-      <label className="field-label">Главная цель</label>
-      <select value={goal} onChange={e=>setGoal(e.target.value)}>
+      <label className="field-label" htmlFor="editor-goal">Главная цель</label>
+      <select id="editor-goal" value={goal} onChange={e=>setGoal(e.target.value)}>
         <option value="freelance">Найти первые заказы</option><option value="reels">Делать короткие вертикальные ролики</option><option value="commercial">Делать видео для брендов и экспертов</option><option value="career">Развиваться как монтажёр</option>
       </select>
 
-      <label className="field-label">Почему ты хочешь стать монтажёром?</label>
-      <textarea required minLength={5} maxLength={500} placeholder="Например: хочу создавать интересные ролики и зарабатывать своим навыком" value={motivation} onChange={e=>setMotivation(e.target.value)}/>
+      <label className="field-label" htmlFor="editor-motivation">Почему ты хочешь стать монтажёром?</label>
+      <textarea id="editor-motivation" required minLength={5} maxLength={500} placeholder="Например: хочу создавать интересные ролики и зарабатывать своим навыком" value={motivation} onChange={e=>setMotivation(e.target.value)}/>
       <div className="signup-points-reward"><b>+5 KIVRONIX Points</b><span>Начислим сразу после создания аккаунта за честный ответ.</span></div>
 
       <label className="consent-row"><input type="checkbox" checked={acceptTerms} onChange={e=>setAcceptTerms(e.target.checked)}/><span>Я принимаю <Link href="/terms" target="_blank"><u>условия использования</u></Link>.</span></label>
@@ -122,7 +125,7 @@ export default function EditorSignup(){
       <button className="btn btn-dark" disabled={loading||!acceptTerms||!acceptPersonalData}>{loading?"Создаём…":"Создать аккаунт монтажёра"}</button>
     </form>
 
-    {message&&<div className="auth-msg">{message}</div>}
+    {message&&<div className="auth-msg" role="status" aria-live="polite">{message}</div>}
     {createdEmail&&<div className="auth-resend"><span>Письмо задержалось?</span><button className="btn btn-ghost" onClick={resend} disabled={loading||cooldown>0}>{cooldown>0?"Ещё раз через "+cooldown+" сек":"Отправить ещё раз"}</button></div>}
     <div className="auth-footer"><Link href="/signup">← Выбрать другой тип аккаунта</Link></div>
   </section></main>

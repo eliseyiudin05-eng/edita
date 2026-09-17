@@ -31,10 +31,11 @@ export default function ForgotPassword(){
     <div className="eyebrow">ВОССТАНОВЛЕНИЕ ДОСТУПА</div><h1>Забыл пароль?</h1>
     <p>Введи электронную почту аккаунта KIVRONIX. Мы пришлём ссылку для создания нового пароля.</p>
     <form className="auth-form" onSubmit={submit}>
-      <input required type="email" autoComplete="email" placeholder="Электронная почта" value={email} onChange={e=>setEmail(e.target.value)}/>
+      <label className="field-label" htmlFor="recovery-email">Электронная почта</label>
+      <input id="recovery-email" required type="email" autoComplete="email" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)}/>
       <button className="btn btn-dark" disabled={loading||cooldown>0}>{loading?"Отправляем…":cooldown>0?"Повтор через "+cooldown+" сек":"Отправить ссылку"}</button>
     </form>
-    {message&&<div className="auth-msg">{message}</div>}
+    {message&&<div className="auth-msg" role="status" aria-live="polite">{message}</div>}
     <div className="auth-footer"><Link href="/login">← Вернуться ко входу</Link></div>
   </section></main>
 }

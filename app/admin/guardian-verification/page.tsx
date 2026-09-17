@@ -40,7 +40,7 @@ export default function GuardianAdmin(){
       body:JSON.stringify({requestId:id,action,note})
     });
     const data=await r.json();
-    setMessage(r.ok?"Готово.":data?.error||"Ошибка.");
+    setMessage(r.ok?"Статус подтверждения взрослого обновлён.":data?.error||"Не удалось обновить подтверждение. Повтори действие.");
     if(r.ok)await load();
   }
 
@@ -49,7 +49,7 @@ export default function GuardianAdmin(){
     <div className="eyebrow">ADMIN · БЕЗОПАСНОСТЬ</div>
     <h1>Подтверждение родителей</h1>
     <p>Это начальная ручная проверка. Для публичной работы паспорт и проверку личности родителя следует передать специальному сервису, а в KIVRONIX хранить только итог.</p>
-    {message&&<div className="auth-msg">{message}</div>}
+    {message&&<div className="auth-msg" role="status" aria-live="polite">{message}</div>}
     <div className="business-stack">
       {rows.map(row=><section className="legal-card" key={row.id}>
         <div className="verification-head"><div><div className="eyebrow">ПОЛЬЗОВАТЕЛЬ ДО 18 ЛЕТ</div><h2>{row.profile?.display_name||"Пользователь"}</h2></div><span className="verification-badge pending">{row.status}</span></div>

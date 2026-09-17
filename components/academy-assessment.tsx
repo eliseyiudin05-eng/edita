@@ -5,7 +5,7 @@ import {useEffect,useMemo,useState} from "react";
 import {academyAssessmentConfig} from "@/lib/academy-assessment";
 import {extractVideoFrames} from "@/lib/video-frames";
 import {getFreshAccessToken} from "@/lib/supabase-browser";
-import {academyLevels} from "@/lib/curriculum";
+import {academyLevels,assessmentAvailable} from "@/lib/curriculum";
 
 type Review={
   name:string;
@@ -39,6 +39,8 @@ export default function AcademyAssessment({moduleIndex,moduleName,final=false}:{
   const [message,setMessage]=useState("");
   const [passed,setPassed]=useState(false);
   const [checking,setChecking]=useState(true);
+  const [available,setAvailable]=useState(false);
+  const [accessMessage,setAccessMessage]=useState("");
   const average=results.length?Math.round(results.reduce((sum,item)=>sum+item.overall_score,0)/results.length):0;
   const nextLessonSlug=academyLevels[moduleIndex+1]?.lessons[0]?.slug||null;
 
@@ -48,10 +50,29 @@ export default function AcademyAssessment({moduleIndex,moduleName,final=false}:{
       try{
         const token=await getFreshAccessToken();
         if(!token)return;
-        const response=await fetch("/api/academy/assessments",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
-        const data=await response.json();
-        if(active&&response.ok&&Array.isArray(data.passed))setPassed(data.passed.includes(moduleIndex));
-      }catch{}finally{if(active)setChecking(false)}
+        const headers={Authorization:"Bearer "+token};
+        const [assessmentResponse,progressResponse,profileResponse]=await Promise.all([
+          fetch("/api/academy/assessments",{headers,cache:"no-store"}),
+          fetch("/api/lessons/progress",{headers,cache:"no-store"}),
+          fetch("/api/profile/learning-preferences",{headers,cache:"no-store"}),
+        ]);
+        if(!assessmentResponse.ok||!progressResponse.ok||!profileResponse.ok){
+          if(active)setAccessMessage("Не удалось проверить учебный прогресс. Обнови страницу и попробуй ещё раз — введённые данные не изменились.");
+          return;
+        }
+        const [assessments,progress,profile]=await Promise.all([
+          assessmentResponse.json(),progressResponse.json(),profileResponse.json(),
+        ]);
+        const passedLevels=Array.isArray(assessments?.passed)?assessments.passed.filter((item:unknown):item is number=>Number.isInteger(item)):[];
+        const completedSlugs=Array.isArray(progress?.completedSlugs)?progress.completedSlugs.filter((item:unknown):item is string=>typeof item==="string"):[];
+        const alreadyPassed=passedLevels.includes(moduleIndex);
+        if(active){
+          setPassed(alreadyPassed);
+          setAvailable(alreadyPassed||assessmentAvailable(moduleIndex,completedSlugs,passedLevels,profile?.preferences?.level));
+        }
+      }catch{
+        if(active)setAccessMessage("Не удалось проверить учебный прогресс из-за соединения. Обнови страницу, когда связь восстановится.");
+      }finally{if(active)setChecking(false)}
     }
     void load();
     return()=>{active=false};
@@ -125,6 +146,12 @@ export default function AcademyAssessment({moduleIndex,moduleName,final=false}:{
   }
 
   if(checking)return <section className="assessment-loading"><span className="assessment-ai-orb">✦</span><b>Проверяем прогресс аттестации…</b></section>;
+
+  if(!available)return <section className="assessment-success assessment-locked" role="status">
+    <div className="assessment-success-mark">⌁</div>
+    <div><div className="eyebrow">АТТЕСТАЦИЯ ПОКА ЗАКРЫТА</div><h1>{accessMessage?"Не удалось проверить прогресс":"Сначала заверши текущий этап"}</h1><p>{accessMessage||"Задание аттестации откроется после всех обязательных уроков уровня и предыдущих аттестаций. Твой сохранённый прогресс не изменился."}</p></div>
+    <Link className="btn btn-dark" href="/platform#academy">Вернуться к учебному плану</Link>
+  </section>;
 
   if(passed)return <section className="assessment-success">
     <div className="assessment-success-mark">✓</div>

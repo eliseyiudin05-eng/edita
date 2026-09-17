@@ -77,17 +77,17 @@ export default function BusinessSignup(){
     <div className="business-signup-steps"><span><b>1</b> Аккаунт</span><span><b>2</b> Почта</span><span><b>3</b> Документы</span><span><b>4</b> Проверка</span></div>
 
     <form className="auth-form" onSubmit={submit}>
-      <input required placeholder="Имя представителя компании" value={contactName} onChange={e=>setContactName(e.target.value)}/>
-      <input required placeholder="Название бренда, которое увидят монтажёры" value={businessName} onChange={e=>setBusinessName(e.target.value)}/>
-      <input required placeholder="Официальное название ООО / ИП" value={legalName} onChange={e=>setLegalName(e.target.value)}/>
+      <input required aria-label="Имя представителя компании" placeholder="Имя представителя компании" value={contactName} onChange={e=>setContactName(e.target.value)}/>
+      <input required aria-label="Название бренда" placeholder="Название бренда, которое увидят монтажёры" value={businessName} onChange={e=>setBusinessName(e.target.value)}/>
+      <input required aria-label="Официальное название компании или ИП" placeholder="Официальное название ООО / ИП" value={legalName} onChange={e=>setLegalName(e.target.value)}/>
       <div className="split-fields">
-        <input inputMode="numeric" placeholder="ИНН" value={inn} onChange={e=>setInn(e.target.value.replace(/\D/g,"").slice(0,12))}/>
-        <input inputMode="numeric" placeholder="ОГРН / ОГРНИП" value={registrationNumber} onChange={e=>setRegistrationNumber(e.target.value.replace(/\D/g,"").slice(0,15))}/>
+        <input inputMode="numeric" aria-label="ИНН" placeholder="ИНН" value={inn} onChange={e=>setInn(e.target.value.replace(/\D/g,"").slice(0,12))}/>
+        <input inputMode="numeric" aria-label="ОГРН или ОГРНИП" placeholder="ОГРН / ОГРНИП" value={registrationNumber} onChange={e=>setRegistrationNumber(e.target.value.replace(/\D/g,"").slice(0,15))}/>
       </div>
-      <input type="url" placeholder="Сайт компании (если есть)" value={website} onChange={e=>setWebsite(e.target.value)}/>
-      <input type="url" placeholder="Публичная страница бренда / соцсеть" value={social} onChange={e=>setSocial(e.target.value)}/>
-      <input required type="email" autoComplete="email" placeholder="Рабочая электронная почта" value={email} onChange={e=>setEmail(e.target.value)}/>
-      <input required minLength={8} type="password" autoComplete="new-password" placeholder="Пароль — минимум 8 символов" value={password} onChange={e=>setPassword(e.target.value)}/>
+      <input type="url" aria-label="Сайт компании" placeholder="Сайт компании (если есть)" value={website} onChange={e=>setWebsite(e.target.value)}/>
+      <input type="url" aria-label="Публичная страница бренда" placeholder="Публичная страница бренда / соцсеть" value={social} onChange={e=>setSocial(e.target.value)}/>
+      <input required type="email" aria-label="Рабочая электронная почта" autoComplete="email" placeholder="Рабочая электронная почта" value={email} onChange={e=>setEmail(e.target.value)}/>
+      <input required minLength={8} type="password" aria-label="Пароль" autoComplete="new-password" placeholder="Пароль — минимум 8 символов" value={password} onChange={e=>setPassword(e.target.value)}/>
 
       <label className="consent-row"><input type="checkbox" checked={adult} onChange={e=>setAdult(e.target.checked)}/><span>Мне есть 18 лет, и я вправе представлять эту компанию или ИП.</span></label>
       <label className="consent-row"><input type="checkbox" checked={acceptTerms} onChange={e=>setAcceptTerms(e.target.checked)}/><span>Я принимаю <Link href="/terms" target="_blank"><u>условия использования</u></Link>.</span></label>
@@ -96,7 +96,7 @@ export default function BusinessSignup(){
       <button className="btn btn-dark" disabled={loading||!adult||!acceptTerms||!acceptPersonalData}>{loading?"Создаём…":"Создать бизнес-аккаунт"}</button>
     </form>
 
-    {message&&<div className="auth-msg">{message}</div>}
+    {message&&<div className="auth-msg" role="status" aria-live="polite">{message}</div>}
     {createdEmail&&<div className="auth-resend"><span>Письмо задержалось?</span><button className="btn btn-ghost" onClick={resend} disabled={loading||cooldown>0}>{cooldown>0?"Ещё раз через "+cooldown+" сек":"Отправить ещё раз"}</button></div>}
     <div className="auth-footer"><Link href="/signup">← Выбрать другой тип аккаунта</Link></div>
   </section></main>

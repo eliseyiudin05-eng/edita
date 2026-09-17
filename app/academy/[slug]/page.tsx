@@ -5,6 +5,7 @@ import LessonProgressButton from "@/components/lesson-progress-button";
 import LessonRouteGate from "@/components/lesson-route-gate";
 import LessonVisual from "@/components/lesson-visual";
 import LessonLearningPlan from "@/components/lesson-learning-plan";
+import LessonGlossary from "@/components/lesson-glossary";
 import AuthGate from "@/components/auth-gate";
 import LessonSoftwareAdapter from "@/components/lesson-software-adapter";
 import {curriculum,lessonBySlug,optionalCurriculumModules,requiredCurriculum} from "@/lib/curriculum";
@@ -73,6 +74,8 @@ export default async function LessonPage({params}:{params:Promise<{slug:string}>
           <h2>Слова, которые пригодятся</h2>
           <div className="word-list">{lesson.words.map(item=><div className="word-row" key={item.term}><b>{item.term}</b><span>{item.meaning}</span></div>)}</div>
         </section>:null}
+
+        <LessonGlossary lesson={lesson}/>
 
         <section className="lesson-panel">
           <div className="eyebrow">{lesson.theoryOnly?"РАЗБЕРЁМ ПО ПОРЯДКУ":"ДЕЛАЙ ВМЕСТЕ С УРОКОМ"}</div>

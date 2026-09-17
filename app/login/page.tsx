@@ -30,11 +30,13 @@ export default function LoginPage(){
       <h1>Войти в KIVRONIX</h1>
       <p>Вернись к обучению, заданиям, работе и помощнику KIVRONIX.</p>
       <form className="auth-form" onSubmit={submit}>
-        <input required type="email" placeholder="Электронная почта" value={email} onChange={e=>setEmail(e.target.value)} />
-        <input required type="password" placeholder="Пароль" value={password} onChange={e=>setPassword(e.target.value)} />
-        <button className="btn btn-dark" disabled={loading}>{loading?"Входим...":"Войти"}</button>
+        <label className="field-label" htmlFor="login-email">Электронная почта</label>
+        <input id="login-email" required type="email" autoComplete="email" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} />
+        <label className="field-label" htmlFor="login-password">Пароль</label>
+        <input id="login-password" required type="password" autoComplete="current-password" placeholder="Введите пароль" value={password} onChange={e=>setPassword(e.target.value)} />
+        <button className="btn btn-dark" disabled={loading}>{loading?"Входим…":"Войти в аккаунт"}</button>
       </form>
-      {message&&<div className="auth-msg">{message}</div>}
+      {message&&<div className="auth-msg" role="status" aria-live="polite">{message}</div>}
       <div className="auth-footer"><Link href="/forgot-password">Забыли пароль?</Link><br/>Нет аккаунта? <Link href="/signup"><b>Регистрация</b></Link></div>
     </section>
   </main>

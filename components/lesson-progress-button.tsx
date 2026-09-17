@@ -105,12 +105,20 @@ export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}
       if(!response.ok)throw new Error(data?.error||"Ошибка сохранения прогресса.");
       void fetch("/api/referral/qualify",{method:"POST",headers:{Authorization:"Bearer "+accessToken}}).catch(()=>{});
 
+      let publicationWarning="";
       if(video&&reviewScore!=null&&reviewScore>=75&&shareApproved){
-        const {data:{user}}=await getSupabaseBrowserClient().auth.getUser();
-        if(!user)throw new Error("Не удалось подтвердить аккаунт для публикации.");
-        const videoUrl=await uploadPortfolioVideo(video,user.id);
-        const publication=await fetch("/api/portfolio",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+accessToken},body:JSON.stringify({title:`Учебная работа · ${slug}`,videoUrl,tags:["обучение","задание"],aiScore:reviewScore,publicationConsent:true,sourceLabel:"Учебное задание"})});
-        if(!publication.ok){const publicationData=await publication.json().catch(()=>({}));throw new Error(publicationData?.error?.message||publicationData?.error||"Задание сохранено, но видео не опубликовано.")}
+        try{
+          const {data:{user}}=await getSupabaseBrowserClient().auth.getUser();
+          if(!user)throw new Error("аккаунт не удалось подтвердить");
+          const videoUrl=await uploadPortfolioVideo(video,user.id);
+          const publication=await fetch("/api/portfolio",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+accessToken},body:JSON.stringify({title:`Учебная работа · ${slug}`,videoUrl,tags:["обучение","задание"],aiScore:reviewScore,publicationConsent:true,sourceLabel:"Учебное задание"})});
+          if(!publication.ok){
+            const publicationData=await publication.json().catch(()=>({}));
+            throw new Error(publicationData?.error?.message||publicationData?.error||"сервис публикации временно недоступен");
+          }
+        }catch(error){
+          publicationWarning=` Урок и опыт сохранены, но видео не добавилось в портфолио: ${error instanceof Error?error.message:"неизвестная ошибка"}. Попробуй опубликовать работу позже из раздела «Мои работы».`;
+        }
       }
 
       const saved=JSON.parse(localStorage.getItem("kivronix_lesson_done")||"[]");
@@ -120,7 +128,7 @@ export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}
       setCompletedSlugs(nextCompleted);
       setDone(true);
       const readyForAssessment=currentLevelIndex>=0&&assessmentRequiredLessons(currentLevelIndex,experienceLevel).every(item=>nextCompleted.includes(item.slug));
-      setNotice(readyForAssessment?"Уровень завершён. Открываем аттестацию…":theoryOnly?"Понимание подтверждено. Следующий урок открыт.":"Работа принята. Следующий урок открыт.");
+      setNotice((readyForAssessment?"Уровень завершён. Открываем аттестацию…":theoryOnly?"Понимание подтверждено. Следующий урок открыт.":"Работа принята. Следующий урок открыт.")+publicationWarning);
       window.dispatchEvent(new CustomEvent("kivronix:lesson-completed",{detail:{slug}}));
       if(readyForAssessment)window.setTimeout(()=>window.location.assign(`/academy/assessment/${currentLevelIndex}`),650);
     }catch(error){
@@ -146,6 +154,6 @@ export default function LessonProgressButton({slug,xp,nextSlug,theoryOnly=false}
       <label className="task-confirm-row"><input type="checkbox" checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}/><span>{theoryOnly?"Я ответил своими словами и сверил понимание с тестом.":"Я действительно выполнил действие и проверил результат по критериям урока."}</span></label>
       <button className="btn btn-lime" type="button" onClick={complete} disabled={saving||!confirmed||!proofReady}>{saving?"Сохраняю…":!proofReady?"Сначала заверши проверку":theoryOnly?`Подтвердить понимание · +${xp} опыта`:`Сдать работу · +${xp} опыта`}</button>
     </>:<div className="lesson-complete-box"><b>{theoryOnly?"Понимание подтверждено":"Работа выполнена"}</b><span>{assessmentIndex!=null?"Уровень завершён — пора подтвердить навыки.":"Прогресс сохранён, следующий урок открыт."}</span>{assessmentIndex!=null?<Link className="btn btn-dark" href={`/academy/assessment/${assessmentIndex}`}>Перейти к аттестации →</Link>:nextSlug?<Link className="btn btn-dark" href={"/academy/"+nextSlug}>Перейти к следующему уроку →</Link>:<Link className="btn btn-dark" href="/platform#academy">Вернуться в Академию</Link>}</div>}
-    {notice?<small>{notice}</small>:null}
+    {notice?<small role="status" aria-live="polite">{notice}</small>:null}
   </div>;
 }

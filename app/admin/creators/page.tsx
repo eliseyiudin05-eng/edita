@@ -44,7 +44,7 @@ export default function CreatorsAdmin(){
       body:JSON.stringify({kind,id,status})
     });
     const data=await r.json();
-    setMessage(r.ok?"Готово.":data?.error||"Ошибка.");
+    setMessage(r.ok?"Статус заявки автора обновлён.":data?.error||"Не удалось обновить заявку. Повтори действие.");
     if(r.ok)await load();
   }
 
@@ -53,7 +53,7 @@ export default function CreatorsAdmin(){
     <div className="eyebrow">АДМИН · МОНТАЖЁРЫ KIVRONIX</div>
     <h1>Команда монтажёров</h1>
     <p>Здесь заявки в постоянную команду и отклики на официальные задания KIVRONIX.</p>
-    {message&&<div className="auth-msg">{message}</div>}
+    {message&&<div className="auth-msg" role="status" aria-live="polite">{message}</div>}
 
     <h2>Заявки в постоянную команду</h2>
     <div className="business-stack">

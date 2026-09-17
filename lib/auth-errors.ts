@@ -5,19 +5,19 @@ export function authErrorRu(message?:string|null){
     return "Слишком много писем было запрошено за короткое время. Подожди немного и попробуй ещё раз.";
   }
   if(value.includes("user already registered")){
-    return "Аккаунт с этим email уже существует. Попробуй войти или восстановить пароль.";
+    return "Аккаунт с этой электронной почтой уже существует. Попробуй войти или восстановить пароль.";
   }
   if(value.includes("invalid login credentials")){
-    return "Неверный email или пароль.";
+    return "Электронная почта или пароль не подходят. Проверь данные или восстанови пароль.";
   }
   if(value.includes("email not confirmed")){
-    return "Email ждёт подтверждения. Открой письмо от KIVRONIX или отправь подтверждение ещё раз.";
+    return "Электронная почта ещё не подтверждена. Открой письмо от KIVRONIX или запроси его ещё раз.";
   }
   if(value.includes("password should be at least")){
     return "Пароль слишком короткий. Используй минимум 8 символов.";
   }
   if(value.includes("unable to validate email")||value.includes("invalid email")){
-    return "Проверь email: похоже, в адресе есть ошибка.";
+    return "Проверь электронную почту: в адресе должен быть знак @ и название почтового сервиса.";
   }
   return message||"Возникла ошибка. Попробуй ещё раз.";
 }

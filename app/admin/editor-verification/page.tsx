@@ -35,7 +35,7 @@ export default function EditorVerificationAdmin(){
       method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({id,action,note})
     });
     const data=await r.json();
-    setMessage(r.ok?"Готово.":data?.error||"Ошибка.");
+    setMessage(r.ok?"Статус заявки монтажёра обновлён.":data?.error||"Не удалось обновить заявку. Повтори действие.");
     if(r.ok)await load();
   }
 
@@ -44,7 +44,7 @@ export default function EditorVerificationAdmin(){
     <div className="eyebrow">ADMIN · МОНТАЖЁРЫ</div>
     <h1>Проверка навыка монтажёра</h1>
     <p>Здесь проверяется качество и принадлежность работы монтажёру. Документы компании относятся к другому разделу.</p>
-    {message&&<div className="auth-msg">{message}</div>}
+    {message&&<div className="auth-msg" role="status" aria-live="polite">{message}</div>}
     <div className="business-stack">
       {rows.map(row=><section className="legal-card" key={row.id}>
         <div className="verification-head"><div><div className="eyebrow">ЗАЯВКА МОНТАЖЁРА</div><h2>{row.profiles?.display_name||"Монтажёр"}</h2></div><span className="verification-badge pending">{row.status}</span></div>
