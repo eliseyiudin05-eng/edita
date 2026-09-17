@@ -14,6 +14,9 @@ type InterfaceShot={
   sourceLabel:string;
   sourceUrl:string;
   mobile?:boolean;
+  readiness?:"reference"|"blocked";
+  checkedAt?:string;
+  versionNote?:string;
 };
 
 const interfaceShots={
@@ -24,11 +27,11 @@ const interfaceShots={
   capcutDesktop:{src:"/images/academy/capcut-desktop.webp",width:1052,height:592,alt:"Экран CapCut на компьютере со списком файлов, просмотром и лентой монтажа",sourceLabel:"официальная карточка CapCut",sourceUrl:"https://play.google.com/store/apps/details?id=com.lemon.lvoverseas"},
   vn:{src:"/images/academy/vn-mobile.webp",width:333,height:592,alt:"Экран мобильного редактора VN с клипами на ленте монтажа",sourceLabel:"официальная карточка VN в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.frontrow.vlog",mobile:true},
   inshot:{src:"/images/academy/inshot-mobile.webp",width:272,height:592,alt:"Экран мобильного редактора InShot с просмотром и нижней лентой монтажа",sourceLabel:"официальная карточка InShot в Google Play",sourceUrl:"https://play.google.com/store/apps/details?id=com.camerasideas.instashot",mobile:true},
-  premiere:{src:"/images/academy/premiere-pro.webp",width:1000,height:563,alt:"Рабочий экран Adobe Premiere Pro с файлами, просмотром и несколькими дорожками монтажа",sourceLabel:"снимок экрана Premiere Pro",sourceUrl:"https://www.capcut.com/pt-br/resource/adobe-premiere-pro-tutorial"},
-  davinci:{src:"/images/academy/davinci-resolve.webp",width:1600,height:886,alt:"Экран монтажа DaVinci Resolve со списком файлов, просмотром, настройками и лентой монтажа",sourceLabel:"пресс-материалы Blackmagic Design",sourceUrl:"https://www.businesswire.com/news/home/20210819005831/en/Blackmagic-Design-Announces-DaVinci-Resolve-17.3"},
-  finalCut:{src:"/images/academy/final-cut-pro.webp",width:1304,height:1022,alt:"Экран Final Cut Pro со списком файлов, просмотром и лентой монтажа",sourceLabel:"руководство Apple Support",sourceUrl:"https://support.apple.com/guide/final-cut-pro/final-cut-pro-interface-ver92bd100a/mac"},
+  premiere:{src:"/images/academy/premiere-pro.webp",width:1000,height:563,alt:"Рабочий экран Adobe Premiere Pro с файлами, просмотром и несколькими дорожками монтажа",sourceLabel:"сторонняя учебная статья",sourceUrl:"https://www.capcut.com/pt-br/resource/adobe-premiere-pro-tutorial",readiness:"blocked",checkedAt:"17.09.2026",versionNote:"Материал не принадлежит Adobe и не используется как готовая инструкция."},
+  davinci:{src:"/images/academy/davinci-resolve.webp",width:1600,height:886,alt:"Экран монтажа DaVinci Resolve со списком файлов, просмотром, настройками и лентой монтажа",sourceLabel:"пресс-материалы Blackmagic Design",sourceUrl:"https://www.businesswire.com/news/home/20210819005831/en/Blackmagic-Design-Announces-DaVinci-Resolve-17.3",checkedAt:"17.09.2026",versionNote:"Кадр относится к Resolve 17.3; текущая версия 21, поэтому это только ориентир."},
+  finalCut:{src:"/images/academy/final-cut-pro.webp",width:1304,height:1022,alt:"Экран Final Cut Pro со списком файлов, просмотром и лентой монтажа",sourceLabel:"руководство Apple Support",sourceUrl:"https://support.apple.com/guide/final-cut-pro/final-cut-pro-interface-ver92bd100a/mac",checkedAt:"17.09.2026",versionNote:"Официальный справочный кадр; расположение кнопки шага нужно подтвердить на используемом Mac."},
   canva:{src:"/images/academy/canva-video.webp",width:1492,height:986,alt:"Видеоредактор Canva с библиотекой материалов, окном просмотра и сценами",sourceLabel:"официальная страница Canva Video",sourceUrl:"https://www.canva.com/video-editor/"},
-  afterEffects:{src:"/images/academy/after-effects.webp",width:1600,height:947,alt:"Окно Adobe After Effects с файлами, сценой, слоями и лентой времени",sourceLabel:"снимок экрана After Effects",sourceUrl:"https://dev.to/kocreative/after-effects-the-basics-915"}
+  afterEffects:{src:"/images/academy/after-effects.webp",width:1600,height:947,alt:"Окно Adobe After Effects с файлами, сценой, слоями и лентой времени",sourceLabel:"сторонний вводный материал",sourceUrl:"https://dev.to/kocreative/after-effects-the-basics-915",readiness:"blocked",checkedAt:"17.09.2026",versionNote:"Право на повторную публикацию и актуальность интерфейса не подтверждены."}
 } satisfies Record<string,InterfaceShot>;
 
 const theoryStages:Record<string,string[]>={
@@ -94,11 +97,11 @@ function interfaceShot(lesson:Lesson,focus:Focus):InterfaceShot|null{
   if(software==="capcut"||software.includes("capcut /"))return interfaceShots.capcutDesktop;
   if(software==="vn")return interfaceShots.vn;
   if(software==="inshot")return interfaceShots.inshot;
-  if(software.includes("after effects"))return interfaceShots.afterEffects;
+  if(software.includes("after effects"))return interfaceShots.afterEffects.readiness==="blocked"?null:interfaceShots.afterEffects;
   if(software.includes("final cut"))return interfaceShots.finalCut;
   if(software.includes("canva"))return interfaceShots.canva;
   if(software.includes("davinci"))return interfaceShots.davinci;
-  if(software.includes("premiere"))return interfaceShots.premiere;
+  if(software.includes("premiere"))return interfaceShots.premiere.readiness==="blocked"?null:interfaceShots.premiere;
   return null;
 }
 
@@ -125,12 +128,12 @@ export default function LessonVisual({lesson}:{lesson:Lesson}){
   }
 
   if(shot)return <figure className={"lesson-visual lesson-real-interface "+(shot.mobile?"real-mobile-interface":"real-desktop-interface")}>
-    <div className="lesson-visual-head"><span>РЕАЛЬНЫЙ ИНТЕРФЕЙС · {lesson.software}</span><b>{lesson.title}</b></div>
+    <div className="lesson-visual-head"><span>СПРАВОЧНЫЙ КАДР · НЕ ПОШАГОВЫЙ СКРИНШОТ · {lesson.software}</span><b>{lesson.title}</b></div>
     <div className="lesson-real-interface-frame">
       <button type="button" className="lesson-image-zoom" onClick={()=>setExpanded(true)} aria-label="Открыть изображение интерфейса крупно"><Image src={shot.src} width={shot.width} height={shot.height} sizes={shot.mobile?"(max-width: 720px) 78vw, 330px":"(max-width: 900px) 92vw, 760px"} alt={shot.alt}/><span>Увеличить ↗</span></button>
       <span className="lesson-interface-focus"><small>СЕЙЧАС ИЩЕМ</small><b>{focusLabel(focus,ui)}</b></span>
     </div>
-    <figcaption><b>Смотри на отмеченную зону:</b> весь остальной экран можно изучить позже. Нажми на изображение, чтобы открыть его крупно. В новой версии кнопка может немного сдвинуться. <a href={shot.sourceUrl} target="_blank" rel="noreferrer">Источник: {shot.sourceLabel} ↗</a></figcaption>
+    <figcaption><b>Только для знакомства с общей структурой.</b> Этот кадр не подтверждает точное положение кнопки в вашей версии. {shot.versionNote||"Перед выполнением шага сверяй экран с установленной программой."} {shot.checkedAt?`Проверено ${shot.checkedAt}. `:""}<a href={shot.sourceUrl} target="_blank" rel="noreferrer">Источник: {shot.sourceLabel} ↗</a></figcaption>
     {expanded?<div className="lesson-image-modal" role="dialog" aria-modal="true" aria-label="Увеличенное изображение интерфейса" onClick={()=>setExpanded(false)}><button autoFocus type="button" aria-label="Закрыть" onClick={()=>setExpanded(false)}>×</button><Image src={shot.src} width={shot.width} height={shot.height} sizes="96vw" alt={shot.alt}/></div>:null}
   </figure>;
 

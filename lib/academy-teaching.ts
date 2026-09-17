@@ -23,7 +23,7 @@ export function normalizeOperatingSystem(value:unknown,editor?:AcademyEditor):Op
   return String(value||"").toLocaleLowerCase("ru-RU").includes("mac")?"macOS":"Windows";
 }
 
-type ActionKey=
+export type ActionKey=
   |"setup"|"organize"|"import"|"timeline"|"split"|"reorder"|"ratio"|"export"
   |"captions"|"audio"|"story"|"broll"|"transitions"|"color"|"keyframes"
   |"overlay"|"speed"|"mask"|"chroma"|"multicam"|"repair"|"client";
@@ -71,6 +71,33 @@ const ui:Record<AcademyEditor,EditorUi>={
   },
 };
 
+export const academyEditorReferences:Record<AcademyEditor,{label:string;url:string;checkedAt:string;versionNote:string}>={
+  "CapCut Desktop":{
+    label:"Официальное руководство CapCut для компьютера",
+    url:"https://www.capcut.com/resource/capcut-tutorial-for-beginners",
+    checkedAt:"17.09.2026",
+    versionNote:"CapCut не указывает номер версии в руководстве; расположение элементов нужно подтвердить снимком установленной версии.",
+  },
+  "Adobe Premiere Pro":{
+    label:"Официальные уроки Adobe Premiere",
+    url:"https://www.adobe.com/learn/premiere-pro",
+    checkedAt:"17.09.2026",
+    versionNote:"Adobe обновляет уроки без единого номера интерфейса; снимок нужно делать в фактически установленной версии.",
+  },
+  "DaVinci Resolve":{
+    label:"Официальное обучение Blackmagic Design",
+    url:"https://www.blackmagicdesign.com/products/davinciresolve/training",
+    checkedAt:"17.09.2026",
+    versionNote:"На странице доступен DaVinci Resolve 21, а часть официальных учебников пока относится к Resolve 20.",
+  },
+  "Final Cut Pro":{
+    label:"Актуальное руководство Apple Final Cut Pro",
+    url:"https://support.apple.com/guide/final-cut-pro/welcome/mac",
+    checkedAt:"17.09.2026",
+    versionNote:"Руководство Apple обновляется вместе с программой; точный экран всё равно нужно подтвердить на используемом Mac.",
+  },
+};
+
 const actionBySlug:Record<string,ActionKey>={
   "start-without-fear":"story","what-is-editing":"story","first-10k-path":"client","editor-words":"timeline","first-reel-plan":"setup",
   "capcut-install":"setup","capcut-new-project":"import","capcut-timeline":"timeline","capcut-first-split":"split","capcut-reorder":"reorder",
@@ -84,7 +111,7 @@ const actionBySlug:Record<string,ActionKey>={
   "client-brief":"client","pricing":"client","revision-system":"client","portfolio":"client","analytics":"client","style-first-orders":"client","final-project":"client",
 };
 
-function actionFor(lesson:Lesson):ActionKey{
+export function actionFor(lesson:Lesson):ActionKey{
   return actionBySlug[lesson.slug]||(!lesson.theoryOnly?"timeline":"story");
 }
 
@@ -216,6 +243,7 @@ export function lessonTeachingPlan(lesson:Lesson){
         ?"Шаблон брифа, текст задания или один свой завершённый проект."
         :"3–5 коротких исходников, отдельная папка проекта и 1–2 ГБ свободного места.";
   return {
+    action,
     purpose:lesson.summary,
     prerequisite:lesson.theoryOnly?"Специальные знания не нужны.":"Открыт проект, исходники скопированы в отдельную папку, предыдущий урок завершён.",
     result,
@@ -233,7 +261,6 @@ export function lessonTeachingPlan(lesson:Lesson){
       "0:20–0:35 — повторить действие крупнее, проговорить проверку и типичную ошибку.",
       "0:35–0:45 — показать готовый результат и дать самостоятельное задание.",
     ],
-    visualBrief:`[НУЖЕН СКРИНШОТ: выбранный редактор, актуальная версия; урок «${lesson.title}»; общий интерфейс + крупный план инструмента для действия «${action}»; подписать путь до кнопки, показать состояние до и после; без выдуманных элементов интерфейса.]`,
     before:lesson.mistakes[0]||"Результат не проверен",
     after:result,
   };

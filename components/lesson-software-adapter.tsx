@@ -4,6 +4,7 @@ import Link from "next/link";
 import {useEffect,useMemo,useState} from "react";
 import {getFreshAccessToken} from "@/lib/supabase-browser";
 import type {Lesson} from "@/lib/curriculum";
+import LessonActionVisuals from "@/components/lesson-action-visuals";
 import {
   academyEditorOptions,
   editorInstruction,
@@ -52,6 +53,16 @@ export default function LessonSoftwareAdapter({lesson}:{lesson:Lesson}){
       {guide.steps.map((step,index)=><article key={step}><span>{index+1}</span><p>{step}</p></article>)}
     </div>
 
+    <LessonActionVisuals
+      lesson={lesson}
+      editor={editor}
+      operatingSystem={operatingSystem}
+      action={guide.action}
+      steps={guide.steps}
+      before={plan.before}
+      after={plan.after}
+    />
+
     <div className="editor-workbench-grid">
       <section className="editor-tool-map">
         <div className="eyebrow">ОДИН НАВЫК · ЧЕТЫРЕ ПРОГРАММЫ</div>
@@ -61,10 +72,14 @@ export default function LessonSoftwareAdapter({lesson}:{lesson:Lesson}){
       </section>
 
       <aside className="lesson-visual-production">
-        <div className="eyebrow">ВИЗУАЛЫ ДЛЯ УРОКА</div>
-        <h3>Точный кадр интерфейса</h3>
-        <p className="technical-visual-marker">{plan.visualBrief.replace("выбранный редактор",editor)}</p>
-        <small>До добавления проверенного скриншота показываем техническую метку, а не выдуманный интерфейс.</small>
+        <div className="eyebrow">СТАТУС МАТЕРИАЛА</div>
+        <h3>Что уже готово</h3>
+        <ul className="visual-material-status">
+          <li><span>✓</span><p><b>Схема принципа</b><small>Показывает действие, состояние до и правильный результат.</small></p></li>
+          <li><span>✓</span><p><b>Названия инструментов</b><small>Адаптированы под {editor} и {operatingSystem}.</small></p></li>
+          <li className="pending"><span>!</span><p><b>Снимки интерфейса</b><small>Требуют реального кадра из установленной программы.</small></p></li>
+        </ul>
+        <small>Мы не заменяем отсутствующий снимок нейросетевой имитацией интерфейса.</small>
       </aside>
     </div>
 
