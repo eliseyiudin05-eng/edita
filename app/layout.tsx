@@ -81,7 +81,10 @@ export const metadata: Metadata = {
     images:["/images/kivronix-search-card.png"],
   },
   icons:{icon:"/icon.png",apple:"/apple-icon.png"},
-  verification:{yandex:"189ef5499fda2b5d"},
+  verification:{
+    google:"ZLKhQUkAlr1PwVmsfQL6_Bx3IFIBvbbIjZHSaZh26uI",
+    yandex:"189ef5499fda2b5d",
+  },
   appleWebApp:{capable:true,title:"KIVRONIX",statusBarStyle:"black-translucent"},
   robots:{index:true,follow:true,googleBot:{index:true,follow:true}},
 };
