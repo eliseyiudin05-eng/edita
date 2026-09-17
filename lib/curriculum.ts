@@ -483,6 +483,13 @@ export const curriculumModules=Array.from(new Set(curriculum.map((lesson)=>lesso
   lessons:curriculum.filter((lesson)=>lesson.module===module)
 }));
 
+export const finalAssessmentIndex=curriculumModules.length;
+
+export type AcademyStep=
+  |{kind:"lesson";lesson:Lesson}
+  |{kind:"assessment";moduleIndex:number;label:string;final:boolean}
+  |{kind:"complete"};
+
 export type LessonAccess={
   unlocked:boolean;
   reason:"available"|"completed"|"sequence"|"assessment"|"before-start"|"missing";
@@ -522,6 +529,42 @@ export function nextAvailableLesson(completedSlugs:string[],passedAssessments:nu
   });
 }
 
+export function assessmentAvailable(moduleIndex:number,completedSlugs:string[],passedAssessments:number[],level:unknown){
+  const normalizedLevel=normalizeExperienceLevel(level);
+  if(moduleIndex<0||moduleIndex>finalAssessmentIndex||passedAssessments.includes(moduleIndex))return false;
+  if(normalizedLevel==="pro")return true;
+  const startIndex=learningStartIndex(level);
+  const startModuleIndex=Math.max(0,curriculumModules.findIndex(group=>group.lessons.some(item=>item.slug===curriculum[startIndex]?.slug)));
+  if(moduleIndex<startModuleIndex)return false;
+  if(moduleIndex===finalAssessmentIndex){
+    return curriculum.slice(startIndex).every(item=>completedSlugs.includes(item.slug))
+      &&Array.from({length:finalAssessmentIndex-startModuleIndex},(_,offset)=>startModuleIndex+offset).every(index=>passedAssessments.includes(index));
+  }
+  const required=assessmentRequiredLessons(moduleIndex,level);
+  return required.length>0&&required.every(item=>completedSlugs.includes(item.slug))
+    &&Array.from({length:moduleIndex-startModuleIndex},(_,offset)=>startModuleIndex+offset).every(index=>passedAssessments.includes(index));
+}
+
+export function nextAcademyStep(completedSlugs:string[],passedAssessments:number[],level:unknown):AcademyStep{
+  const normalizedLevel=normalizeExperienceLevel(level);
+  if(normalizedLevel!=="pro"){
+    const startIndex=learningStartIndex(level);
+    const startModuleIndex=Math.max(0,curriculumModules.findIndex(group=>group.lessons.some(item=>item.slug===curriculum[startIndex]?.slug)));
+    for(let moduleIndex=startModuleIndex;moduleIndex<curriculumModules.length;moduleIndex++){
+      if(assessmentAvailable(moduleIndex,completedSlugs,passedAssessments,level)){
+        return {kind:"assessment",moduleIndex,label:`Аттестация ступени ${moduleIndex+1}`,final:false};
+      }
+      const lesson=curriculumModules[moduleIndex].lessons.find(item=>!completedSlugs.includes(item.slug)&&lessonAccess(item.slug,completedSlugs,passedAssessments,level).unlocked);
+      if(lesson)return {kind:"lesson",lesson};
+    }
+  }else{
+    const lesson=nextAvailableLesson(completedSlugs,passedAssessments,level);
+    if(lesson)return {kind:"lesson",lesson};
+  }
+  if(assessmentAvailable(finalAssessmentIndex,completedSlugs,passedAssessments,level))return {kind:"assessment",moduleIndex:finalAssessmentIndex,label:"Выпускной экзамен",final:true};
+  return {kind:"complete"};
+}
+
 export function assessmentRequiredLessons(moduleIndex:number,level:unknown){
   const group=curriculumModules[moduleIndex];
   if(!group)return [];
@@ -542,3 +585,5 @@ export const curriculumStats={
   assignments:curriculum.filter(lesson=>!lesson.theoryOnly).length,
   theory:curriculum.filter(lesson=>lesson.theoryOnly).length
 };
+
+export const curriculumExperience=curriculum.reduce((total,lesson)=>total+lesson.xp,0);
